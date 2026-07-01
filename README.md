@@ -12,18 +12,49 @@ En construcción — Fase 0 (Fundaciones).
 
 - [Next.js](https://nextjs.org) (App Router) + TypeScript
 - [Tailwind CSS](https://tailwindcss.com)
-- Base de datos y autenticación: se incorporan en PRs posteriores de Fase 0.
+- [Prisma](https://www.prisma.io) + Postgres (pensado para [Supabase](https://supabase.com), pero funciona con cualquier Postgres)
+- Autenticación: se incorpora en un PR posterior de Fase 0.
 
 ## Correr el proyecto localmente
 
-Requiere Node.js 20+.
+Requiere Node.js 20+ y una base de datos Postgres accesible (local o Supabase).
 
-```bash
-npm install
-npm run dev
-```
+1. Instalar dependencias:
 
-Abrir [http://localhost:3000](http://localhost:3000).
+   ```bash
+   npm install
+   ```
+
+   Esto también genera el cliente de Prisma automáticamente (`postinstall`).
+
+2. Configurar la base de datos:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Completar `DATABASE_URL` en `.env` con la cadena de conexión a tu Postgres.
+
+   - **Supabase**: Project Settings → Database → Connection string.
+   - **Postgres local**: `postgresql://usuario:password@localhost:5432/liga_sc?schema=public`.
+
+3. Levantar el servidor de desarrollo:
+
+   ```bash
+   npm run dev
+   ```
+
+   Abrir [http://localhost:3000](http://localhost:3000).
+
+4. Verificar la conexión a la base de datos:
+
+   ```bash
+   curl http://localhost:3000/api/health
+   ```
+
+   Devuelve `{"status":"ok"}` si la conexión es correcta, o un mensaje de error claro si falta `DATABASE_URL` o la base no es accesible.
+
+> Nota: en esta etapa (PR 0.2) todavía no existen tablas de negocio (clubes, jugadores, etc.). El healthcheck solo valida que la app puede comunicarse con la base de datos. El schema completo se incorpora en el PR 0.3.
 
 ## Scripts
 
@@ -35,3 +66,9 @@ Abrir [http://localhost:3000](http://localhost:3000).
 ## Deploy
 
 El proyecto está preparado para desplegarse en [Vercel](https://vercel.com) sin configuración adicional (framework detectado automáticamente).
+
+Variables de entorno requeridas en Vercel (Project Settings → Environment Variables):
+
+- `DATABASE_URL` — cadena de conexión a la base de datos de staging/producción.
+
+El comando `postinstall` (`prisma generate`) corre automáticamente durante el build de Vercel, no requiere pasos manuales adicionales.
