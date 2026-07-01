@@ -1,7 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Schema de datos del MVP de Liga SC.
+// Diseñado para una única liga (sin multi-tenant) — ver documento de producto.
 
 generator client {
   provider = "prisma-client"
@@ -10,4 +8,230 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Usuarios (Admin / Mesa)
+// ---------------------------------------------------------------------------
+
+enum Rol {
+  ADMIN
+  MESA
+}
+
+model Usuario {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  rol          Rol
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  partidosOperados   Partido[]         @relation("PartidoMesaOperador")
+  eventosAnulados    MatchEvent[]      @relation("MatchEventAnuladoPor")
+  informesArbitrales InformeArbitral[] @relation("InformeArbitralCreadoPor")
+
+  @@map("usuarios")
+}
+
+// ---------------------------------------------------------------------------
+// Clubes y jugadores
+// ---------------------------------------------------------------------------
+
+model Club {
+  id        String   @id @default(cuid())
+  nombre    String   @unique
+  escudoUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jugadores             Jugador[]
+  partidosComoLocal     Partido[]        @relation("PartidoClubLocal")
+  partidosComoVisitante Partido[]        @relation("PartidoClubVisitante")
+  rosterPartidos        PartidoJugador[]
+  eventosDeEquipo       MatchEvent[]
+
+  @@map("clubes")
+}
+
+model Jugador {
+  id             String   @id @default(cuid())
+  clubId         String
+  nombre         String
+  numeroCamiseta Int
+  fotoUrl        String?
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  club           Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  rosterPartidos PartidoJugador[]
+  eventos        MatchEvent[]
+  actasComoMvp   Acta[]
+
+  @@unique([clubId, numeroCamiseta])
+  @@index([clubId])
+  @@map("jugadores")
+}
+
+// ---------------------------------------------------------------------------
+// Jornadas y partidos
+// ---------------------------------------------------------------------------
+
+model Jornada {
+  id        String   @id @default(cuid())
+  numero    Int      @unique
+  fecha     DateTime
+  nombre    String?
+  createdAt DateTime @default(now())
+
+  partidos Partido[]
+
+  @@map("jornadas")
+}
+
+enum EstadoPartido {
+  PROGRAMADO
+  CONFIRMADO
+  EN_CURSO
+  FINALIZADO
+}
+
+model Partido {
+  id                    String        @id @default(cuid())
+  jornadaId             String
+  clubLocalId           String
+  clubVisitanteId       String
+  fechaHora             DateTime
+  cancha                String?
+  estado                EstadoPartido @default(PROGRAMADO)
+  cuartoActual          Int           @default(0)
+  duracionCuartoMinutos Int           @default(10)
+  mesaOperadorId        String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  jornada         Jornada          @relation(fields: [jornadaId], references: [id], onDelete: Restrict)
+  clubLocal       Club             @relation("PartidoClubLocal", fields: [clubLocalId], references: [id], onDelete: Restrict)
+  clubVisitante   Club             @relation("PartidoClubVisitante", fields: [clubVisitanteId], references: [id], onDelete: Restrict)
+  mesaOperador    Usuario?         @relation("PartidoMesaOperador", fields: [mesaOperadorId], references: [id], onDelete: SetNull)
+  roster          PartidoJugador[]
+  eventos         MatchEvent[]
+  acta            Acta?
+  informeArbitral InformeArbitral?
+
+  @@index([jornadaId])
+  @@map("partidos")
+}
+
+// Roster de un partido: jugadores presentes/titulares y su estado en cancha.
+model PartidoJugador {
+  id        String  @id @default(cuid())
+  partidoId String
+  jugadorId String
+  clubId    String
+  presente  Boolean @default(false)
+  titular   Boolean @default(false)
+  // Estado derivado a partir de los eventos de sustitución del partido,
+  // cacheado acá para que la Mesa pueda leer "quién está en cancha" sin recalcular.
+  enCancha  Boolean @default(false)
+
+  partido Partido @relation(fields: [partidoId], references: [id], onDelete: Cascade)
+  jugador Jugador @relation(fields: [jugadorId], references: [id], onDelete: Cascade)
+  club    Club    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([partidoId, jugadorId])
+  @@index([partidoId])
+  @@map("partido_jugadores")
+}
+
+// ---------------------------------------------------------------------------
+// Timeline del partido (event sourcing liviano)
+// ---------------------------------------------------------------------------
+
+enum TipoEvento {
+  PUNTO
+  FALTA
+  TIMEOUT
+  SUSTITUCION
+  POSESION
+  INICIO_CUARTO
+  FIN_CUARTO
+  FIN_PARTIDO
+}
+
+enum TipoFalta {
+  PERSONAL
+  TECNICA
+  ANTIDEPORTIVA
+  DESCALIFICANTE
+  EXPULSION_DIRECTA
+}
+
+// Append-only: los eventos no se borran, se anulan (soft) para permitir
+// que la Mesa corrija errores sin perder el registro auditable del partido.
+model MatchEvent {
+  id           String     @id @default(cuid())
+  partidoId    String
+  cuarto       Int
+  tipo         TipoEvento
+  // Jugador asociado al evento (punto, falta, jugador que sale en una sustitución).
+  jugadorId    String?
+  // Club asociado a eventos de equipo (timeout, posesión) o al jugador del evento.
+  clubId       String?
+  // Datos específicos del tipo de evento, ej:
+  //   PUNTO: { valor: 2 }
+  //   FALTA: { tipoFalta: "TECNICA" }
+  //   SUSTITUCION: { jugadorEntraId: "..." }
+  //   POSESION: { clubId: "..." }
+  detalle      Json?
+  anulado      Boolean    @default(false)
+  anuladoPorId String?
+  anuladoAt    DateTime?
+  createdAt    DateTime   @default(now())
+
+  partido    Partido  @relation(fields: [partidoId], references: [id], onDelete: Cascade)
+  jugador    Jugador? @relation(fields: [jugadorId], references: [id], onDelete: SetNull)
+  club       Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  anuladoPor Usuario? @relation("MatchEventAnuladoPor", fields: [anuladoPorId], references: [id], onDelete: SetNull)
+
+  @@index([partidoId])
+  @@map("match_events")
+}
+
+// ---------------------------------------------------------------------------
+// Acta e informe arbitral
+// ---------------------------------------------------------------------------
+
+// Generada automáticamente a partir de los eventos al finalizar el partido.
+model Acta {
+  id                 String   @id @default(cuid())
+  partidoId          String   @unique
+  generadaAt         DateTime @default(now())
+  resultadoLocal     Int
+  resultadoVisitante Int
+  mvpJugadorId       String?
+  observacionesMesa  String?
+
+  partido    Partido  @relation(fields: [partidoId], references: [id], onDelete: Cascade)
+  mvpJugador Jugador? @relation(fields: [mvpJugadorId], references: [id], onDelete: SetNull)
+
+  @@map("actas")
+}
+
+// Se completa solo si corresponde (expulsión, incidente, reclamo, etc.).
+model InformeArbitral {
+  id          String   @id @default(cuid())
+  partidoId   String   @unique
+  requerido   Boolean  @default(false)
+  texto       String?
+  creadoPorId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  partido   Partido  @relation(fields: [partidoId], references: [id], onDelete: Cascade)
+  creadoPor Usuario? @relation("InformeArbitralCreadoPor", fields: [creadoPorId], references: [id], onDelete: SetNull)
+
+  @@map("informes_arbitrales")
 }
