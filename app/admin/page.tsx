@@ -1,9 +1,10 @@
+import { PlaceholderSection } from "@/components/placeholder-section";
+
 export default function AdminHome() {
   return (
-    <div className="flex flex-1 items-center justify-center">
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        Admin — próximamente.
-      </p>
-    </div>
+    <PlaceholderSection
+      title="Panel de Admin"
+      description="Acá vas a poder cargar clubes, jugadores y el fixture, confirmar partidos y revisar actas. Se implementa en Fase 1."
+    />
   );
 }
