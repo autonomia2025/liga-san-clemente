@@ -6,7 +6,7 @@ Ver el documento de producto y el plan de PRs por fase en la conversación del p
 
 ## Estado del proyecto
 
-En construcción — Fase 0 (Fundaciones).
+Fase 0 (Fundaciones) completa en código. Pendiente la validación real con un proyecto Supabase — ver el checklist más abajo antes de avanzar a Fase 1.
 
 ## Stack
 
@@ -48,7 +48,15 @@ Requiere Node.js 20+ y una base de datos Postgres accesible (local o Supabase).
 
    Para desarrollo, si vas a modificar el schema más adelante, usá `npx prisma migrate dev` en su lugar (crea nuevas migraciones a partir de los cambios).
 
-4. Levantar el servidor de desarrollo:
+4. Cargar datos mínimos de prueba (seed):
+
+   ```bash
+   npm run seed
+   ```
+
+   Crea 2 clubes de prueba, algunos jugadores por club, 1 jornada y 1 partido programado. Es seguro correrlo varias veces: usa upsert sobre las claves únicas del schema y no duplica el partido si ya existe. **No son datos reales de la liga** — eso se carga en Fase 1 vía importación.
+
+5. Levantar el servidor de desarrollo:
 
    ```bash
    npm run dev
@@ -56,7 +64,7 @@ Requiere Node.js 20+ y una base de datos Postgres accesible (local o Supabase).
 
    Abrir [http://localhost:3000](http://localhost:3000).
 
-5. Verificar la conexión a la base de datos:
+6. Verificar la conexión a la base de datos:
 
    ```bash
    curl http://localhost:3000/api/health
@@ -81,6 +89,23 @@ Todavía no existe una UI para gestionar usuarios (eso es PR 1.7 — Fase 1). Ha
 
 4. Ya podés loguearte en [http://localhost:3000/login](http://localhost:3000/login) con ese email y password. Te redirige a `/admin` o `/mesa` según el rol.
 
+## ⚠️ Checklist obligatorio antes de cerrar Fase 0
+
+Todo el código de Fase 0 (PR 0.1 a 0.6) fue validado con `lint`, `build` y, donde fue posible, en runtime — pero **nunca se probó contra un proyecto Supabase real** (no había uno disponible en el entorno de desarrollo). Antes de dar por cerrada la Fase 0 y pasar a Fase 1, hay que correr esta validación manual una vez con un proyecto Supabase real (puede ser el mismo de staging):
+
+- [ ] Aplicar migraciones: `npx prisma migrate deploy`.
+- [ ] Correr el seed: `npm run seed`.
+- [ ] Verificar el healthcheck: `curl <url>/api/health` devuelve `{"status":"ok"}`.
+- [ ] Crear un usuario admin (pasos de la sección anterior) e iniciar sesión en `/login`.
+- [ ] Confirmar que entra a `/admin` correctamente.
+- [ ] Confirmar que ese usuario admin **no puede** entrar a `/mesa` (debe redirigir a `/`).
+- [ ] Crear un usuario mesa e iniciar sesión.
+- [ ] Confirmar que entra a `/mesa` correctamente.
+- [ ] Confirmar que ese usuario mesa **no puede** entrar a `/admin` (debe redirigir a `/`).
+- [ ] Cerrar sesión y confirmar que vuelve a pedir login al intentar entrar a `/admin` o `/mesa`.
+
+Si algo de esto falla, es un bug de Fase 0 a resolver antes de Fase 1, no una tarea nueva.
+
 ## Modelo de datos
 
 El schema completo (`prisma/schema.prisma`) vive en `prisma/` y cubre el MVP: usuarios (admin/mesa), clubes, jugadores, jornadas, partidos, roster de partido, eventos del partido (timeline), acta e informe arbitral. No incluye estadísticas no registradas por la Mesa (tiros de campo, rebotes, asistencias, etc.) ni modelado multi-liga.
@@ -91,6 +116,7 @@ El schema completo (`prisma/schema.prisma`) vive en `prisma/` y cubre el MVP: us
 - `npm run build` — build de producción.
 - `npm run start` — sirve el build de producción.
 - `npm run lint` — linting.
+- `npm run seed` — carga datos mínimos de prueba (ver "Correr el proyecto localmente").
 
 ## Deploy
 
