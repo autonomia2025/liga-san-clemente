@@ -16,8 +16,8 @@ CREATE TYPE "TipoFalta" AS ENUM ('PERSONAL', 'TECNICA', 'ANTIDEPORTIVA', 'DESCAL
 -- CreateTable
 CREATE TABLE "usuarios" (
     "id" TEXT NOT NULL,
+    "supabaseUserId" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "passwordHash" TEXT NOT NULL,
     "rol" "Rol" NOT NULL,
     "activo" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -135,6 +135,9 @@ CREATE TABLE "informes_arbitrales" (
 
     CONSTRAINT "informes_arbitrales_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "usuarios_supabaseUserId_key" ON "usuarios"("supabaseUserId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "usuarios_email_key" ON "usuarios"("email");

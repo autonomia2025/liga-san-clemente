@@ -19,14 +19,17 @@ enum Rol {
   MESA
 }
 
+// Perfil interno de la app, vinculado 1:1 al usuario de Supabase Auth.
+// Supabase Auth es la fuente de verdad para email/password/sesión/seguridad;
+// esta tabla solo guarda el rol y el estado dentro de la liga.
 model Usuario {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  rol          Rol
-  activo       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(cuid())
+  supabaseUserId String   @unique
+  email          String   @unique
+  rol            Rol
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   partidosOperados   Partido[]         @relation("PartidoMesaOperador")
   eventosAnulados    MatchEvent[]      @relation("MatchEventAnuladoPor")
@@ -133,8 +136,9 @@ model PartidoJugador {
   clubId    String
   presente  Boolean @default(false)
   titular   Boolean @default(false)
-  // Estado derivado a partir de los eventos de sustitución del partido,
-  // cacheado acá para que la Mesa pueda leer "quién está en cancha" sin recalcular.
+  // Cache operativo para que la UI de Mesa lea rápido "quién está en cancha".
+  // NO es la fuente de verdad: ante cualquier duda o reconstrucción del partido,
+  // la fuente de verdad son los eventos SUSTITUCION en MatchEvent.
   enCancha  Boolean @default(false)
 
   partido Partido @relation(fields: [partidoId], references: [id], onDelete: Cascade)
