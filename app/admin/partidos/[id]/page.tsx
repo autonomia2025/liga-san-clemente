@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { estadoPartidoBadge } from "@/lib/estado-partido";
+import { Badge } from "@/components/ui/badge";
 import { confirmarPartido } from "./actions";
 
 export default async function PartidoDetallePage({
@@ -38,41 +39,38 @@ export default async function PartidoDetallePage({
     <div className="flex flex-1 flex-col gap-4">
       <Link
         href={`/admin/jornadas/${partido.jornadaId}`}
-        className="text-sm text-muted hover:text-foreground"
+        className="w-fit text-sm text-muted transition-colors hover:text-foreground"
       >
         ← Jornada {partido.jornada.numero}
       </Link>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-6">
-        <span className={`w-fit rounded-full px-2 py-0.5 text-xs ${badge.className}`}>
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface p-6 sm:p-8">
+        <Badge tone={badge.tone} live={badge.live}>
           {badge.label}
-        </span>
+        </Badge>
 
-        <div className="flex items-center justify-between">
-          <span className="text-lg font-semibold text-foreground">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <span className="max-w-[9rem] truncate text-right text-sm font-medium text-muted sm:max-w-none sm:text-base">
             {partido.clubLocal.nombre}
           </span>
-          <span className="text-lg font-semibold text-foreground">
+          <span className="text-3xl font-extrabold tracking-tight text-foreground tabular-nums sm:text-5xl">
             {partido.acta ? partido.acta.resultadoLocal : "—"}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-lg font-semibold text-foreground">
-            {partido.clubVisitante.nombre}
-          </span>
-          <span className="text-lg font-semibold text-foreground">
+            <span className="px-2 text-muted">-</span>
             {partido.acta ? partido.acta.resultadoVisitante : "—"}
+          </span>
+          <span className="max-w-[9rem] truncate text-sm font-medium text-muted sm:max-w-none sm:text-base">
+            {partido.clubVisitante.nombre}
           </span>
         </div>
 
         {partido.acta?.mvpJugador && (
-          <p className="text-sm text-muted">MVP: {partido.acta.mvpJugador.nombre}</p>
+          <Badge tone="accent-orange">MVP · {partido.acta.mvpJugador.nombre}</Badge>
         )}
       </div>
 
       <div className="flex max-w-md flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        {ok && <p className="text-sm text-green-400">Partido confirmado.</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
+        {ok && <p className="text-sm text-success">Partido confirmado.</p>}
 
         {partido.estado === "PROGRAMADO" && (
           <form action={confirmarPartido} className="flex flex-col gap-2">
@@ -82,7 +80,7 @@ export default async function PartidoDetallePage({
             </p>
             <button
               type="submit"
-              className="w-fit rounded-md bg-accent-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              className="w-fit rounded-md bg-accent-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90 active:scale-95"
             >
               Confirmar partido para Mesa
             </button>
@@ -95,35 +93,41 @@ export default async function PartidoDetallePage({
       </div>
 
       {partido.jugadorStats.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border p-6">
+        <div className="flex flex-1 animate-fade-in items-center justify-center rounded-lg border border-dashed border-border p-6">
           <p className="text-center text-sm text-muted">
             Sin estadísticas cargadas para este partido todavía.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
-            <h2 className="text-sm font-semibold text-foreground">
-              {partido.clubLocal.nombre}
-            </h2>
-            {statsLocal.map((s) => (
-              <div key={s.id} className="flex items-center justify-between text-sm">
-                <span className="text-muted">{s.jugador.nombre}</span>
-                <span className="text-foreground">{s.puntos} pts</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
-            <h2 className="text-sm font-semibold text-foreground">
-              {partido.clubVisitante.nombre}
-            </h2>
-            {statsVisitante.map((s) => (
-              <div key={s.id} className="flex items-center justify-between text-sm">
-                <span className="text-muted">{s.jugador.nombre}</span>
-                <span className="text-foreground">{s.puntos} pts</span>
-              </div>
-            ))}
-          </div>
+          {[
+            { club: partido.clubLocal, stats: statsLocal },
+            { club: partido.clubVisitante, stats: statsVisitante },
+          ].map(({ club, stats }) => (
+            <div
+              key={club.id}
+              className="flex flex-col gap-1 overflow-hidden rounded-lg border border-border"
+            >
+              <h2 className="bg-surface-hover px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+                {club.nombre}
+              </h2>
+              <table className="w-full text-sm">
+                <tbody>
+                  {stats.map((s, i) => (
+                    <tr key={s.id} className={i % 2 === 1 ? "bg-surface-hover/60" : ""}>
+                      <td className="py-1.5 pl-3 text-foreground">
+                        {s.jugador.numeroCamiseta !== null ? `#${s.jugador.numeroCamiseta} ` : ""}
+                        {s.jugador.nombre}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right font-medium text-accent-blue">
+                        {s.puntos} pts
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
         </div>
       )}
     </div>

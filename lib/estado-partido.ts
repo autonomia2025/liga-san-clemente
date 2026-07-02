@@ -1,18 +1,20 @@
 import type { EstadoPartido } from "@/generated/prisma/client";
+import type { BadgeTone } from "@/components/ui/badge";
 
 export function estadoPartidoBadge(estado: EstadoPartido): {
   label: string;
-  className: string;
+  tone: BadgeTone;
+  live: boolean;
 } {
   switch (estado) {
     case "FINALIZADO":
-      return { label: "Finalizado", className: "bg-green-500/15 text-green-400" };
+      return { label: "Finalizado", tone: "success", live: false };
     case "EN_CURSO":
-      return { label: "En curso", className: "bg-accent-orange/20 text-accent-orange" };
+      return { label: "En curso", tone: "accent-orange", live: true };
     case "CONFIRMADO":
-      return { label: "Confirmado", className: "bg-accent-blue/20 text-accent-blue" };
+      return { label: "Confirmado", tone: "accent-blue", live: false };
     case "PROGRAMADO":
     default:
-      return { label: "Programado", className: "bg-zinc-500/20 text-muted" };
+      return { label: "Programado", tone: "neutral", live: false };
   }
 }

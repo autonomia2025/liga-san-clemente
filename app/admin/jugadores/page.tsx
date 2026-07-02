@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { isValidRutFormat, maskRut } from "@/lib/rut";
+import { Badge } from "@/components/ui/badge";
 
 export default async function JugadoresPage({
   searchParams,
@@ -41,14 +42,12 @@ export default async function JugadoresPage({
         {clubes.map((c) => (
           <div
             key={c.id}
-            className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs"
+            className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs transition-colors hover:border-accent-blue/40"
           >
             <span className="text-foreground">{c.nombre}</span>
             <span className="text-muted">{c._count.jugadores} jug.</span>
             {(sinDorsalMap.get(c.id) ?? 0) > 0 && (
-              <span className="rounded-full bg-accent-orange/20 px-2 py-0.5 text-accent-orange">
-                {sinDorsalMap.get(c.id)} sin dorsal
-              </span>
+              <Badge tone="accent-orange">{sinDorsalMap.get(c.id)} sin dorsal</Badge>
             )}
           </div>
         ))}
@@ -84,7 +83,7 @@ export default async function JugadoresPage({
 
         <button
           type="submit"
-          className="rounded-md bg-accent-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="rounded-md bg-accent-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90 active:scale-95"
         >
           Filtrar
         </button>
@@ -95,43 +94,35 @@ export default async function JugadoresPage({
         )}
       </form>
 
-      <div className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface">
+      <div className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
         {jugadores.map((j) => {
           const rutStatus = !j.rut
-            ? { label: "Sin RUT", className: "bg-zinc-500/20 text-muted" }
+            ? { label: "Sin RUT", tone: "neutral" as const }
             : isValidRutFormat(j.rut)
-              ? { label: `RUT ${maskRut(j.rut)}`, className: "bg-green-500/15 text-green-400" }
-              : { label: `RUT ${maskRut(j.rut)} (formato)`, className: "bg-red-500/15 text-red-400" };
+              ? { label: `RUT ${maskRut(j.rut)}`, tone: "success" as const }
+              : { label: `RUT ${maskRut(j.rut)} (formato)`, tone: "danger" as const };
 
           return (
             <Link
               key={j.id}
               href={`/admin/jugadores/${j.id}`}
-              className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 hover:bg-surface-hover"
+              className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 transition-colors hover:bg-surface-hover"
             >
               <div className="flex flex-col">
                 <span className="font-medium text-foreground">{j.nombre}</span>
                 <span className="text-xs text-muted">{j.club.nombre}</span>
               </div>
               <div className="flex items-center gap-2">
-                {j.numeroCamiseta !== null ? (
-                  <span className="rounded-full bg-accent-blue/20 px-2 py-0.5 text-xs text-accent-blue">
-                    #{j.numeroCamiseta}
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-accent-orange/20 px-2 py-0.5 text-xs text-accent-orange">
-                    Sin dorsal
-                  </span>
-                )}
-                <span className={`rounded-full px-2 py-0.5 text-xs ${rutStatus.className}`}>
-                  {rutStatus.label}
-                </span>
+                <Badge tone={j.numeroCamiseta !== null ? "accent-blue" : "accent-orange"}>
+                  {j.numeroCamiseta !== null ? `#${j.numeroCamiseta}` : "Sin dorsal"}
+                </Badge>
+                <Badge tone={rutStatus.tone}>{rutStatus.label}</Badge>
               </div>
             </Link>
           );
         })}
         {jugadores.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-muted">
+          <p className="animate-fade-in px-4 py-6 text-center text-sm text-muted">
             No hay jugadores que coincidan con el filtro.
           </p>
         )}

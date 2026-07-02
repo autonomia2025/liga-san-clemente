@@ -34,15 +34,21 @@ export default async function ClubesPage() {
               className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 transition-transform duration-150 hover:-translate-y-0.5 hover:border-accent-blue/40 hover:bg-surface-hover"
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-md bg-accent-blue text-sm font-bold text-white">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-blue text-sm font-bold text-white ring-1 ring-accent-blue/40">
                   {club.nombre.slice(0, 2).toUpperCase()}
                 </span>
-                <span className="font-medium text-foreground">{club.nombre}</span>
+                <span className="min-w-0 truncate font-medium text-foreground">{club.nombre}</span>
               </div>
-              <div className="flex gap-4 text-sm text-muted">
-                <span>{club._count.jugadores} jugadores</span>
-                <span>{club._count.staff} staff</span>
-                <span>{partidos} partidos</span>
+              <div className="flex flex-wrap gap-1.5 text-xs text-muted">
+                <span className="rounded-full bg-zinc-500/20 px-2 py-0.5">
+                  {club._count.jugadores} jugadores
+                </span>
+                <span className="rounded-full bg-zinc-500/20 px-2 py-0.5">
+                  {club._count.staff} staff
+                </span>
+                <span className="rounded-full bg-zinc-500/20 px-2 py-0.5">
+                  {partidos} partidos
+                </span>
               </div>
             </Link>
           );

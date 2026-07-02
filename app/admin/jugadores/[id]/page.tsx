@@ -29,11 +29,13 @@ export default async function JugadorDetallePage({
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <Link href="/admin/jugadores" className="text-sm text-muted hover:text-foreground">
+      <Link href="/admin/jugadores" className="w-fit text-sm text-muted transition-colors hover:text-foreground">
         ← Jugadores
       </Link>
 
-      <div className="max-w-md rounded-lg border border-border bg-surface p-4 text-sm text-muted">
+      <h1 className="text-xl font-semibold text-foreground">{jugador.nombre}</h1>
+
+      <div className="max-w-md rounded-lg border border-dashed border-border p-4 text-sm text-muted">
         {rutStatus}
         <br />
         RUT no editable desde acá — se corrige en el Excel origen y se vuelve a importar.
@@ -43,10 +45,10 @@ export default async function JugadorDetallePage({
         action={updateJugador}
         className="flex max-w-md flex-col gap-4 rounded-lg border border-border bg-surface p-6"
       >
-        <h1 className="text-lg font-semibold text-foreground">Editar jugador</h1>
+        <h2 className="text-lg font-semibold text-foreground">Editar jugador</h2>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        {ok && <p className="text-sm text-green-400">Jugador actualizado.</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
+        {ok && <p className="text-sm text-success">Jugador actualizado.</p>}
 
         <input type="hidden" name="jugadorId" value={jugador.id} />
 
@@ -105,7 +107,7 @@ export default async function JugadorDetallePage({
 
         <button
           type="submit"
-          className="rounded-md bg-accent-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="rounded-md bg-accent-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90 active:scale-95"
         >
           Guardar
         </button>
