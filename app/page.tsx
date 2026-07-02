@@ -5,7 +5,6 @@ import { getStandings, type StandingRow } from "@/lib/public/standings";
 import { getTopScorers, type TopScorerRow } from "@/lib/public/rankings";
 import {
   getHeroData,
-  getProximaJornada,
   getPartidosEnVivo,
   getUltimosResultados,
   getEquipos,
@@ -13,7 +12,6 @@ import {
   getResumenEditorial,
   getProximasJornadas,
   type PartidoResumen,
-  type JornadaConPartidos,
 } from "@/lib/public/home-data";
 
 // La landing depende de datos en vivo (partido EN_CURSO, próxima jornada,
@@ -445,10 +443,12 @@ function ResumenEditorialSection({
 }
 
 export default async function Home() {
-  const [heroData, jornadaProxima, partidosEnVivo, ultimosResultados, standings, topScorers, equipos, mvps, resumen, proximasJornadas] =
+  // getHeroData() ya resuelve internamente si hay próxima jornada (llama a
+  // getProximaJornada() cuando corresponde) — no se vuelve a pedir acá para
+  // no duplicar esa misma query por cada carga de la landing.
+  const [heroData, partidosEnVivo, ultimosResultados, standings, topScorers, equipos, mvps, resumen, proximasJornadas] =
     await Promise.all([
       getHeroData(),
-      getProximaJornada(),
       getPartidosEnVivo(),
       getUltimosResultados(6),
       getStandings(),
@@ -462,7 +462,9 @@ export default async function Home() {
   const partidosDestacados: PartidoResumen[] =
     partidosEnVivo.length > 0
       ? partidosEnVivo
-      : (jornadaProxima as JornadaConPartidos | null)?.partidos ?? [];
+      : heroData.tipo === "PROXIMA_JORNADA"
+        ? heroData.jornada.partidos
+        : [];
 
   return (
     <div className="flex flex-1 flex-col">
