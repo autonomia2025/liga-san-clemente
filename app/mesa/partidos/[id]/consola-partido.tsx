@@ -11,27 +11,22 @@ function iniciales(nombre: string): string {
 
 function JugadorCanchaCard({ jugador }: { jugador: JugadorSlot }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-lg border border-border bg-surface p-4">
-      <span className="text-3xl font-bold text-foreground">
+    <div className="flex flex-col items-center gap-0.5 rounded-lg border border-border bg-surface px-2 py-3">
+      <span className="text-2xl font-bold text-foreground">
         {jugador.numeroCamiseta !== null ? `#${jugador.numeroCamiseta}` : iniciales(jugador.nombre)}
       </span>
-      <span className="text-center text-xs text-muted">{jugador.nombre}</span>
+      <span className="line-clamp-1 text-center text-[11px] text-muted">{jugador.nombre}</span>
     </div>
   );
 }
 
-function JugadorBancaCard({ jugador }: { jugador: JugadorSlot }) {
+function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface px-3 py-2">
-      <span className="text-sm text-foreground">{jugador.nombre}</span>
-      <div className="flex items-center gap-2">
-        {jugador.numeroCamiseta !== null && (
-          <span className="rounded-full bg-accent-blue/20 px-2 py-0.5 text-xs text-accent-blue">
-            #{jugador.numeroCamiseta}
-          </span>
-        )}
-        <span className="rounded-full bg-zinc-500/20 px-2 py-0.5 text-xs text-muted">Banca</span>
-      </div>
+    <div className="flex items-center gap-1.5 rounded-full border border-border bg-surface py-1 pl-1 pr-2.5">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-500/20 text-[11px] font-semibold text-muted">
+        {jugador.numeroCamiseta !== null ? `#${jugador.numeroCamiseta}` : iniciales(jugador.nombre)}
+      </span>
+      <span className="max-w-[9rem] truncate text-xs text-foreground">{jugador.nombre}</span>
     </div>
   );
 }
@@ -63,15 +58,22 @@ export function ConsolaPartido({
   bancaVisitante: JugadorSlot[];
 }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-5">
+    <div className="flex flex-col gap-3">
+      {/* Scoreboard: pieza principal de la pantalla, sticky para no perderla al scrollear. */}
+      <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-lg border border-border bg-surface/95 p-4 shadow-lg backdrop-blur">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-base font-medium text-foreground">{clubLocalNombre}</span>
-          <span className="text-3xl font-bold text-foreground">0 - 0</span>
-          <span className="text-base font-medium text-foreground">{clubVisitanteNombre}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground sm:text-base">
+            {clubLocalNombre}
+          </span>
+          <span className="shrink-0 text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+            0&nbsp;-&nbsp;0
+          </span>
+          <span className="min-w-0 flex-1 truncate text-right text-sm font-medium text-foreground sm:text-base">
+            {clubVisitanteNombre}
+          </span>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted">
-          <span className="rounded-full bg-accent-orange/20 px-2 py-1 text-accent-orange">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-muted">
+          <span className="rounded-full bg-accent-orange/20 px-2 py-1 font-semibold text-accent-orange">
             Q1
           </span>
           <span className="rounded-full bg-zinc-500/20 px-2 py-1">Posesión: sin asignar</span>
@@ -80,68 +82,73 @@ export function ConsolaPartido({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-foreground">{clubLocalNombre} — Cancha</h3>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {/* Cancha */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+            {clubLocalNombre} — Cancha
+          </h3>
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
             {canchaLocal.map((j) => (
               <JugadorCanchaCard key={j.id} jugador={j} />
             ))}
           </div>
           {canchaLocal.length === 0 && (
-            <p className="text-sm text-muted">Sin jugadores en cancha todavía.</p>
+            <p className="text-xs text-muted">Sin jugadores en cancha todavía.</p>
           )}
         </div>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-foreground">
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
             {clubVisitanteNombre} — Cancha
           </h3>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
             {canchaVisitante.map((j) => (
               <JugadorCanchaCard key={j.id} jugador={j} />
             ))}
           </div>
           {canchaVisitante.length === 0 && (
-            <p className="text-sm text-muted">Sin jugadores en cancha todavía.</p>
+            <p className="text-xs text-muted">Sin jugadores en cancha todavía.</p>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-foreground">{clubLocalNombre} — Banca</h3>
-          <div className="flex flex-col gap-1">
+      {/* Banca: chips compactos en vez de lista vertical alta. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+            {clubLocalNombre} — Banca
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
             {bancaLocal.map((j) => (
-              <JugadorBancaCard key={j.id} jugador={j} />
+              <JugadorBancaChip key={j.id} jugador={j} />
             ))}
-            {bancaLocal.length === 0 && <p className="text-sm text-muted">Sin jugadores en banca.</p>}
+            {bancaLocal.length === 0 && <p className="text-xs text-muted">Sin banca.</p>}
           </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-foreground">
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
             {clubVisitanteNombre} — Banca
           </h3>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {bancaVisitante.map((j) => (
-              <JugadorBancaCard key={j.id} jugador={j} />
+              <JugadorBancaChip key={j.id} jugador={j} />
             ))}
-            {bancaVisitante.length === 0 && (
-              <p className="text-sm text-muted">Sin jugadores en banca.</p>
-            )}
+            {bancaVisitante.length === 0 && <p className="text-xs text-muted">Sin banca.</p>}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-4">
-        <p className="text-xs text-muted">Registro del partido — próximamente</p>
-        <div className="flex flex-wrap gap-2">
+      {/* Acciones placeholder */}
+      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3">
+        <p className="text-[11px] text-muted">Registro del partido — próximamente</p>
+        <div className="flex flex-wrap gap-1.5">
           {ACCIONES_PLACEHOLDER.map((accion) => (
             <button
               key={accion}
               type="button"
               disabled
               title="Próximamente"
-              className="cursor-not-allowed rounded-md border border-border px-3 py-2 text-xs text-muted opacity-50"
+              className="cursor-not-allowed rounded-md border border-border px-2.5 py-1.5 text-xs text-muted opacity-50"
             >
               {accion}
             </button>

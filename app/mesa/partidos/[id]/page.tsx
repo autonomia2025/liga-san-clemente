@@ -94,21 +94,26 @@ export default async function MesaPartidoPage({
     !sinConvocados &&
     (titularesLocalInicial.length !== 5 || titularesVisitanteInicial.length !== 5);
 
-  return (
-    <div className="flex flex-1 flex-col gap-4">
-      <span className="w-fit rounded-full bg-accent-orange/20 px-2 py-0.5 text-xs text-accent-orange">
-        Jornada {partido!.jornada.numero} — En curso
-      </span>
+  const consolaLista = !sinConvocados && !faltanTitulares;
 
-      <div className="flex items-center justify-between text-lg font-medium text-foreground">
-        <span>{partido!.clubLocal.nombre}</span>
-        <span className="text-sm text-muted">vs</span>
-        <span>{partido!.clubVisitante.nombre}</span>
+  return (
+    <div className="flex flex-1 flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="w-fit rounded-full bg-accent-orange/20 px-2 py-0.5 text-xs text-accent-orange">
+          Jornada {partido!.jornada.numero} — En curso
+        </span>
+        <span className="text-xs text-muted">
+          Operador: {partido!.mesaOperador?.email ?? "—"}
+        </span>
       </div>
 
-      <p className="text-sm text-muted">
-        Operador: {partido!.mesaOperador?.email ?? "—"}
-      </p>
+      {!consolaLista && (
+        <div className="flex items-center justify-between text-lg font-medium text-foreground">
+          <span>{partido!.clubLocal.nombre}</span>
+          <span className="text-sm text-muted">vs</span>
+          <span>{partido!.clubVisitante.nombre}</span>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
       {ok === "convocados" && <p className="text-sm text-green-400">Convocados guardados.</p>}
@@ -124,7 +129,7 @@ export default async function MesaPartidoPage({
           Ahora selecciona titulares (5 por equipo) para poder armar la cancha.
         </div>
       )}
-      {!sinConvocados && !faltanTitulares && (
+      {consolaLista && (
         <ConsolaPartido
           clubLocalNombre={partido!.clubLocal.nombre}
           clubVisitanteNombre={partido!.clubVisitante.nombre}
@@ -135,31 +140,39 @@ export default async function MesaPartidoPage({
         />
       )}
 
-      <h2 className="text-sm font-semibold text-foreground">Convocados (máximo 12 por equipo)</h2>
+      <details className="rounded-lg border border-border bg-surface" open={!consolaLista}>
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
+          Editar convocados (máximo 12 por equipo)
+        </summary>
+        <div className="px-4 pb-4">
+          <ConvocadosForm
+            partidoId={partido!.id}
+            clubLocalNombre={partido!.clubLocal.nombre}
+            clubVisitanteNombre={partido!.clubVisitante.nombre}
+            jugadoresLocal={jugadoresLocal}
+            jugadoresVisitante={jugadoresVisitante}
+            seleccionadosLocalInicial={seleccionadosLocalInicial}
+            seleccionadosVisitanteInicial={seleccionadosVisitanteInicial}
+          />
+        </div>
+      </details>
 
-      <ConvocadosForm
-        partidoId={partido!.id}
-        clubLocalNombre={partido!.clubLocal.nombre}
-        clubVisitanteNombre={partido!.clubVisitante.nombre}
-        jugadoresLocal={jugadoresLocal}
-        jugadoresVisitante={jugadoresVisitante}
-        seleccionadosLocalInicial={seleccionadosLocalInicial}
-        seleccionadosVisitanteInicial={seleccionadosVisitanteInicial}
-      />
-
-      <h2 className="text-sm font-semibold text-foreground">
-        Titulares (5 por equipo, entre los convocados)
-      </h2>
-
-      <TitularesForm
-        partidoId={partido!.id}
-        clubLocalNombre={partido!.clubLocal.nombre}
-        clubVisitanteNombre={partido!.clubVisitante.nombre}
-        convocadosLocal={convocadosLocal}
-        convocadosVisitante={convocadosVisitante}
-        titularesLocalInicial={titularesLocalInicial}
-        titularesVisitanteInicial={titularesVisitanteInicial}
-      />
+      <details className="rounded-lg border border-border bg-surface" open={!sinConvocados && !consolaLista}>
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
+          Editar titulares (5 por equipo, entre los convocados)
+        </summary>
+        <div className="px-4 pb-4">
+          <TitularesForm
+            partidoId={partido!.id}
+            clubLocalNombre={partido!.clubLocal.nombre}
+            clubVisitanteNombre={partido!.clubVisitante.nombre}
+            convocadosLocal={convocadosLocal}
+            convocadosVisitante={convocadosVisitante}
+            titularesLocalInicial={titularesLocalInicial}
+            titularesVisitanteInicial={titularesVisitanteInicial}
+          />
+        </div>
+      </details>
     </div>
   );
 }
