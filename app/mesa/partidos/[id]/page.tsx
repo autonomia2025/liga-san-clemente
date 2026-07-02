@@ -172,18 +172,40 @@ export default async function MesaPartidoPage({
         </div>
       )}
       {partidoFinalizado && (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-surface p-6">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-            {acta ? "Resultado oficial" : "Marcador final"}
-          </span>
-          <div className="flex items-center gap-3 text-2xl font-extrabold text-foreground">
-            <span>{partido!.clubLocal.nombre}</span>
-            <span>
+        <div className="flex animate-fade-in flex-col items-center gap-4 rounded-xl border border-border bg-surface p-6 sm:p-8">
+          <div className="flex items-center gap-2">
+            <span
+              className={`flex h-7 w-7 items-center justify-center rounded-full ${
+                acta ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
+              }`}
+            >
+              {acta ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M12 3l9 16H3z" />
+                </svg>
+              )}
+            </span>
+            <Badge tone={acta ? "success" : "warning"}>
+              {acta ? "Acta oficial" : "Acta pendiente"}
+            </Badge>
+          </div>
+
+          <div className="flex items-center gap-4 sm:gap-6">
+            <span className="max-w-[8rem] truncate text-right text-sm font-medium text-muted sm:max-w-none sm:text-base">
+              {partido!.clubLocal.nombre}
+            </span>
+            <span className="text-4xl font-extrabold tracking-tight text-foreground tabular-nums sm:text-6xl">
               {acta ? acta.resultadoLocal : liveState.marcadorLocal}
-              &nbsp;-&nbsp;
+              <span className="px-2 text-muted">-</span>
               {acta ? acta.resultadoVisitante : liveState.marcadorVisitante}
             </span>
-            <span>{partido!.clubVisitante.nombre}</span>
+            <span className="max-w-[8rem] truncate text-sm font-medium text-muted sm:max-w-none sm:text-base">
+              {partido!.clubVisitante.nombre}
+            </span>
           </div>
 
           {!acta && (
@@ -195,7 +217,7 @@ export default async function MesaPartidoPage({
                 <input type="hidden" name="partidoId" value={partido!.id} />
                 <button
                   type="submit"
-                  className="rounded-full bg-accent-blue px-4 py-1.5 text-[11px] font-semibold text-white hover:opacity-90"
+                  className="rounded-full bg-accent-blue px-5 py-2 text-sm font-semibold text-white hover:opacity-90 active:scale-95"
                 >
                   Generar Acta
                 </button>
@@ -204,36 +226,39 @@ export default async function MesaPartidoPage({
           )}
 
           {acta && (
-            <>
-              <p className="text-sm text-green-400">Acta generada.</p>
-              <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
-                {[partido!.clubLocalId, partido!.clubVisitanteId].map((clubId) => (
-                  <div key={clubId} className="flex flex-col gap-1">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-                      {clubId === partido!.clubLocalId
-                        ? partido!.clubLocal.nombre
-                        : partido!.clubVisitante.nombre}
-                    </h3>
-                    <table className="w-full text-xs">
-                      <tbody>
-                        {boxscore
-                          .filter((s) => s.clubId === clubId)
-                          .map((s) => (
-                            <tr key={s.jugadorId} className="border-b border-border/50">
-                              <td className="py-1 text-foreground">
-                                {s.jugador.numeroCamiseta !== null ? `#${s.jugador.numeroCamiseta} ` : ""}
-                                {s.jugador.nombre}
-                              </td>
-                              <td className="py-1 text-right text-accent-blue">{s.puntos} pts</td>
-                              <td className="py-1 text-right text-accent-orange">{s.faltas ?? 0} f</td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
-              </div>
-            </>
+            <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+              {[partido!.clubLocalId, partido!.clubVisitanteId].map((clubId) => (
+                <div
+                  key={clubId}
+                  className="flex flex-col gap-1 overflow-hidden rounded-lg border border-border"
+                >
+                  <h3 className="bg-surface-hover px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+                    {clubId === partido!.clubLocalId
+                      ? partido!.clubLocal.nombre
+                      : partido!.clubVisitante.nombre}
+                  </h3>
+                  <table className="w-full text-xs">
+                    <tbody>
+                      {boxscore
+                        .filter((s) => s.clubId === clubId)
+                        .map((s, i) => (
+                          <tr
+                            key={s.jugadorId}
+                            className={i % 2 === 1 ? "bg-surface-hover/60" : ""}
+                          >
+                            <td className="py-1.5 pl-3 text-foreground">
+                              {s.jugador.numeroCamiseta !== null ? `#${s.jugador.numeroCamiseta} ` : ""}
+                              {s.jugador.nombre}
+                            </td>
+                            <td className="py-1.5 text-right text-accent-blue">{s.puntos} pts</td>
+                            <td className="py-1.5 pr-3 text-right text-warning">{s.faltas ?? 0} f</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

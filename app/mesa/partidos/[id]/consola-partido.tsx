@@ -1,5 +1,6 @@
 import type { TipoFalta } from "@/generated/prisma/client";
 import type { LiveMatchState } from "@/lib/mesa/live-match-state";
+import { Badge } from "@/components/ui/badge";
 import {
   controlarCuarto,
   registrarPunto,
@@ -68,27 +69,27 @@ function describirUltimoEvento(
         evento.detalle && typeof evento.detalle === "object" && "valor" in evento.detalle
           ? (evento.detalle as { valor: unknown }).valor
           : "";
-      return `Último: +${valor} ${nombreJugador(evento.jugadorId)}`;
+      return `+${valor} ${nombreJugador(evento.jugadorId)}`;
     }
     case "FALTA": {
       const tipoFalta =
         evento.detalle && typeof evento.detalle === "object" && "tipoFalta" in evento.detalle
           ? (evento.detalle as { tipoFalta: unknown }).tipoFalta
           : null;
-      return `Último: Falta ${labelFalta(tipoFalta)} ${nombreJugador(evento.jugadorId)}`;
+      return `Falta ${labelFalta(tipoFalta)} — ${nombreJugador(evento.jugadorId)}`;
     }
     case "TIMEOUT":
-      return `Último: Timeout ${nombreClub(evento.clubId)}`;
+      return `Timeout ${nombreClub(evento.clubId)}`;
     case "POSESION":
-      return `Último: Posesión ${nombreClub(evento.clubId)}`;
+      return `Posesión ${nombreClub(evento.clubId)}`;
     case "SUSTITUCION":
-      return "Último: Sustitución";
+      return "Sustitución";
     case "INICIO_CUARTO":
-      return `Último: Inicio Q${evento.cuarto}`;
+      return `Inicio Q${evento.cuarto}`;
     case "FIN_CUARTO":
-      return `Último: Fin Q${evento.cuarto}`;
+      return `Fin Q${evento.cuarto}`;
     default:
-      return "Último: evento";
+      return "Evento";
   }
 }
 
@@ -121,22 +122,28 @@ function JugadorCanchaCard({
   const badge = badgeFalta(tiposFalta);
 
   return (
-    <div className="flex flex-col items-center gap-0.5 rounded-lg border border-border bg-surface px-2 py-3">
-      <span className="text-2xl font-bold text-foreground">
+    <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface px-2 py-3 transition-colors hover:border-accent-blue/30">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-hover text-lg font-bold text-foreground ring-1 ring-border">
         {jugador.numeroCamiseta !== null ? `#${jugador.numeroCamiseta}` : iniciales(jugador.nombre)}
       </span>
-      <span className="line-clamp-1 text-center text-[11px] text-muted">{jugador.nombre}</span>
-      <div className="flex items-center gap-1">
-        <span className="text-[10px] font-semibold text-accent-blue">{puntos} pts</span>
-        <span className="text-[10px] font-semibold text-accent-orange">{faltas} f</span>
+      <span className="line-clamp-1 text-center text-[11px] font-medium text-muted">
+        {jugador.nombre}
+      </span>
+      <div className="flex flex-wrap items-center justify-center gap-1">
+        <span className="rounded-full bg-accent-blue/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent-blue">
+          {puntos} pts
+        </span>
+        <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+          {faltas} f
+        </span>
         {badge && (
-          <span className="rounded-full bg-red-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-red-400">
+          <span className="rounded-full bg-danger/15 px-1.5 py-0.5 text-[9px] font-semibold text-danger">
             {badge}
           </span>
         )}
       </div>
       {puedeAnotar && (
-        <div className="mt-1 flex flex-col items-center gap-1">
+        <div className="mt-1 flex w-full flex-col items-center gap-1">
           <div className="flex gap-1">
             {VALORES_PUNTO.map((valor) => (
               <form key={valor} action={registrarPunto}>
@@ -145,7 +152,7 @@ function JugadorCanchaCard({
                 <input type="hidden" name="valor" value={valor} />
                 <button
                   type="submit"
-                  className="rounded-md border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted hover:bg-accent-blue hover:text-white"
+                  className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95"
                 >
                   +{valor}
                 </button>
@@ -153,7 +160,7 @@ function JugadorCanchaCard({
             ))}
           </div>
           <details className="w-full">
-            <summary className="cursor-pointer select-none text-center text-[10px] font-semibold text-muted hover:text-accent-orange">
+            <summary className="cursor-pointer select-none rounded-md py-0.5 text-center text-[10px] font-semibold text-muted hover:text-accent-orange">
               Falta
             </summary>
             <div className="mt-1 flex flex-wrap justify-center gap-1">
@@ -164,7 +171,7 @@ function JugadorCanchaCard({
                   <input type="hidden" name="tipoFalta" value={t.valor} />
                   <button
                     type="submit"
-                    className="rounded-md border border-border px-1.5 py-0.5 text-[9px] font-semibold text-muted hover:bg-accent-orange hover:text-white"
+                    className="rounded-md border border-border px-1.5 py-0.5 text-[9px] font-semibold text-muted hover:bg-accent-orange hover:text-white active:scale-95"
                   >
                     {t.label}
                   </button>
@@ -174,7 +181,7 @@ function JugadorCanchaCard({
           </details>
           {banca.length > 0 && (
             <details className="w-full">
-              <summary className="cursor-pointer select-none text-center text-[10px] font-semibold text-muted hover:text-accent-blue">
+              <summary className="cursor-pointer select-none rounded-md py-0.5 text-center text-[10px] font-semibold text-muted hover:text-accent-blue">
                 Sustituir
               </summary>
               <form action={registrarSustitucion} className="mt-1 flex flex-col items-center gap-1">
@@ -193,7 +200,7 @@ function JugadorCanchaCard({
                 </select>
                 <button
                   type="submit"
-                  className="rounded-md border border-border px-1.5 py-0.5 text-[9px] font-semibold text-muted hover:bg-accent-blue hover:text-white"
+                  className="rounded-md border border-border px-1.5 py-0.5 text-[9px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95"
                 >
                   Confirmar entrada
                 </button>
@@ -208,8 +215,8 @@ function JugadorCanchaCard({
 
 function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
   return (
-    <div className="flex items-center gap-1.5 rounded-full border border-border bg-surface py-1 pl-1 pr-2.5">
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-500/20 text-[11px] font-semibold text-muted">
+    <div className="flex items-center gap-1.5 rounded-full border border-border bg-surface py-1 pl-1 pr-2.5 transition-colors hover:border-accent-blue/30 hover:bg-surface-hover">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-hover text-[11px] font-semibold text-muted ring-1 ring-border">
         {jugador.numeroCamiseta !== null ? `#${jugador.numeroCamiseta}` : iniciales(jugador.nombre)}
       </span>
       <span className="max-w-[9rem] truncate text-xs text-foreground">{jugador.nombre}</span>
@@ -237,7 +244,7 @@ function BotonTimeout({
       <button
         type="submit"
         disabled={disabled}
-        className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted hover:bg-accent-blue hover:text-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40"
       >
         {label} · TO {contador}
       </button>
@@ -265,7 +272,7 @@ function BotonPosesion({
       <button
         type="submit"
         disabled={disabled}
-        className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40 ${
+        className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold active:scale-95 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40 ${
           activa
             ? "border-accent-orange bg-accent-orange text-white"
             : "border-border text-muted hover:bg-accent-orange hover:text-white"
@@ -285,16 +292,18 @@ function BotonDeshacer({
   descripcion: string | null;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-muted">
-      <span>{descripcion ?? "Sin eventos para deshacer"}</span>
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-[11px] text-muted">
+      <span className="truncate">
+        Último: <span className="text-foreground">{descripcion ?? "sin eventos todavía"}</span>
+      </span>
       <form action={deshacerUltimoEvento}>
         <input type="hidden" name="partidoId" value={partidoId} />
         <button
           type="submit"
           disabled={!descripcion}
-          className="rounded-full border border-border px-2.5 py-1 font-semibold text-muted hover:bg-red-500/80 hover:text-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40"
+          className="shrink-0 rounded-full border border-border px-3 py-1 font-semibold text-muted hover:border-danger/60 hover:bg-danger/10 hover:text-danger active:scale-95 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Deshacer último
+          Deshacer
         </button>
       </form>
     </div>
@@ -310,9 +319,9 @@ function ControlCuarto({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-2">
-      <span className="rounded-full bg-accent-orange/20 px-2.5 py-1 text-[11px] font-semibold text-accent-orange">
+      <Badge tone="accent-orange" live={liveState.cuartoActivo !== null}>
         {liveState.mensajeCuartos}
-      </span>
+      </Badge>
       {liveState.proximaAccionCuarto && (
         <form action={controlarCuarto}>
           <input type="hidden" name="partidoId" value={partidoId} />
@@ -320,7 +329,7 @@ function ControlCuarto({
           <input type="hidden" name="cuarto" value={liveState.proximaAccionCuarto.cuarto} />
           <button
             type="submit"
-            className="rounded-full bg-accent-orange px-3 py-1 text-[11px] font-semibold text-white hover:opacity-90"
+            className="rounded-full bg-accent-orange px-4 py-1.5 text-[11px] font-semibold text-white hover:opacity-90 active:scale-95"
           >
             {liveState.proximaAccionCuarto.tipo === "iniciar"
               ? `Iniciar Q${liveState.proximaAccionCuarto.cuarto}`
@@ -352,11 +361,78 @@ function FinalizarPartido({
       <input type="hidden" name="partidoId" value={partidoId} />
       <button
         type="submit"
-        className="rounded-full bg-red-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-red-700"
+        className="rounded-full bg-danger px-4 py-1.5 text-[11px] font-semibold text-white hover:opacity-90 active:scale-95"
       >
         Finalizar partido ({liveState.marcadorLocal}&nbsp;-&nbsp;{liveState.marcadorVisitante})
       </button>
     </form>
+  );
+}
+
+function abrevClub(nombre: string): string {
+  return nombre.slice(0, 3).toUpperCase();
+}
+
+function PosesionDot({ activa }: { activa: boolean }) {
+  return (
+    <span
+      className={`h-2 w-2 shrink-0 rounded-full transition-all duration-300 ${
+        activa ? "scale-125 bg-accent-orange" : "bg-transparent"
+      }`}
+    />
+  );
+}
+
+function EquipoScoreboard({
+  nombre,
+  align,
+  posesionActiva,
+  faltasCuarto,
+  faltasTotal,
+  timeouts,
+}: {
+  nombre: string;
+  align: "left" | "right";
+  posesionActiva: boolean;
+  faltasCuarto: number;
+  faltasTotal: number;
+  timeouts: number;
+}) {
+  const filaNombre =
+    align === "left" ? (
+      <>
+        <PosesionDot activa={posesionActiva} />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[11px] font-bold text-foreground ring-1 ring-border">
+          {abrevClub(nombre)}
+        </span>
+        <span className="min-w-0 truncate text-sm font-medium text-foreground sm:text-base">
+          {nombre}
+        </span>
+      </>
+    ) : (
+      <>
+        <span className="min-w-0 truncate text-right text-sm font-medium text-foreground sm:text-base">
+          {nombre}
+        </span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[11px] font-bold text-foreground ring-1 ring-border">
+          {abrevClub(nombre)}
+        </span>
+        <PosesionDot activa={posesionActiva} />
+      </>
+    );
+
+  return (
+    <div className={`flex min-w-0 flex-1 flex-col gap-1 ${align === "right" ? "items-end" : "items-start"}`}>
+      <div className={`flex min-w-0 items-center gap-2 ${align === "right" ? "flex-row-reverse" : ""}`}>
+        {filaNombre}
+      </div>
+      <div className={`flex items-center gap-1.5 text-[10px] text-muted ${align === "right" ? "flex-row-reverse" : ""}`}>
+        <span className="rounded-full bg-warning/15 px-1.5 py-0.5 font-semibold text-warning">
+          {faltasCuarto} f (Q) · {faltasTotal} total
+        </span>
+        <span className="rounded-full bg-zinc-500/20 px-1.5 py-0.5 font-semibold">TO {timeouts}</span>
+      </div>
+    </div>
   );
 }
 
@@ -395,22 +471,44 @@ export function ConsolaPartido({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Scoreboard: pieza principal de la pantalla, sticky para no perderla al scrollear. */}
-      <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-lg border border-border bg-surface/95 p-4 shadow-lg backdrop-blur">
-        <div className="flex items-center justify-between gap-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground sm:text-base">
-            {clubLocalNombre}
-          </span>
-          <span className="shrink-0 text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+      {/* Scoreboard: protagonista de la pantalla, sticky para no perderla al scrollear. */}
+      <div className="sticky top-0 z-10 flex flex-col gap-3 rounded-xl border border-border bg-surface/95 p-4 shadow-lg backdrop-blur">
+        <div className="flex items-center justify-center">
+          <ControlCuarto partidoId={partidoId} liveState={liveState} />
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <EquipoScoreboard
+            nombre={clubLocalNombre}
+            align="left"
+            posesionActiva={liveState.posesionEquipo === "LOCAL"}
+            faltasCuarto={liveState.faltasEquipoLocalCuartoActual}
+            faltasTotal={liveState.faltasEquipoLocal}
+            timeouts={liveState.timeoutsLocal}
+          />
+          <span className="shrink-0 text-4xl font-extrabold tracking-tight text-foreground tabular-nums sm:text-5xl">
             {liveState.marcadorLocal}&nbsp;-&nbsp;{liveState.marcadorVisitante}
           </span>
-          <span className="min-w-0 flex-1 truncate text-right text-sm font-medium text-foreground sm:text-base">
-            {clubVisitanteNombre}
-          </span>
+          <EquipoScoreboard
+            nombre={clubVisitanteNombre}
+            align="right"
+            posesionActiva={liveState.posesionEquipo === "VISITANTE"}
+            faltasCuarto={liveState.faltasEquipoVisitanteCuartoActual}
+            faltasTotal={liveState.faltasEquipoVisitante}
+            timeouts={liveState.timeoutsVisitante}
+          />
         </div>
-        <ControlCuarto partidoId={partidoId} liveState={liveState} />
+      </div>
+
+      {/* Control central: agrupa cuarto/finalizar/timeouts/posesión/deshacer
+          en una sola zona, separada del scoreboard de solo lectura. */}
+      <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3">
+        <span className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted">
+          Control de partido
+        </span>
+
         <FinalizarPartido partidoId={partidoId} liveState={liveState} />
-        <BotonDeshacer partidoId={partidoId} descripcion={descripcionUltimoEvento} />
+
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           <BotonTimeout
             partidoId={partidoId}
@@ -443,21 +541,8 @@ export function ConsolaPartido({
             disabled={liveState.cuartoActivo === null}
           />
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-muted">
-          <span className="rounded-full bg-zinc-500/20 px-2 py-1">
-            {liveState.posesionEquipo === "LOCAL"
-              ? `Posesión: ${clubLocalNombre}`
-              : liveState.posesionEquipo === "VISITANTE"
-                ? `Posesión: ${clubVisitanteNombre}`
-                : "Posesión: sin asignar"}
-          </span>
-          <span className="rounded-full bg-zinc-500/20 px-2 py-1">
-            Faltas Local: {liveState.faltasEquipoLocalCuartoActual} (Q) / {liveState.faltasEquipoLocal} (total)
-          </span>
-          <span className="rounded-full bg-zinc-500/20 px-2 py-1">
-            Faltas Visita: {liveState.faltasEquipoVisitanteCuartoActual} (Q) / {liveState.faltasEquipoVisitante} (total)
-          </span>
-        </div>
+
+        <BotonDeshacer partidoId={partidoId} descripcion={descripcionUltimoEvento} />
       </div>
 
       {/* Cancha */}
