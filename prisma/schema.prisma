@@ -50,10 +50,12 @@ model Club {
   updatedAt DateTime @updatedAt
 
   jugadores             Jugador[]
-  partidosComoLocal     Partido[]        @relation("PartidoClubLocal")
-  partidosComoVisitante Partido[]        @relation("PartidoClubVisitante")
+  staff                 ClubStaff[]
+  partidosComoLocal     Partido[]            @relation("PartidoClubLocal")
+  partidosComoVisitante Partido[]            @relation("PartidoClubVisitante")
   rosterPartidos        PartidoJugador[]
   eventosDeEquipo       MatchEvent[]
+  jugadorPartidoStats   JugadorPartidoStat[]
 
   @@map("clubes")
 }
@@ -62,20 +64,50 @@ model Jugador {
   id             String   @id @default(cuid())
   clubId         String
   nombre         String
-  numeroCamiseta Int
+  // Nullable: el registro oficial de la liga no siempre trae dorsal asignado.
+  // No se debe inventar un número — se completa después (import parcial o Admin/Mesa).
+  numeroCamiseta Int?
+  rut            String?
   fotoUrl        String?
   activo         Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  club           Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  club           Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
   rosterPartidos PartidoJugador[]
   eventos        MatchEvent[]
   actasComoMvp   Acta[]
+  stats          JugadorPartidoStat[]
 
   @@unique([clubId, numeroCamiseta])
+  @@unique([clubId, rut])
   @@index([clubId])
   @@map("jugadores")
+}
+
+enum CargoStaff {
+  ENTRENADOR
+  AYUDANTE
+}
+
+// Cuerpo técnico de un club (entrenador/ayudantes). Sin UI todavía —
+// se importa desde el registro oficial para no perder el dato.
+model ClubStaff {
+  id        String     @id @default(cuid())
+  clubId    String
+  cargo     CargoStaff
+  nombres   String
+  apellidos String
+  rut       String?
+  activo    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, rut])
+  @@index([clubId])
+  @@map("club_staff")
 }
 
 // ---------------------------------------------------------------------------
@@ -115,14 +147,15 @@ model Partido {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  jornada         Jornada          @relation(fields: [jornadaId], references: [id], onDelete: Restrict)
-  clubLocal       Club             @relation("PartidoClubLocal", fields: [clubLocalId], references: [id], onDelete: Restrict)
-  clubVisitante   Club             @relation("PartidoClubVisitante", fields: [clubVisitanteId], references: [id], onDelete: Restrict)
-  mesaOperador    Usuario?         @relation("PartidoMesaOperador", fields: [mesaOperadorId], references: [id], onDelete: SetNull)
+  jornada         Jornada              @relation(fields: [jornadaId], references: [id], onDelete: Restrict)
+  clubLocal       Club                 @relation("PartidoClubLocal", fields: [clubLocalId], references: [id], onDelete: Restrict)
+  clubVisitante   Club                 @relation("PartidoClubVisitante", fields: [clubVisitanteId], references: [id], onDelete: Restrict)
+  mesaOperador    Usuario?             @relation("PartidoMesaOperador", fields: [mesaOperadorId], references: [id], onDelete: SetNull)
   roster          PartidoJugador[]
   eventos         MatchEvent[]
   acta            Acta?
   informeArbitral InformeArbitral?
+  jugadorStats    JugadorPartidoStat[]
 
   @@index([jornadaId])
   @@map("partidos")
@@ -202,6 +235,40 @@ model MatchEvent {
 
   @@index([partidoId])
   @@map("match_events")
+}
+
+enum OrigenStat {
+  // Cargado por Mesa en vivo y derivable desde MatchEvent (Fase 2 en adelante).
+  EVENTOS
+  // Cargado por una importación de datos históricos agregados (ej. Fecha 1),
+  // sin timeline — nunca se sintetizan MatchEvent falsos para representar esto.
+  IMPORTADO
+}
+
+// Box score agregado por jugador y partido. Existe como modelo separado de
+// MatchEvent para partidos sin timeline (datos históricos importados): permite
+// guardar "N puntos en este partido" sin inventar un evento que nunca ocurrió.
+// Para partidos operados en vivo por Mesa, el box score se deriva de MatchEvent
+// y no necesariamente necesita filas acá (a definir en Fase 3 — Acta).
+model JugadorPartidoStat {
+  id        String     @id @default(cuid())
+  partidoId String
+  jugadorId String
+  clubId    String
+  puntos    Int
+  // Null = dato no disponible en la fuente (ej. faltas no se registraron en el import de Fecha 1).
+  faltas    Int?
+  origen    OrigenStat
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  partido Partido @relation(fields: [partidoId], references: [id], onDelete: Cascade)
+  jugador Jugador @relation(fields: [jugadorId], references: [id], onDelete: Cascade)
+  club    Club    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([partidoId, jugadorId])
+  @@index([partidoId])
+  @@map("jugador_partido_stats")
 }
 
 // ---------------------------------------------------------------------------
