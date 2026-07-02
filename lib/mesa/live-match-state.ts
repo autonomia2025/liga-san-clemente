@@ -2,12 +2,13 @@
 // MatchEvent. La Mesa (componentes/actions) nunca debe calcular reglas de
 // partido directamente — todo pasa por acá.
 //
-// PR 3.1 resolvió cuartos. PR 3.2 suma marcador y puntos por jugador, ambos
-// derivados de eventos PUNTO — nunca se guarda un "marcador actual" en
-// Partido. Queda preparado para sumar en próximos PRs: faltas por jugador/
-// equipo, posesión, timeline visible. La cancha/banca en vivo sigue
-// viniendo de PartidoJugador.enCancha (PR 2.4/2.5), no de eventos.
-import type { MatchEvent, PartidoJugador } from "@/generated/prisma/client";
+// PR 3.1 resolvió cuartos. PR 3.2 sumó marcador y puntos por jugador. PR 3.3
+// suma faltas por jugador/equipo/cuarto, todas derivadas de eventos FALTA —
+// nunca se guardan faltas acumuladas en Partido ni en Jugador. Queda
+// preparado para sumar en próximos PRs: posesión, timeline visible. La
+// cancha/banca en vivo sigue viniendo de PartidoJugador.enCancha (PR 2.4/2.5),
+// no de eventos.
+import type { MatchEvent, PartidoJugador, TipoFalta } from "@/generated/prisma/client";
 
 const TOTAL_CUARTOS = 4;
 
@@ -28,6 +29,12 @@ export type LiveMatchState = {
   marcadorLocal: number;
   marcadorVisitante: number;
   puntosPorJugador: Map<string, number>;
+  faltasPorJugador: Map<string, number>;
+  faltasEquipoLocal: number;
+  faltasEquipoVisitante: number;
+  faltasEquipoLocalCuartoActual: number;
+  faltasEquipoVisitanteCuartoActual: number;
+  tiposFaltaPorJugador: Map<string, TipoFalta[]>;
 };
 
 type MatchEventLite = Pick<
@@ -109,6 +116,70 @@ function extraerValorPunto(detalle: MatchEvent["detalle"]): number {
   return 0;
 }
 
+function extraerTipoFalta(detalle: MatchEvent["detalle"]): TipoFalta | null {
+  if (
+    detalle &&
+    typeof detalle === "object" &&
+    !Array.isArray(detalle) &&
+    "tipoFalta" in detalle &&
+    typeof (detalle as { tipoFalta: unknown }).tipoFalta === "string"
+  ) {
+    return (detalle as { tipoFalta: TipoFalta }).tipoFalta;
+  }
+  return null;
+}
+
+function calcularFaltas(
+  vigentes: MatchEventLite[],
+  context: LiveMatchContext,
+  cuartoActivo: number | null,
+): Pick<
+  LiveMatchState,
+  | "faltasPorJugador"
+  | "faltasEquipoLocal"
+  | "faltasEquipoVisitante"
+  | "faltasEquipoLocalCuartoActual"
+  | "faltasEquipoVisitanteCuartoActual"
+  | "tiposFaltaPorJugador"
+> {
+  const faltasPorJugador = new Map<string, number>();
+  const tiposFaltaPorJugador = new Map<string, TipoFalta[]>();
+  let faltasEquipoLocal = 0;
+  let faltasEquipoVisitante = 0;
+  let faltasEquipoLocalCuartoActual = 0;
+  let faltasEquipoVisitanteCuartoActual = 0;
+
+  for (const e of vigentes) {
+    if (e.tipo !== "FALTA" || !e.jugadorId || !e.clubId) continue;
+    const tipoFalta = extraerTipoFalta(e.detalle);
+
+    faltasPorJugador.set(e.jugadorId, (faltasPorJugador.get(e.jugadorId) ?? 0) + 1);
+    if (tipoFalta) {
+      const tipos = tiposFaltaPorJugador.get(e.jugadorId) ?? [];
+      tipos.push(tipoFalta);
+      tiposFaltaPorJugador.set(e.jugadorId, tipos);
+    }
+
+    const esCuartoActual = cuartoActivo !== null && e.cuarto === cuartoActivo;
+    if (e.clubId === context.clubLocalId) {
+      faltasEquipoLocal += 1;
+      if (esCuartoActual) faltasEquipoLocalCuartoActual += 1;
+    } else if (e.clubId === context.clubVisitanteId) {
+      faltasEquipoVisitante += 1;
+      if (esCuartoActual) faltasEquipoVisitanteCuartoActual += 1;
+    }
+  }
+
+  return {
+    faltasPorJugador,
+    faltasEquipoLocal,
+    faltasEquipoVisitante,
+    faltasEquipoLocalCuartoActual,
+    faltasEquipoVisitanteCuartoActual,
+    tiposFaltaPorJugador,
+  };
+}
+
 function calcularMarcadorYPuntos(
   vigentes: MatchEventLite[],
   context: LiveMatchContext,
@@ -139,9 +210,11 @@ export function buildLiveMatchState(
   _partidoJugadores: Pick<PartidoJugador, "id">[] = [],
 ): LiveMatchState {
   const vigentes = events.filter((e) => !e.anulado);
+  const estadoCuartos = calcularEstadoCuartos(vigentes);
 
   return {
-    ...calcularEstadoCuartos(vigentes),
+    ...estadoCuartos,
     ...calcularMarcadorYPuntos(vigentes, context),
+    ...calcularFaltas(vigentes, context, estadoCuartos.cuartoActivo),
   };
 }

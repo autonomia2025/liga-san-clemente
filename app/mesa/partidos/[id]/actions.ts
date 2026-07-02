@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
-import { TipoEvento } from "@/generated/prisma/client";
+import { TipoEvento, TipoFalta } from "@/generated/prisma/client";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
 
 const MAX_CONVOCADOS = 12;
@@ -310,4 +310,75 @@ export async function registrarPunto(formData: FormData) {
   });
 
   redirect(`/mesa/partidos/${partidoId}?ok=punto`);
+}
+
+const TIPOS_FALTA_VALIDOS = Object.values(TipoFalta);
+
+export async function registrarFalta(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const jugadorId = String(formData.get("jugadorId") ?? "");
+  const tipoFalta = String(formData.get("tipoFalta") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    fail("Sesión inválida.");
+    return;
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    fail("Partido no encontrado.");
+    return;
+  }
+  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
+    fail("No podés registrar faltas en este partido.");
+    return;
+  }
+
+  if (!TIPOS_FALTA_VALIDOS.includes(tipoFalta as TipoFalta)) {
+    fail("Tipo de falta inválido.");
+    return;
+  }
+
+  // Solo un jugador enCancha=true (convocado y en cancha) puede recibir falta
+  // desde la consola principal — cubre banca y no-convocados con la misma
+  // verificación.
+  const partidoJugador = await prisma.partidoJugador.findUnique({
+    where: { partidoId_jugadorId: { partidoId, jugadorId } },
+  });
+  if (!partidoJugador || !partidoJugador.enCancha) {
+    fail("Solo se pueden registrar faltas a jugadores en cancha.");
+    return;
+  }
+
+  const eventos = await prisma.matchEvent.findMany({
+    where: { partidoId, anulado: false },
+    orderBy: { createdAt: "asc" },
+    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
+  });
+  const estado = buildLiveMatchState(eventos, {
+    clubLocalId: partido.clubLocalId,
+    clubVisitanteId: partido.clubVisitanteId,
+  });
+
+  if (estado.cuartoActivo === null) {
+    fail("No hay un cuarto activo — iniciá el cuarto antes de registrar faltas.");
+    return;
+  }
+
+  await prisma.matchEvent.create({
+    data: {
+      partidoId,
+      cuarto: estado.cuartoActivo,
+      tipo: TipoEvento.FALTA,
+      jugadorId,
+      clubId: partidoJugador.clubId,
+      detalle: { tipoFalta },
+    },
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=falta`);
 }

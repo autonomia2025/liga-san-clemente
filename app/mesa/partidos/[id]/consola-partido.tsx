@@ -1,9 +1,27 @@
+import type { TipoFalta } from "@/generated/prisma/client";
 import type { LiveMatchState } from "@/lib/mesa/live-match-state";
-import { controlarCuarto, registrarPunto } from "./actions";
+import { controlarCuarto, registrarPunto, registrarFalta } from "./actions";
 
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
 
 const VALORES_PUNTO = [1, 2, 3] as const;
+
+const TIPOS_FALTA: { valor: TipoFalta; label: string }[] = [
+  { valor: "PERSONAL", label: "Personal" },
+  { valor: "TECNICA", label: "Técnica" },
+  { valor: "ANTIDEPORTIVA", label: "Antideportiva" },
+  { valor: "DESCALIFICANTE", label: "Descalificante" },
+  { valor: "EXPULSION_DIRECTA", label: "Expulsión" },
+];
+
+// Badge visible solo para faltas graves — la personal es la esperable y no
+// necesita destacarse en la card, alcanza con el contador.
+const TIPOS_FALTA_BADGE = new Set<TipoFalta>(["TECNICA", "ANTIDEPORTIVA", "DESCALIFICANTE"]);
+
+function badgeFalta(tipos: TipoFalta[]): string | null {
+  const grave = tipos.find((t) => TIPOS_FALTA_BADGE.has(t));
+  return grave ? TIPOS_FALTA.find((t) => t.valor === grave)?.label ?? null : null;
+}
 
 function iniciales(nombre: string): string {
   return nombre
@@ -18,35 +36,71 @@ function JugadorCanchaCard({
   jugador,
   partidoId,
   puntos,
+  faltas,
+  tiposFalta,
   puedeAnotar,
 }: {
   jugador: JugadorSlot;
   partidoId: string;
   puntos: number;
+  faltas: number;
+  tiposFalta: TipoFalta[];
   puedeAnotar: boolean;
 }) {
+  const badge = badgeFalta(tiposFalta);
+
   return (
     <div className="flex flex-col items-center gap-0.5 rounded-lg border border-border bg-surface px-2 py-3">
       <span className="text-2xl font-bold text-foreground">
         {jugador.numeroCamiseta !== null ? `#${jugador.numeroCamiseta}` : iniciales(jugador.nombre)}
       </span>
       <span className="line-clamp-1 text-center text-[11px] text-muted">{jugador.nombre}</span>
-      <span className="text-[10px] font-semibold text-accent-blue">{puntos} pts</span>
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] font-semibold text-accent-blue">{puntos} pts</span>
+        <span className="text-[10px] font-semibold text-accent-orange">{faltas} f</span>
+        {badge && (
+          <span className="rounded-full bg-red-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-red-400">
+            {badge}
+          </span>
+        )}
+      </div>
       {puedeAnotar && (
-        <div className="mt-1 flex gap-1">
-          {VALORES_PUNTO.map((valor) => (
-            <form key={valor} action={registrarPunto}>
-              <input type="hidden" name="partidoId" value={partidoId} />
-              <input type="hidden" name="jugadorId" value={jugador.id} />
-              <input type="hidden" name="valor" value={valor} />
-              <button
-                type="submit"
-                className="rounded-md border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted hover:bg-accent-blue hover:text-white"
-              >
-                +{valor}
-              </button>
-            </form>
-          ))}
+        <div className="mt-1 flex flex-col items-center gap-1">
+          <div className="flex gap-1">
+            {VALORES_PUNTO.map((valor) => (
+              <form key={valor} action={registrarPunto}>
+                <input type="hidden" name="partidoId" value={partidoId} />
+                <input type="hidden" name="jugadorId" value={jugador.id} />
+                <input type="hidden" name="valor" value={valor} />
+                <button
+                  type="submit"
+                  className="rounded-md border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted hover:bg-accent-blue hover:text-white"
+                >
+                  +{valor}
+                </button>
+              </form>
+            ))}
+          </div>
+          <details className="w-full">
+            <summary className="cursor-pointer select-none text-center text-[10px] font-semibold text-muted hover:text-accent-orange">
+              Falta
+            </summary>
+            <div className="mt-1 flex flex-wrap justify-center gap-1">
+              {TIPOS_FALTA.map((t) => (
+                <form key={t.valor} action={registrarFalta}>
+                  <input type="hidden" name="partidoId" value={partidoId} />
+                  <input type="hidden" name="jugadorId" value={jugador.id} />
+                  <input type="hidden" name="tipoFalta" value={t.valor} />
+                  <button
+                    type="submit"
+                    className="rounded-md border border-border px-1.5 py-0.5 text-[9px] font-semibold text-muted hover:bg-accent-orange hover:text-white"
+                  >
+                    {t.label}
+                  </button>
+                </form>
+              ))}
+            </div>
+          </details>
         </div>
       )}
     </div>
@@ -64,7 +118,7 @@ function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
   );
 }
 
-const ACCIONES_PLACEHOLDER = ["Falta", "Sustitución", "Timeout", "Posesión"];
+const ACCIONES_PLACEHOLDER = ["Sustitución", "Timeout", "Posesión"];
 
 function ControlCuarto({
   partidoId,
@@ -134,8 +188,12 @@ export function ConsolaPartido({
         <ControlCuarto partidoId={partidoId} liveState={liveState} />
         <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-muted">
           <span className="rounded-full bg-zinc-500/20 px-2 py-1">Posesión: sin asignar</span>
-          <span className="rounded-full bg-zinc-500/20 px-2 py-1">Faltas Local: 0</span>
-          <span className="rounded-full bg-zinc-500/20 px-2 py-1">Faltas Visita: 0</span>
+          <span className="rounded-full bg-zinc-500/20 px-2 py-1">
+            Faltas Local: {liveState.faltasEquipoLocalCuartoActual} (Q) / {liveState.faltasEquipoLocal} (total)
+          </span>
+          <span className="rounded-full bg-zinc-500/20 px-2 py-1">
+            Faltas Visita: {liveState.faltasEquipoVisitanteCuartoActual} (Q) / {liveState.faltasEquipoVisitante} (total)
+          </span>
         </div>
       </div>
 
@@ -152,6 +210,8 @@ export function ConsolaPartido({
                 jugador={j}
                 partidoId={partidoId}
                 puntos={liveState.puntosPorJugador.get(j.id) ?? 0}
+                faltas={liveState.faltasPorJugador.get(j.id) ?? 0}
+                tiposFalta={liveState.tiposFaltaPorJugador.get(j.id) ?? []}
                 puedeAnotar={liveState.cuartoActivo !== null}
               />
             ))}
@@ -171,6 +231,8 @@ export function ConsolaPartido({
                 jugador={j}
                 partidoId={partidoId}
                 puntos={liveState.puntosPorJugador.get(j.id) ?? 0}
+                faltas={liveState.faltasPorJugador.get(j.id) ?? 0}
+                tiposFalta={liveState.tiposFaltaPorJugador.get(j.id) ?? []}
                 puedeAnotar={liveState.cuartoActivo !== null}
               />
             ))}
