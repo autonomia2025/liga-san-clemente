@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
+import { formatFechaCL } from "@/lib/fecha";
 
 export default async function FixturePage() {
   const jornadas = await prisma.jornada.findMany({
@@ -43,9 +44,7 @@ export default async function FixturePage() {
                       Jornada {jornada.numero}
                     </span>
                     <span className="text-xs text-muted">
-                      {jornada.fecha
-                        ? new Date(jornada.fecha).toLocaleDateString("es-CL")
-                        : "Sin fecha real todavía"}
+                      {jornada.fecha ? formatFechaCL(jornada.fecha) : "Sin fecha real todavía"}
                     </span>
                   </div>
                 </div>

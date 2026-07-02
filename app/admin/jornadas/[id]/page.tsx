@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { estadoPartidoBadge } from "@/lib/estado-partido";
 import { Badge } from "@/components/ui/badge";
+import { formatFechaCL } from "@/lib/fecha";
 
 export default async function JornadaDetallePage({
   params,
@@ -36,9 +37,7 @@ export default async function JornadaDetallePage({
       <div>
         <h1 className="text-xl font-semibold text-foreground">Jornada {jornada.numero}</h1>
         <p className="text-sm text-muted">
-          {jornada.fecha
-            ? new Date(jornada.fecha).toLocaleDateString("es-CL")
-            : "Sin fecha real todavía"}
+          {jornada.fecha ? formatFechaCL(jornada.fecha) : "Sin fecha real todavía"}
         </p>
       </div>
 

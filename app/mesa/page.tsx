@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
+import { formatFechaHoraCL } from "@/lib/fecha";
 import { abrirPartido } from "./actions";
 
 export default async function MesaHome({
@@ -65,9 +66,7 @@ export default async function MesaHome({
                 </div>
 
                 <span className="text-sm text-muted">
-                  {partido.fechaHora
-                    ? new Date(partido.fechaHora).toLocaleString("es-CL")
-                    : "Sin fecha definida"}
+                  {partido.fechaHora ? formatFechaHoraCL(partido.fechaHora) : "Sin fecha definida"}
                 </span>
 
                 <form action={abrirPartido}>
