@@ -2,13 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { estadoPartidoBadge } from "@/lib/estado-partido";
+import { confirmarPartido } from "./actions";
 
 export default async function PartidoDetallePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string; ok?: string }>;
 }) {
   const { id } = await params;
+  const { error, ok } = await searchParams;
 
   const partido = await prisma.partido.findUnique({
     where: { id },
@@ -63,6 +67,30 @@ export default async function PartidoDetallePage({
 
         {partido.acta?.mvpJugador && (
           <p className="text-sm text-muted">MVP: {partido.acta.mvpJugador.nombre}</p>
+        )}
+      </div>
+
+      <div className="flex max-w-md flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        {ok && <p className="text-sm text-green-400">Partido confirmado.</p>}
+
+        {partido.estado === "PROGRAMADO" && (
+          <form action={confirmarPartido} className="flex flex-col gap-2">
+            <input type="hidden" name="partidoId" value={partido.id} />
+            <p className="text-sm text-muted">
+              Confirmar habilita este partido para que la Mesa pueda operarlo.
+            </p>
+            <button
+              type="submit"
+              className="w-fit rounded-md bg-accent-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Confirmar partido para Mesa
+            </button>
+          </form>
+        )}
+
+        {partido.estado === "CONFIRMADO" && (
+          <p className="text-sm text-accent-blue">Listo para Mesa.</p>
         )}
       </div>
 
