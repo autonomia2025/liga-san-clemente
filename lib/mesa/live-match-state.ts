@@ -2,11 +2,11 @@
 // MatchEvent. La Mesa (componentes/actions) nunca debe calcular reglas de
 // partido directamente — todo pasa por acá.
 //
-// Este PR (3.1) solo resuelve el control de cuartos. La firma queda
-// preparada para sumar en próximos PRs, a partir de los mismos eventos:
-// marcador, puntos/faltas por jugador, faltas de equipo, posesión,
-// timeline visible. La cancha/banca en vivo sigue viniendo de
-// PartidoJugador.enCancha (PR 2.4/2.5), no de eventos.
+// PR 3.1 resolvió cuartos. PR 3.2 suma marcador y puntos por jugador, ambos
+// derivados de eventos PUNTO — nunca se guarda un "marcador actual" en
+// Partido. Queda preparado para sumar en próximos PRs: faltas por jugador/
+// equipo, posesión, timeline visible. La cancha/banca en vivo sigue
+// viniendo de PartidoJugador.enCancha (PR 2.4/2.5), no de eventos.
 import type { MatchEvent, PartidoJugador } from "@/generated/prisma/client";
 
 const TOTAL_CUARTOS = 4;
@@ -25,19 +25,27 @@ export type LiveMatchState = {
   ultimoCuartoFinalizado: number | null;
   proximaAccionCuarto: ProximaAccionCuarto;
   mensajeCuartos: string;
+  marcadorLocal: number;
+  marcadorVisitante: number;
+  puntosPorJugador: Map<string, number>;
 };
 
-type MatchEventLite = Pick<MatchEvent, "tipo" | "cuarto" | "anulado">;
+type MatchEventLite = Pick<
+  MatchEvent,
+  "tipo" | "cuarto" | "anulado" | "jugadorId" | "clubId" | "detalle"
+>;
 
-export function buildLiveMatchState(
-  events: MatchEventLite[],
-  // Todavía no se usa en este PR — queda en la firma para cuando el
-  // marcador/faltas necesiten cruzar eventos con el roster del partido.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _partidoJugadores: Pick<PartidoJugador, "id">[] = [],
-): LiveMatchState {
-  const vigentes = events.filter((e) => !e.anulado);
+export type LiveMatchContext = {
+  clubLocalId: string;
+  clubVisitanteId: string;
+};
 
+function calcularEstadoCuartos(
+  vigentes: MatchEventLite[],
+): Pick<
+  LiveMatchState,
+  "estadoCuartos" | "cuartoActivo" | "ultimoCuartoFinalizado" | "proximaAccionCuarto" | "mensajeCuartos"
+> {
   const iniciados = new Set(
     vigentes.filter((e) => e.tipo === "INICIO_CUARTO").map((e) => e.cuarto),
   );
@@ -85,5 +93,55 @@ export function buildLiveMatchState(
     ultimoCuartoFinalizado,
     proximaAccionCuarto: { tipo: "iniciar", cuarto: siguienteCuarto },
     mensajeCuartos: `Entre Q${ultimoCuartoFinalizado} y Q${siguienteCuarto}`,
+  };
+}
+
+function extraerValorPunto(detalle: MatchEvent["detalle"]): number {
+  if (
+    detalle &&
+    typeof detalle === "object" &&
+    !Array.isArray(detalle) &&
+    "valor" in detalle &&
+    typeof (detalle as { valor: unknown }).valor === "number"
+  ) {
+    return (detalle as { valor: number }).valor;
+  }
+  return 0;
+}
+
+function calcularMarcadorYPuntos(
+  vigentes: MatchEventLite[],
+  context: LiveMatchContext,
+): Pick<LiveMatchState, "marcadorLocal" | "marcadorVisitante" | "puntosPorJugador"> {
+  const puntosPorJugador = new Map<string, number>();
+  let marcadorLocal = 0;
+  let marcadorVisitante = 0;
+
+  for (const e of vigentes) {
+    if (e.tipo !== "PUNTO" || !e.jugadorId || !e.clubId) continue;
+    const valor = extraerValorPunto(e.detalle);
+
+    puntosPorJugador.set(e.jugadorId, (puntosPorJugador.get(e.jugadorId) ?? 0) + valor);
+
+    if (e.clubId === context.clubLocalId) marcadorLocal += valor;
+    else if (e.clubId === context.clubVisitanteId) marcadorVisitante += valor;
+  }
+
+  return { marcadorLocal, marcadorVisitante, puntosPorJugador };
+}
+
+export function buildLiveMatchState(
+  events: MatchEventLite[],
+  context: LiveMatchContext,
+  // Todavía no se usa — queda en la firma para cuando faltas/posesión
+  // necesiten cruzar eventos con el roster del partido.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _partidoJugadores: Pick<PartidoJugador, "id">[] = [],
+): LiveMatchState {
+  const vigentes = events.filter((e) => !e.anulado);
+
+  return {
+    ...calcularEstadoCuartos(vigentes),
+    ...calcularMarcadorYPuntos(vigentes, context),
   };
 }

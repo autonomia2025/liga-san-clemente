@@ -56,11 +56,14 @@ export default async function MesaPartidoPage({
     prisma.matchEvent.findMany({
       where: { partidoId: partido!.id, anulado: false },
       orderBy: { createdAt: "asc" },
-      select: { tipo: true, cuarto: true, anulado: true },
+      select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
     }),
   ]);
 
-  const liveState = buildLiveMatchState(eventos);
+  const liveState = buildLiveMatchState(eventos, {
+    clubLocalId: partido!.clubLocalId,
+    clubVisitanteId: partido!.clubVisitanteId,
+  });
 
   const seleccionadosLocalInicial = convocadosActuales
     .filter((c) => c.clubId === partido!.clubLocalId)
@@ -127,6 +130,7 @@ export default async function MesaPartidoPage({
       {ok === "convocados" && <p className="text-sm text-green-400">Convocados guardados.</p>}
       {ok === "titulares" && <p className="text-sm text-green-400">Titulares guardados.</p>}
       {ok === "cuarto" && <p className="text-sm text-green-400">Cuarto actualizado.</p>}
+      {ok === "punto" && <p className="text-sm text-green-400">Punto registrado.</p>}
 
       {sinConvocados && (
         <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">

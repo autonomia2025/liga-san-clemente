@@ -208,9 +208,12 @@ export async function controlarCuarto(formData: FormData) {
   const eventos = await prisma.matchEvent.findMany({
     where: { partidoId, anulado: false },
     orderBy: { createdAt: "asc" },
-    select: { tipo: true, cuarto: true, anulado: true },
+    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
   });
-  const estado = buildLiveMatchState(eventos);
+  const estado = buildLiveMatchState(eventos, {
+    clubLocalId: partido.clubLocalId,
+    clubVisitanteId: partido.clubVisitanteId,
+  });
 
   if (
     !estado.proximaAccionCuarto ||
@@ -237,4 +240,74 @@ export async function controlarCuarto(formData: FormData) {
   }
 
   redirect(`/mesa/partidos/${partidoId}?ok=cuarto`);
+}
+
+const VALORES_PUNTO_VALIDOS = [1, 2, 3];
+
+export async function registrarPunto(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const jugadorId = String(formData.get("jugadorId") ?? "");
+  const valor = Number(formData.get("valor") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    fail("Sesión inválida.");
+    return;
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    fail("Partido no encontrado.");
+    return;
+  }
+  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
+    fail("No podés registrar puntos en este partido.");
+    return;
+  }
+
+  if (!VALORES_PUNTO_VALIDOS.includes(valor)) {
+    fail("Valor de punto inválido.");
+    return;
+  }
+
+  // Solo un jugador enCancha=true (convocado y en cancha) puede anotar —
+  // cubre banca y no-convocados con la misma verificación.
+  const partidoJugador = await prisma.partidoJugador.findUnique({
+    where: { partidoId_jugadorId: { partidoId, jugadorId } },
+  });
+  if (!partidoJugador || !partidoJugador.enCancha) {
+    fail("Solo se pueden registrar puntos a jugadores en cancha.");
+    return;
+  }
+
+  const eventos = await prisma.matchEvent.findMany({
+    where: { partidoId, anulado: false },
+    orderBy: { createdAt: "asc" },
+    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
+  });
+  const estado = buildLiveMatchState(eventos, {
+    clubLocalId: partido.clubLocalId,
+    clubVisitanteId: partido.clubVisitanteId,
+  });
+
+  if (estado.cuartoActivo === null) {
+    fail("No hay un cuarto activo — iniciá el cuarto antes de registrar puntos.");
+    return;
+  }
+
+  await prisma.matchEvent.create({
+    data: {
+      partidoId,
+      cuarto: estado.cuartoActivo,
+      tipo: TipoEvento.PUNTO,
+      jugadorId,
+      clubId: partidoJugador.clubId,
+      detalle: { valor },
+    },
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=punto`);
 }

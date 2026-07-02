@@ -1,7 +1,9 @@
 import type { LiveMatchState } from "@/lib/mesa/live-match-state";
-import { controlarCuarto } from "./actions";
+import { controlarCuarto, registrarPunto } from "./actions";
 
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
+
+const VALORES_PUNTO = [1, 2, 3] as const;
 
 function iniciales(nombre: string): string {
   return nombre
@@ -12,13 +14,41 @@ function iniciales(nombre: string): string {
     .join("");
 }
 
-function JugadorCanchaCard({ jugador }: { jugador: JugadorSlot }) {
+function JugadorCanchaCard({
+  jugador,
+  partidoId,
+  puntos,
+  puedeAnotar,
+}: {
+  jugador: JugadorSlot;
+  partidoId: string;
+  puntos: number;
+  puedeAnotar: boolean;
+}) {
   return (
     <div className="flex flex-col items-center gap-0.5 rounded-lg border border-border bg-surface px-2 py-3">
       <span className="text-2xl font-bold text-foreground">
         {jugador.numeroCamiseta !== null ? `#${jugador.numeroCamiseta}` : iniciales(jugador.nombre)}
       </span>
       <span className="line-clamp-1 text-center text-[11px] text-muted">{jugador.nombre}</span>
+      <span className="text-[10px] font-semibold text-accent-blue">{puntos} pts</span>
+      {puedeAnotar && (
+        <div className="mt-1 flex gap-1">
+          {VALORES_PUNTO.map((valor) => (
+            <form key={valor} action={registrarPunto}>
+              <input type="hidden" name="partidoId" value={partidoId} />
+              <input type="hidden" name="jugadorId" value={jugador.id} />
+              <input type="hidden" name="valor" value={valor} />
+              <button
+                type="submit"
+                className="rounded-md border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted hover:bg-accent-blue hover:text-white"
+              >
+                +{valor}
+              </button>
+            </form>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -34,7 +64,7 @@ function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
   );
 }
 
-const ACCIONES_PLACEHOLDER = ["+1", "+2", "+3", "Falta", "Sustitución", "Timeout", "Posesión"];
+const ACCIONES_PLACEHOLDER = ["Falta", "Sustitución", "Timeout", "Posesión"];
 
 function ControlCuarto({
   partidoId,
@@ -95,7 +125,7 @@ export function ConsolaPartido({
             {clubLocalNombre}
           </span>
           <span className="shrink-0 text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
-            0&nbsp;-&nbsp;0
+            {liveState.marcadorLocal}&nbsp;-&nbsp;{liveState.marcadorVisitante}
           </span>
           <span className="min-w-0 flex-1 truncate text-right text-sm font-medium text-foreground sm:text-base">
             {clubVisitanteNombre}
@@ -117,7 +147,13 @@ export function ConsolaPartido({
           </h3>
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
             {canchaLocal.map((j) => (
-              <JugadorCanchaCard key={j.id} jugador={j} />
+              <JugadorCanchaCard
+                key={j.id}
+                jugador={j}
+                partidoId={partidoId}
+                puntos={liveState.puntosPorJugador.get(j.id) ?? 0}
+                puedeAnotar={liveState.cuartoActivo !== null}
+              />
             ))}
           </div>
           {canchaLocal.length === 0 && (
@@ -130,7 +166,13 @@ export function ConsolaPartido({
           </h3>
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
             {canchaVisitante.map((j) => (
-              <JugadorCanchaCard key={j.id} jugador={j} />
+              <JugadorCanchaCard
+                key={j.id}
+                jugador={j}
+                partidoId={partidoId}
+                puntos={liveState.puntosPorJugador.get(j.id) ?? 0}
+                puedeAnotar={liveState.cuartoActivo !== null}
+              />
             ))}
           </div>
           {canchaVisitante.length === 0 && (
