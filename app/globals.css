@@ -96,3 +96,22 @@ body {
 .animate-hero-in {
   animation: hero-in 500ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Textura sutil tipo "cancha" para fondos oscuros grandes (hero, cierre de
+   comunidad) — puntos radiales muy tenues, da sensación de portada
+   deportiva sin usar imágenes ni librerías. */
+.bg-hero-texture {
+  background-image: radial-gradient(circle at 1px 1px, rgba(249, 115, 22, 0.12) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Glow de acento para cards "premium" (partidos, MVPs, hero, CTA) — sutil,
+   una sola sombra difusa, nada de neón. @utility para que Tailwind genere
+   automáticamente las variantes (hover:, etc.) igual que un utility nativo. */
+@utility shadow-glow-orange {
+  box-shadow: 0 8px 30px -8px rgba(249, 115, 22, 0.4);
+}
+
+@utility shadow-glow-blue {
+  box-shadow: 0 8px 30px -8px rgba(59, 130, 246, 0.3);
+}
