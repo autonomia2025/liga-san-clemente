@@ -6,7 +6,7 @@ Ver el documento de producto y el plan de PRs por fase en la conversación del p
 
 ## Estado del proyecto
 
-Fase 0 (Fundaciones) completa y validada contra un proyecto Supabase real (2026-07-01): migraciones, seed, healthcheck, login admin/mesa, bloqueo cruzado de roles y logout, todo verificado end-to-end. Lista para arrancar Fase 1.
+Fase 0 (Fundaciones), Fase 1 (Admin: clubes, jugadores, jornadas, usuarios de Mesa) y Fase 2/3 (Mesa: apertura de partido, convocados/titulares, consola en vivo — cuartos, puntos, faltas, sustituciones, timeouts, posesión, deshacer, finalizar partido, Acta oficial) están completas y validadas end-to-end contra un proyecto Supabase real. En curso: pulido visual (Fase 3.5) de Admin y Mesa antes de avanzar a Público/Game Center.
 
 ## Stack
 
@@ -75,7 +75,7 @@ Requiere Node.js 20+ y una base de datos Postgres accesible (local o Supabase).
 
 ## Auth: crear el primer usuario (admin o mesa)
 
-Todavía no existe una UI para gestionar usuarios (eso es PR 1.7 — Fase 1). Hasta entonces, para poder loguearte en `/admin` o `/mesa`, hay que crear el usuario a mano:
+Los usuarios de Mesa se pueden crear desde `/admin/usuarios-mesa` una vez que exista al menos un usuario Admin. Para crear ese primer usuario Admin (o para crear cualquier usuario a mano contra una base nueva), hay que hacerlo manualmente:
 
 1. En el dashboard de Supabase: **Authentication → Users → Add user**. Cargá email y password, y confirmá el email manualmente (o desactivá la confirmación por email en Authentication → Providers → Email mientras estás en desarrollo).
 2. Copiá el **User UID** que Supabase le asignó.
@@ -115,22 +115,45 @@ El schema completo (`prisma/schema.prisma`) vive en `prisma/` y cubre el MVP: us
 
 ## Scripts
 
+- `npm install` — instala dependencias (corre `prisma generate` automáticamente vía `postinstall`).
+- `npx prisma generate` — regenera el cliente de Prisma manualmente (necesario después de editar `prisma/schema.prisma`).
 - `npm run dev` — servidor de desarrollo.
 - `npm run build` — build de producción.
 - `npm run start` — sirve el build de producción.
-- `npm run lint` — linting.
+- `npm run lint` — linting (ESLint).
+- `npx tsc --noEmit` — chequeo de tipos sin emitir archivos.
 - `npm run seed` — carga datos mínimos de prueba (ver "Correr el proyecto localmente").
 
-## Deploy
+Antes de subir cambios, correr `npm run lint`, `npx tsc --noEmit` y `npm run build` — los tres deben pasar sin errores.
 
-El proyecto está preparado para desplegarse en [Vercel](https://vercel.com) sin configuración adicional (framework detectado automáticamente).
+## Datos privados de la liga
 
-Variables de entorno requeridas en Vercel (Project Settings → Environment Variables):
+`data/private/` y cualquier archivo `.xlsx` están en `.gitignore` — ahí vive el registro oficial real de la liga (nombres, RUT, resultados históricos) usado para los importadores (`scripts/import-*.ts`), y **no debe subirse al repositorio bajo ninguna circunstancia**. Si cloná este repo y necesitás correr los importadores, pedí los archivos por un canal separado (no por Git) y colocalos localmente en `data/private/`.
 
-- `DATABASE_URL` — cadena de conexión a la base de datos de staging/producción.
-- `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` — del proyecto de Supabase correspondiente a ese entorno.
-- `SUPABASE_SERVICE_ROLE_KEY` — marcarla como variable sensible en Vercel (no exponerla en logs de build). Nunca se le agrega el prefijo `NEXT_PUBLIC_`.
+## Repositorio en GitHub
 
-El comando `postinstall` (`prisma generate`) corre automáticamente durante el build de Vercel, no requiere pasos manuales adicionales.
+Este proyecto está pensado para vivir en un **repositorio privado**. Antes de subirlo:
 
-Las migraciones (`npx prisma migrate deploy`) **no** corren automáticamente en el build de Vercel — hay que aplicarlas manualmente contra la base de staging/producción (una vez, o cada vez que se agreguen migraciones nuevas) con `DATABASE_URL` apuntando a esa base.
+1. Confirmar que `git status` no muestra `.env`, `.env.local`, `.mcp.json`, `data/private/` ni ningún `.xlsx` (todos están en `.gitignore` — ver esa sección más abajo).
+2. Crear el repo privado en GitHub y agregarlo como remoto:
+
+   ```bash
+   git remote add origin git@github.com:<tu-org>/<tu-repo>.git
+   git push -u origin main
+   ```
+
+3. Revisar en GitHub (pestaña "Code") que no haya quedado ningún archivo sensible subido por error antes de invitar colaboradores o conectar Vercel.
+
+## Deploy en Vercel
+
+El proyecto está preparado para desplegarse en [Vercel](https://vercel.com) sin configuración adicional (framework Next.js detectado automáticamente).
+
+1. **Conectar el repo**: en Vercel → Add New Project → importar el repositorio privado de GitHub (requiere autorizar la GitHub App de Vercel sobre ese repo u organización).
+2. **Variables de entorno** (Project Settings → Environment Variables) — cargar una por una, nunca como archivo `.env` subido:
+   - `DATABASE_URL` — cadena de conexión a la base de datos de staging/producción (Supabase u otro Postgres).
+   - `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` — del proyecto de Supabase correspondiente a ese entorno.
+   - `SUPABASE_SERVICE_ROLE_KEY` — marcarla como variable **sensible/encriptada** en Vercel (no debe aparecer en logs de build). Nunca lleva el prefijo `NEXT_PUBLIC_`.
+3. **Base de datos remota**: usar el mismo proyecto Supabase (u otro Postgres accesible desde internet) como base de staging/producción — Vercel no aloja Postgres, solo el runtime de Next.js.
+4. **Build**: Vercel corre `npm install` (que dispara `postinstall` → `prisma generate`) y después `npm run build` automáticamente, sin pasos manuales adicionales.
+5. **Migraciones**: `npx prisma migrate deploy` **no** corre automáticamente en el build de Vercel — hay que aplicarlas a mano contra la base de staging/producción (una vez, o cada vez que se agreguen migraciones nuevas) con `DATABASE_URL` apuntando a esa base, desde tu máquina o CI.
+6. **Verificación post-deploy**: confirmar en el repo de GitHub (no solo localmente) que no se subió ningún secreto, y probar `<url-de-vercel>/api/health` para confirmar la conexión a la base.

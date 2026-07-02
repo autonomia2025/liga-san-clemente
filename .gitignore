@@ -47,3 +47,8 @@ next-env.d.ts
 # Private league data
 data/private/
 *.xlsx
+
+# Herramientas locales de desarrollo (config del agente / MCP) — nunca deben
+# subirse: pueden variar por máquina y no aportan nada al repo.
+.mcp.json
+.claude/settings.local.json
