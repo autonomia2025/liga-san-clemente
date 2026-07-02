@@ -39,6 +39,7 @@ Requiere Node.js 20+ y una base de datos Postgres accesible (local o Supabase).
      - **Supabase**: Project Settings → Database → Connection string.
      - **Postgres local**: `postgresql://usuario:password@localhost:5432/liga_sc?schema=public`.
    - `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Project Settings → API en tu proyecto de Supabase. El proveedor "Email" de Supabase Auth está habilitado por defecto, no requiere configuración adicional para este PR.
+   - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → "service_role" "secret". **Es la key con más privilegios del proyecto** (bypassa RLS, puede crear/borrar usuarios de Auth) — tratala como una contraseña. Nunca lleva el prefijo `NEXT_PUBLIC_`, nunca se expone al cliente, y solo se usa en Server Actions (`lib/supabase/admin.ts`, protegido con el paquete `server-only` para que el build falle si algún día se importa desde un Client Component). Se usa para que Admin pueda crear usuarios de Mesa (`/admin/usuarios-mesa`) sin pasar por el dashboard de Supabase.
 
 3. Aplicar las migraciones (crea las tablas del modelo de datos):
 
@@ -128,6 +129,7 @@ Variables de entorno requeridas en Vercel (Project Settings → Environment Vari
 
 - `DATABASE_URL` — cadena de conexión a la base de datos de staging/producción.
 - `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` — del proyecto de Supabase correspondiente a ese entorno.
+- `SUPABASE_SERVICE_ROLE_KEY` — marcarla como variable sensible en Vercel (no exponerla en logs de build). Nunca se le agrega el prefijo `NEXT_PUBLIC_`.
 
 El comando `postinstall` (`prisma generate`) corre automáticamente durante el build de Vercel, no requiere pasos manuales adicionales.
 
