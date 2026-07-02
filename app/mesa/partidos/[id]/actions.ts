@@ -141,18 +141,32 @@ export async function guardarTitulares(formData: FormData) {
     return;
   }
 
-  const titularesSeleccionados = new Set([...titularesLocal, ...titularesVisitante]);
-
-  await prisma.$transaction(
-    convocados.map((c) =>
-      prisma.partidoJugador.update({
-        where: { id: c.id },
-        data: titularesSeleccionados.has(c.jugadorId)
-          ? { titular: true, enCancha: true }
-          : { titular: false, enCancha: false },
-      }),
-    ),
-  );
+  // 4 updateMany en vez de un update por convocado: evita que la transacción
+  // expire contra Supabase remoto cuando hay muchos convocados (timeout por
+  // defecto de Prisma en $transaction es 5s, y N updates individuales por
+  // round-trip lo superan fácil).
+  await prisma.$transaction([
+    prisma.partidoJugador.updateMany({
+      where: { partidoId, clubId: partido.clubLocalId, presente: true },
+      data: { titular: false, enCancha: false },
+    }),
+    prisma.partidoJugador.updateMany({
+      where: { partidoId, clubId: partido.clubVisitanteId, presente: true },
+      data: { titular: false, enCancha: false },
+    }),
+    prisma.partidoJugador.updateMany({
+      where: { partidoId, clubId: partido.clubLocalId, jugadorId: { in: titularesLocal } },
+      data: { titular: true, enCancha: true },
+    }),
+    prisma.partidoJugador.updateMany({
+      where: {
+        partidoId,
+        clubId: partido.clubVisitanteId,
+        jugadorId: { in: titularesVisitante },
+      },
+      data: { titular: true, enCancha: true },
+    }),
+  ]);
 
   redirect(`/mesa/partidos/${partidoId}?ok=titulares`);
 }
