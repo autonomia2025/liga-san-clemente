@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
 import { ConvocadosForm } from "./convocados-form";
 import { TitularesForm } from "./titulares-form";
+import { ConsolaPartido } from "./consola-partido";
 
 export default async function MesaPartidoPage({
   params,
@@ -73,6 +74,26 @@ export default async function MesaPartidoPage({
     .filter((c) => c.clubId === partido!.clubVisitanteId && c.titular)
     .map((c) => c.jugadorId);
 
+  // La cancha sale de enCancha (estado operativo), no de titular directamente
+  // — son iguales recién ahora, pero van a divergir cuando existan sustituciones.
+  const canchaLocal = convocadosActuales
+    .filter((c) => c.clubId === partido!.clubLocalId && c.enCancha)
+    .map((c) => c.jugador);
+  const canchaVisitante = convocadosActuales
+    .filter((c) => c.clubId === partido!.clubVisitanteId && c.enCancha)
+    .map((c) => c.jugador);
+  const bancaLocal = convocadosActuales
+    .filter((c) => c.clubId === partido!.clubLocalId && !c.enCancha)
+    .map((c) => c.jugador);
+  const bancaVisitante = convocadosActuales
+    .filter((c) => c.clubId === partido!.clubVisitanteId && !c.enCancha)
+    .map((c) => c.jugador);
+
+  const sinConvocados = convocadosLocal.length === 0 && convocadosVisitante.length === 0;
+  const faltanTitulares =
+    !sinConvocados &&
+    (titularesLocalInicial.length !== 5 || titularesVisitanteInicial.length !== 5);
+
   return (
     <div className="flex flex-1 flex-col gap-4">
       <span className="w-fit rounded-full bg-accent-orange/20 px-2 py-0.5 text-xs text-accent-orange">
@@ -92,6 +113,27 @@ export default async function MesaPartidoPage({
       {error && <p className="text-sm text-red-400">{error}</p>}
       {ok === "convocados" && <p className="text-sm text-green-400">Convocados guardados.</p>}
       {ok === "titulares" && <p className="text-sm text-green-400">Titulares guardados.</p>}
+
+      {sinConvocados && (
+        <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">
+          Primero selecciona convocados para poder armar la cancha.
+        </div>
+      )}
+      {faltanTitulares && (
+        <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">
+          Ahora selecciona titulares (5 por equipo) para poder armar la cancha.
+        </div>
+      )}
+      {!sinConvocados && !faltanTitulares && (
+        <ConsolaPartido
+          clubLocalNombre={partido!.clubLocal.nombre}
+          clubVisitanteNombre={partido!.clubVisitante.nombre}
+          canchaLocal={canchaLocal}
+          canchaVisitante={canchaVisitante}
+          bancaLocal={bancaLocal}
+          bancaVisitante={bancaVisitante}
+        />
+      )}
 
       <h2 className="text-sm font-semibold text-foreground">Convocados (máximo 12 por equipo)</h2>
 
