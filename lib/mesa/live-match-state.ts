@@ -3,11 +3,11 @@
 // partido directamente — todo pasa por acá.
 //
 // PR 3.1 resolvió cuartos. PR 3.2 sumó marcador y puntos por jugador. PR 3.3
-// suma faltas por jugador/equipo/cuarto, todas derivadas de eventos FALTA —
-// nunca se guardan faltas acumuladas en Partido ni en Jugador. Queda
-// preparado para sumar en próximos PRs: posesión, timeline visible. La
-// cancha/banca en vivo sigue viniendo de PartidoJugador.enCancha (PR 2.4/2.5),
-// no de eventos.
+// sumó faltas por jugador/equipo/cuarto. PR 3.5 suma timeouts por equipo y
+// por equipo/cuarto, derivados de eventos TIMEOUT — nunca se guardan
+// contadores de timeout en Partido. Queda preparado para sumar en próximos
+// PRs: posesión, timeline visible. La cancha/banca en vivo sigue viniendo de
+// PartidoJugador.enCancha (PR 2.4/2.5), no de eventos.
 import type { MatchEvent, PartidoJugador, TipoFalta } from "@/generated/prisma/client";
 
 const TOTAL_CUARTOS = 4;
@@ -35,6 +35,10 @@ export type LiveMatchState = {
   faltasEquipoLocalCuartoActual: number;
   faltasEquipoVisitanteCuartoActual: number;
   tiposFaltaPorJugador: Map<string, TipoFalta[]>;
+  timeoutsLocal: number;
+  timeoutsVisitante: number;
+  timeoutsLocalPorCuarto: Map<number, number>;
+  timeoutsVisitantePorCuarto: Map<number, number>;
 };
 
 type MatchEventLite = Pick<
@@ -180,6 +184,33 @@ function calcularFaltas(
   };
 }
 
+function calcularTimeouts(
+  vigentes: MatchEventLite[],
+  context: LiveMatchContext,
+): Pick<
+  LiveMatchState,
+  "timeoutsLocal" | "timeoutsVisitante" | "timeoutsLocalPorCuarto" | "timeoutsVisitantePorCuarto"
+> {
+  const timeoutsLocalPorCuarto = new Map<number, number>();
+  const timeoutsVisitantePorCuarto = new Map<number, number>();
+  let timeoutsLocal = 0;
+  let timeoutsVisitante = 0;
+
+  for (const e of vigentes) {
+    if (e.tipo !== "TIMEOUT" || !e.clubId) continue;
+
+    if (e.clubId === context.clubLocalId) {
+      timeoutsLocal += 1;
+      timeoutsLocalPorCuarto.set(e.cuarto, (timeoutsLocalPorCuarto.get(e.cuarto) ?? 0) + 1);
+    } else if (e.clubId === context.clubVisitanteId) {
+      timeoutsVisitante += 1;
+      timeoutsVisitantePorCuarto.set(e.cuarto, (timeoutsVisitantePorCuarto.get(e.cuarto) ?? 0) + 1);
+    }
+  }
+
+  return { timeoutsLocal, timeoutsVisitante, timeoutsLocalPorCuarto, timeoutsVisitantePorCuarto };
+}
+
 function calcularMarcadorYPuntos(
   vigentes: MatchEventLite[],
   context: LiveMatchContext,
@@ -216,5 +247,6 @@ export function buildLiveMatchState(
     ...estadoCuartos,
     ...calcularMarcadorYPuntos(vigentes, context),
     ...calcularFaltas(vigentes, context, estadoCuartos.cuartoActivo),
+    ...calcularTimeouts(vigentes, context),
   };
 }

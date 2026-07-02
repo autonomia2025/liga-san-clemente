@@ -1,6 +1,12 @@
 import type { TipoFalta } from "@/generated/prisma/client";
 import type { LiveMatchState } from "@/lib/mesa/live-match-state";
-import { controlarCuarto, registrarPunto, registrarFalta, registrarSustitucion } from "./actions";
+import {
+  controlarCuarto,
+  registrarPunto,
+  registrarFalta,
+  registrarSustitucion,
+  registrarTimeout,
+} from "./actions";
 
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
 
@@ -148,7 +154,35 @@ function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
   );
 }
 
-const ACCIONES_PLACEHOLDER = ["Timeout", "Posesión"];
+const ACCIONES_PLACEHOLDER = ["Posesión"];
+
+function BotonTimeout({
+  partidoId,
+  clubId,
+  label,
+  contador,
+  disabled,
+}: {
+  partidoId: string;
+  clubId: string;
+  label: string;
+  contador: number;
+  disabled: boolean;
+}) {
+  return (
+    <form action={registrarTimeout}>
+      <input type="hidden" name="partidoId" value={partidoId} />
+      <input type="hidden" name="clubId" value={clubId} />
+      <button
+        type="submit"
+        disabled={disabled}
+        className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted hover:bg-accent-blue hover:text-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {label} · TO {contador}
+      </button>
+    </form>
+  );
+}
 
 function ControlCuarto({
   partidoId,
@@ -183,6 +217,8 @@ function ControlCuarto({
 
 export function ConsolaPartido({
   partidoId,
+  clubLocalId,
+  clubVisitanteId,
   clubLocalNombre,
   clubVisitanteNombre,
   canchaLocal,
@@ -192,6 +228,8 @@ export function ConsolaPartido({
   liveState,
 }: {
   partidoId: string;
+  clubLocalId: string;
+  clubVisitanteId: string;
   clubLocalNombre: string;
   clubVisitanteNombre: string;
   canchaLocal: JugadorSlot[];
@@ -216,6 +254,22 @@ export function ConsolaPartido({
           </span>
         </div>
         <ControlCuarto partidoId={partidoId} liveState={liveState} />
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          <BotonTimeout
+            partidoId={partidoId}
+            clubId={clubLocalId}
+            label="Timeout Local"
+            contador={liveState.timeoutsLocal}
+            disabled={liveState.cuartoActivo === null}
+          />
+          <BotonTimeout
+            partidoId={partidoId}
+            clubId={clubVisitanteId}
+            label="Timeout Visita"
+            contador={liveState.timeoutsVisitante}
+            disabled={liveState.cuartoActivo === null}
+          />
+        </div>
         <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-muted">
           <span className="rounded-full bg-zinc-500/20 px-2 py-1">Posesión: sin asignar</span>
           <span className="rounded-full bg-zinc-500/20 px-2 py-1">

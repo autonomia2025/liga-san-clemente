@@ -472,3 +472,58 @@ export async function registrarSustitucion(formData: FormData) {
 
   redirect(`/mesa/partidos/${partidoId}?ok=sustitucion`);
 }
+
+export async function registrarTimeout(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const clubId = String(formData.get("clubId") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    fail("Sesión inválida.");
+    return;
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    fail("Partido no encontrado.");
+    return;
+  }
+  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
+    fail("No podés registrar timeouts en este partido.");
+    return;
+  }
+
+  if (clubId !== partido.clubLocalId && clubId !== partido.clubVisitanteId) {
+    fail("Ese club no pertenece a este partido.");
+    return;
+  }
+
+  const eventos = await prisma.matchEvent.findMany({
+    where: { partidoId, anulado: false },
+    orderBy: { createdAt: "asc" },
+    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
+  });
+  const estado = buildLiveMatchState(eventos, {
+    clubLocalId: partido.clubLocalId,
+    clubVisitanteId: partido.clubVisitanteId,
+  });
+
+  if (estado.cuartoActivo === null) {
+    fail("No hay un cuarto activo — iniciá el cuarto antes de registrar timeouts.");
+    return;
+  }
+
+  await prisma.matchEvent.create({
+    data: {
+      partidoId,
+      cuarto: estado.cuartoActivo,
+      tipo: TipoEvento.TIMEOUT,
+      clubId,
+    },
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=timeout`);
+}

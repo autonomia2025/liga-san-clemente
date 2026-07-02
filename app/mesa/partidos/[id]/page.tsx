@@ -133,6 +133,7 @@ export default async function MesaPartidoPage({
       {ok === "punto" && <p className="text-sm text-green-400">Punto registrado.</p>}
       {ok === "falta" && <p className="text-sm text-green-400">Falta registrada.</p>}
       {ok === "sustitucion" && <p className="text-sm text-green-400">Sustitución registrada.</p>}
+      {ok === "timeout" && <p className="text-sm text-green-400">Timeout registrado.</p>}
 
       {sinConvocados && (
         <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">
@@ -147,6 +148,8 @@ export default async function MesaPartidoPage({
       {consolaLista && (
         <ConsolaPartido
           partidoId={partido!.id}
+          clubLocalId={partido!.clubLocalId}
+          clubVisitanteId={partido!.clubVisitanteId}
           clubLocalNombre={partido!.clubLocal.nombre}
           clubVisitanteNombre={partido!.clubVisitante.nombre}
           canchaLocal={canchaLocal}
