@@ -6,6 +6,7 @@ import {
   registrarFalta,
   registrarSustitucion,
   registrarTimeout,
+  registrarPosesion,
 } from "./actions";
 
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
@@ -154,8 +155,6 @@ function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
   );
 }
 
-const ACCIONES_PLACEHOLDER = ["Posesión"];
-
 function BotonTimeout({
   partidoId,
   clubId,
@@ -179,6 +178,38 @@ function BotonTimeout({
         className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted hover:bg-accent-blue hover:text-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40"
       >
         {label} · TO {contador}
+      </button>
+    </form>
+  );
+}
+
+function BotonPosesion({
+  partidoId,
+  clubId,
+  label,
+  activa,
+  disabled,
+}: {
+  partidoId: string;
+  clubId: string;
+  label: string;
+  activa: boolean;
+  disabled: boolean;
+}) {
+  return (
+    <form action={registrarPosesion}>
+      <input type="hidden" name="partidoId" value={partidoId} />
+      <input type="hidden" name="clubId" value={clubId} />
+      <button
+        type="submit"
+        disabled={disabled}
+        className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40 ${
+          activa
+            ? "border-accent-orange bg-accent-orange text-white"
+            : "border-border text-muted hover:bg-accent-orange hover:text-white"
+        }`}
+      >
+        {label}
       </button>
     </form>
   );
@@ -270,8 +301,30 @@ export function ConsolaPartido({
             disabled={liveState.cuartoActivo === null}
           />
         </div>
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          <BotonPosesion
+            partidoId={partidoId}
+            clubId={clubLocalId}
+            label="Posesión Local"
+            activa={liveState.posesionEquipo === "LOCAL"}
+            disabled={liveState.cuartoActivo === null}
+          />
+          <BotonPosesion
+            partidoId={partidoId}
+            clubId={clubVisitanteId}
+            label="Posesión Visita"
+            activa={liveState.posesionEquipo === "VISITANTE"}
+            disabled={liveState.cuartoActivo === null}
+          />
+        </div>
         <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-muted">
-          <span className="rounded-full bg-zinc-500/20 px-2 py-1">Posesión: sin asignar</span>
+          <span className="rounded-full bg-zinc-500/20 px-2 py-1">
+            {liveState.posesionEquipo === "LOCAL"
+              ? `Posesión: ${clubLocalNombre}`
+              : liveState.posesionEquipo === "VISITANTE"
+                ? `Posesión: ${clubVisitanteNombre}`
+                : "Posesión: sin asignar"}
+          </span>
           <span className="rounded-full bg-zinc-500/20 px-2 py-1">
             Faltas Local: {liveState.faltasEquipoLocalCuartoActual} (Q) / {liveState.faltasEquipoLocal} (total)
           </span>
@@ -352,24 +405,6 @@ export function ConsolaPartido({
             ))}
             {bancaVisitante.length === 0 && <p className="text-xs text-muted">Sin banca.</p>}
           </div>
-        </div>
-      </div>
-
-      {/* Acciones placeholder */}
-      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3">
-        <p className="text-[11px] text-muted">Registro del partido — próximamente</p>
-        <div className="flex flex-wrap gap-1.5">
-          {ACCIONES_PLACEHOLDER.map((accion) => (
-            <button
-              key={accion}
-              type="button"
-              disabled
-              title="Próximamente"
-              className="cursor-not-allowed rounded-md border border-border px-2.5 py-1.5 text-xs text-muted opacity-50"
-            >
-              {accion}
-            </button>
-          ))}
         </div>
       </div>
     </div>

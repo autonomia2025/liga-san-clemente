@@ -3,11 +3,11 @@
 // partido directamente — todo pasa por acá.
 //
 // PR 3.1 resolvió cuartos. PR 3.2 sumó marcador y puntos por jugador. PR 3.3
-// sumó faltas por jugador/equipo/cuarto. PR 3.5 suma timeouts por equipo y
-// por equipo/cuarto, derivados de eventos TIMEOUT — nunca se guardan
-// contadores de timeout en Partido. Queda preparado para sumar en próximos
-// PRs: posesión, timeline visible. La cancha/banca en vivo sigue viniendo de
-// PartidoJugador.enCancha (PR 2.4/2.5), no de eventos.
+// sumó faltas por jugador/equipo/cuarto. PR 3.5 sumó timeouts por equipo y
+// por equipo/cuarto. PR 3.6 suma la posesión actual, derivada del último
+// evento POSESION vigente — nunca se guarda posesión en Partido. Queda
+// preparado para sumar en próximos PRs: timeline visible. La cancha/banca en
+// vivo sigue viniendo de PartidoJugador.enCancha (PR 2.4/2.5), no de eventos.
 import type { MatchEvent, PartidoJugador, TipoFalta } from "@/generated/prisma/client";
 
 const TOTAL_CUARTOS = 4;
@@ -19,6 +19,8 @@ export type EstadoCuartos =
   | "CUARTOS_COMPLETADOS";
 
 export type ProximaAccionCuarto = { tipo: "iniciar" | "finalizar"; cuarto: number } | null;
+
+export type PosesionEquipo = "LOCAL" | "VISITANTE" | null;
 
 export type LiveMatchState = {
   estadoCuartos: EstadoCuartos;
@@ -39,6 +41,8 @@ export type LiveMatchState = {
   timeoutsVisitante: number;
   timeoutsLocalPorCuarto: Map<number, number>;
   timeoutsVisitantePorCuarto: Map<number, number>;
+  posesionClubId: string | null;
+  posesionEquipo: PosesionEquipo;
 };
 
 type MatchEventLite = Pick<
@@ -211,6 +215,27 @@ function calcularTimeouts(
   return { timeoutsLocal, timeoutsVisitante, timeoutsLocalPorCuarto, timeoutsVisitantePorCuarto };
 }
 
+function calcularPosesion(
+  vigentes: MatchEventLite[],
+  context: LiveMatchContext,
+): Pick<LiveMatchState, "posesionClubId" | "posesionEquipo"> {
+  let posesionClubId: string | null = null;
+
+  for (const e of vigentes) {
+    if (e.tipo !== "POSESION" || !e.clubId) continue;
+    posesionClubId = e.clubId;
+  }
+
+  const posesionEquipo: PosesionEquipo =
+    posesionClubId === context.clubLocalId
+      ? "LOCAL"
+      : posesionClubId === context.clubVisitanteId
+        ? "VISITANTE"
+        : null;
+
+  return { posesionClubId, posesionEquipo };
+}
+
 function calcularMarcadorYPuntos(
   vigentes: MatchEventLite[],
   context: LiveMatchContext,
@@ -248,5 +273,6 @@ export function buildLiveMatchState(
     ...calcularMarcadorYPuntos(vigentes, context),
     ...calcularFaltas(vigentes, context, estadoCuartos.cuartoActivo),
     ...calcularTimeouts(vigentes, context),
+    ...calcularPosesion(vigentes, context),
   };
 }

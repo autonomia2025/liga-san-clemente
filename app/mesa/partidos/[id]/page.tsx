@@ -134,6 +134,7 @@ export default async function MesaPartidoPage({
       {ok === "falta" && <p className="text-sm text-green-400">Falta registrada.</p>}
       {ok === "sustitucion" && <p className="text-sm text-green-400">Sustitución registrada.</p>}
       {ok === "timeout" && <p className="text-sm text-green-400">Timeout registrado.</p>}
+      {ok === "posesion" && <p className="text-sm text-green-400">Posesión actualizada.</p>}
 
       {sinConvocados && (
         <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">
