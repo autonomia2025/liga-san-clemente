@@ -84,5 +84,75 @@ export async function guardarConvocados(formData: FormData) {
       ),
   ]);
 
-  redirect(`/mesa/partidos/${partidoId}?ok=1`);
+  redirect(`/mesa/partidos/${partidoId}?ok=convocados`);
+}
+
+const TITULARES_POR_EQUIPO = 5;
+
+export async function guardarTitulares(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const titularesLocal = formData.getAll("titularesLocal").map(String);
+  const titularesVisitante = formData.getAll("titularesVisitante").map(String);
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    fail("Sesión inválida.");
+    return;
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    fail("Partido no encontrado.");
+    return;
+  }
+  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
+    fail("No podés editar los titulares de este partido.");
+    return;
+  }
+
+  if (titularesLocal.length !== TITULARES_POR_EQUIPO) {
+    fail(`El equipo local debe tener exactamente ${TITULARES_POR_EQUIPO} titulares.`);
+    return;
+  }
+  if (titularesVisitante.length !== TITULARES_POR_EQUIPO) {
+    fail(`El equipo visitante debe tener exactamente ${TITULARES_POR_EQUIPO} titulares.`);
+    return;
+  }
+
+  const convocados = await prisma.partidoJugador.findMany({
+    where: { partidoId, presente: true },
+  });
+  const convocadosLocalIds = new Set(
+    convocados.filter((c) => c.clubId === partido.clubLocalId).map((c) => c.jugadorId),
+  );
+  const convocadosVisitanteIds = new Set(
+    convocados.filter((c) => c.clubId === partido.clubVisitanteId).map((c) => c.jugadorId),
+  );
+
+  if (!titularesLocal.every((jugadorId) => convocadosLocalIds.has(jugadorId))) {
+    fail("Hay titulares locales que no están entre los convocados.");
+    return;
+  }
+  if (!titularesVisitante.every((jugadorId) => convocadosVisitanteIds.has(jugadorId))) {
+    fail("Hay titulares visitantes que no están entre los convocados.");
+    return;
+  }
+
+  const titularesSeleccionados = new Set([...titularesLocal, ...titularesVisitante]);
+
+  await prisma.$transaction(
+    convocados.map((c) =>
+      prisma.partidoJugador.update({
+        where: { id: c.id },
+        data: titularesSeleccionados.has(c.jugadorId)
+          ? { titular: true, enCancha: true }
+          : { titular: false, enCancha: false },
+      }),
+    ),
+  );
+
+  redirect(`/mesa/partidos/${partidoId}?ok=titulares`);
 }

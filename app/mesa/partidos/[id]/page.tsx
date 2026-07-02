@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
 import { ConvocadosForm } from "./convocados-form";
+import { TitularesForm } from "./titulares-form";
 
 export default async function MesaPartidoPage({
   params,
@@ -48,7 +49,7 @@ export default async function MesaPartidoPage({
     }),
     prisma.partidoJugador.findMany({
       where: { partidoId: partido!.id, presente: true },
-      select: { jugadorId: true, clubId: true },
+      include: { jugador: { select: { id: true, nombre: true, numeroCamiseta: true } } },
     }),
   ]);
 
@@ -57,6 +58,19 @@ export default async function MesaPartidoPage({
     .map((c) => c.jugadorId);
   const seleccionadosVisitanteInicial = convocadosActuales
     .filter((c) => c.clubId === partido!.clubVisitanteId)
+    .map((c) => c.jugadorId);
+
+  const convocadosLocal = convocadosActuales
+    .filter((c) => c.clubId === partido!.clubLocalId)
+    .map((c) => c.jugador);
+  const convocadosVisitante = convocadosActuales
+    .filter((c) => c.clubId === partido!.clubVisitanteId)
+    .map((c) => c.jugador);
+  const titularesLocalInicial = convocadosActuales
+    .filter((c) => c.clubId === partido!.clubLocalId && c.titular)
+    .map((c) => c.jugadorId);
+  const titularesVisitanteInicial = convocadosActuales
+    .filter((c) => c.clubId === partido!.clubVisitanteId && c.titular)
     .map((c) => c.jugadorId);
 
   return (
@@ -76,7 +90,8 @@ export default async function MesaPartidoPage({
       </p>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
-      {ok && <p className="text-sm text-green-400">Convocados guardados.</p>}
+      {ok === "convocados" && <p className="text-sm text-green-400">Convocados guardados.</p>}
+      {ok === "titulares" && <p className="text-sm text-green-400">Titulares guardados.</p>}
 
       <h2 className="text-sm font-semibold text-foreground">Convocados (máximo 12 por equipo)</h2>
 
@@ -88,6 +103,20 @@ export default async function MesaPartidoPage({
         jugadoresVisitante={jugadoresVisitante}
         seleccionadosLocalInicial={seleccionadosLocalInicial}
         seleccionadosVisitanteInicial={seleccionadosVisitanteInicial}
+      />
+
+      <h2 className="text-sm font-semibold text-foreground">
+        Titulares (5 por equipo, entre los convocados)
+      </h2>
+
+      <TitularesForm
+        partidoId={partido!.id}
+        clubLocalNombre={partido!.clubLocal.nombre}
+        clubVisitanteNombre={partido!.clubVisitante.nombre}
+        convocadosLocal={convocadosLocal}
+        convocadosVisitante={convocadosVisitante}
+        titularesLocalInicial={titularesLocalInicial}
+        titularesVisitanteInicial={titularesVisitanteInicial}
       />
     </div>
   );
