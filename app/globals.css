@@ -115,3 +115,29 @@ body {
 @utility shadow-glow-blue {
   box-shadow: 0 8px 30px -8px rgba(59, 130, 246, 0.3);
 }
+
+/* Reveal de secciones al entrar en viewport, SIN JavaScript ni librerías:
+   usa scroll-driven animations nativas (animation-timeline: view()).
+   Guardado con @supports + prefers-reduced-motion — si el navegador no lo
+   soporta o el usuario pidió menos movimiento, la clase no hace nada y el
+   contenido queda 100% visible (nunca se queda invisible por falta de JS). */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal-on-scroll {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 22%;
+    }
+  }
+}
