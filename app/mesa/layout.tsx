@@ -1,8 +1,7 @@
 import { requireRole } from "@/lib/auth";
 import { LogoutButton } from "@/components/logout-button";
 
-// Layout de Mesa: tablet-first, sin sidebar. La consola de operación real
-// del partido se construye en Fase 2.
+// Layout de Mesa: tablet-first, sin sidebar.
 export default async function MesaLayout({
   children,
 }: {

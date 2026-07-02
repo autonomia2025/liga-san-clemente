@@ -102,8 +102,8 @@ export default async function MesaPartidoPage({
     .filter((c) => c.clubId === partido!.clubVisitanteId && c.titular)
     .map((c) => c.jugadorId);
 
-  // La cancha sale de enCancha (estado operativo), no de titular directamente
-  // — son iguales recién ahora, pero van a divergir cuando existan sustituciones.
+  // La cancha sale de enCancha (estado operativo tras sustituciones), no de
+  // titular — divergen apenas se registra la primera sustitución del partido.
   const nombresJugadores = new Map(convocadosActuales.map((c) => [c.jugadorId, c.jugador.nombre]));
 
   const canchaLocal = convocadosActuales

@@ -6,6 +6,46 @@ import { getCurrentUsuario } from "@/lib/auth";
 import { TipoEvento, TipoFalta, OrigenStat } from "@/generated/prisma/client";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
 
+// Valida sesión Mesa + operador correcto + partido EN_CURSO — el chequeo que
+// repite cada Server Action de esta consola antes de escribir nada. Devuelve
+// un error listo para mostrar (nunca redirige acá adentro) para que cada
+// action decida su propio mensaje y mantenga el control del flujo.
+type OperadorCheck =
+  | { error: string }
+  | {
+      usuario: NonNullable<Awaited<ReturnType<typeof getCurrentUsuario>>>;
+      partido: NonNullable<Awaited<ReturnType<typeof prisma.partido.findUnique>>>;
+    };
+
+async function requireOperadorEnCurso(partidoId: string, mensajeError: string): Promise<OperadorCheck> {
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    return { error: "Sesión inválida." };
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    return { error: "Partido no encontrado." };
+  }
+  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
+    return { error: mensajeError };
+  }
+
+  return { usuario, partido };
+}
+
+// Proyecta el estado vivo desde los eventos vigentes justo antes de escribir
+// — nunca se confía en lo que mandó el form, así se evita duplicar cuartos,
+// anotar sin cuarto activo, etc. si la pantalla quedó desactualizada.
+async function getEstadoVigente(partidoId: string, clubLocalId: string, clubVisitanteId: string) {
+  const eventos = await prisma.matchEvent.findMany({
+    where: { partidoId, anulado: false },
+    orderBy: { createdAt: "asc" },
+    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
+  });
+  return buildLiveMatchState(eventos, { clubLocalId, clubVisitanteId });
+}
+
 const MAX_CONVOCADOS = 12;
 
 export async function guardarConvocados(formData: FormData) {
@@ -16,21 +56,12 @@ export async function guardarConvocados(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés editar los convocados de este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés editar los convocados de este partido.");
-    return;
-  }
+  const { partido } = check;
 
   if (localIds.length > MAX_CONVOCADOS) {
     fail(`Máximo ${MAX_CONVOCADOS} convocados para el equipo local.`);
@@ -99,21 +130,12 @@ export async function guardarTitulares(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés editar los titulares de este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés editar los titulares de este partido.");
-    return;
-  }
+  const { partido } = check;
 
   if (titularesLocal.length !== TITULARES_POR_EQUIPO) {
     fail(`El equipo local debe tener exactamente ${TITULARES_POR_EQUIPO} titulares.`);
@@ -181,39 +203,19 @@ export async function controlarCuarto(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés controlar los cuartos de este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés controlar los cuartos de este partido.");
-    return;
-  }
+  const { partido } = check;
 
   if ((accion !== "iniciar" && accion !== "finalizar") || !Number.isInteger(cuarto)) {
     fail("Acción de cuarto inválida.");
     return;
   }
 
-  // Se recalcula el estado desde los eventos justo antes de escribir (no se
-  // confía en lo que mandó el form) — evita iniciar/finalizar dos veces o
-  // saltear cuartos si la pantalla quedó desactualizada.
-  const eventos = await prisma.matchEvent.findMany({
-    where: { partidoId, anulado: false },
-    orderBy: { createdAt: "asc" },
-    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
-  });
-  const estado = buildLiveMatchState(eventos, {
-    clubLocalId: partido.clubLocalId,
-    clubVisitanteId: partido.clubVisitanteId,
-  });
+  const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
   if (
     !estado.proximaAccionCuarto ||
@@ -252,21 +254,12 @@ export async function registrarPunto(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés registrar puntos en este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés registrar puntos en este partido.");
-    return;
-  }
+  const { partido } = check;
 
   if (!VALORES_PUNTO_VALIDOS.includes(valor)) {
     fail("Valor de punto inválido.");
@@ -283,15 +276,7 @@ export async function registrarPunto(formData: FormData) {
     return;
   }
 
-  const eventos = await prisma.matchEvent.findMany({
-    where: { partidoId, anulado: false },
-    orderBy: { createdAt: "asc" },
-    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
-  });
-  const estado = buildLiveMatchState(eventos, {
-    clubLocalId: partido.clubLocalId,
-    clubVisitanteId: partido.clubVisitanteId,
-  });
+  const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
   if (estado.cuartoActivo === null) {
     fail("No hay un cuarto activo — iniciá el cuarto antes de registrar puntos.");
@@ -322,21 +307,12 @@ export async function registrarFalta(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés registrar faltas en este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés registrar faltas en este partido.");
-    return;
-  }
+  const { partido } = check;
 
   if (!TIPOS_FALTA_VALIDOS.includes(tipoFalta as TipoFalta)) {
     fail("Tipo de falta inválido.");
@@ -354,15 +330,7 @@ export async function registrarFalta(formData: FormData) {
     return;
   }
 
-  const eventos = await prisma.matchEvent.findMany({
-    where: { partidoId, anulado: false },
-    orderBy: { createdAt: "asc" },
-    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
-  });
-  const estado = buildLiveMatchState(eventos, {
-    clubLocalId: partido.clubLocalId,
-    clubVisitanteId: partido.clubVisitanteId,
-  });
+  const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
   if (estado.cuartoActivo === null) {
     fail("No hay un cuarto activo — iniciá el cuarto antes de registrar faltas.");
@@ -391,21 +359,12 @@ export async function registrarSustitucion(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés registrar sustituciones en este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés registrar sustituciones en este partido.");
-    return;
-  }
+  const { partido } = check;
 
   if (!jugadorSaleId || !jugadorEntraId || jugadorSaleId === jugadorEntraId) {
     fail("Sustitución inválida.");
@@ -434,15 +393,7 @@ export async function registrarSustitucion(formData: FormData) {
     return;
   }
 
-  const eventos = await prisma.matchEvent.findMany({
-    where: { partidoId, anulado: false },
-    orderBy: { createdAt: "asc" },
-    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
-  });
-  const estado = buildLiveMatchState(eventos, {
-    clubLocalId: partido.clubLocalId,
-    clubVisitanteId: partido.clubVisitanteId,
-  });
+  const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
   if (estado.cuartoActivo === null) {
     fail("No hay un cuarto activo — iniciá el cuarto antes de registrar sustituciones.");
@@ -480,36 +431,19 @@ export async function registrarTimeout(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés registrar timeouts en este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés registrar timeouts en este partido.");
-    return;
-  }
+  const { partido } = check;
 
   if (clubId !== partido.clubLocalId && clubId !== partido.clubVisitanteId) {
     fail("Ese club no pertenece a este partido.");
     return;
   }
 
-  const eventos = await prisma.matchEvent.findMany({
-    where: { partidoId, anulado: false },
-    orderBy: { createdAt: "asc" },
-    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
-  });
-  const estado = buildLiveMatchState(eventos, {
-    clubLocalId: partido.clubLocalId,
-    clubVisitanteId: partido.clubVisitanteId,
-  });
+  const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
   if (estado.cuartoActivo === null) {
     fail("No hay un cuarto activo — iniciá el cuarto antes de registrar timeouts.");
@@ -535,36 +469,19 @@ export async function registrarPosesion(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés cambiar la posesión de este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés cambiar la posesión de este partido.");
-    return;
-  }
+  const { partido } = check;
 
   if (clubId !== partido.clubLocalId && clubId !== partido.clubVisitanteId) {
     fail("Ese club no pertenece a este partido.");
     return;
   }
 
-  const eventos = await prisma.matchEvent.findMany({
-    where: { partidoId, anulado: false },
-    orderBy: { createdAt: "asc" },
-    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
-  });
-  const estado = buildLiveMatchState(eventos, {
-    clubLocalId: partido.clubLocalId,
-    clubVisitanteId: partido.clubVisitanteId,
-  });
+  const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
   if (estado.cuartoActivo === null) {
     fail("No hay un cuarto activo — iniciá el cuarto antes de cambiar la posesión.");
@@ -589,21 +506,12 @@ export async function deshacerUltimoEvento(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés deshacer eventos de este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés deshacer eventos de este partido.");
-    return;
-  }
+  const { usuario } = check;
 
   // Se busca directo en la base (no vía buildLiveMatchState) porque acá se
   // necesita el id de la fila para anularla, no solo la proyección de estado.
@@ -695,33 +603,14 @@ export async function finalizarPartido(formData: FormData) {
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorEnCurso(partidoId, "No podés finalizar este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
+  const { partido } = check;
 
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés finalizar este partido.");
-    return;
-  }
-
-  // Se recalcula el estado desde los eventos justo antes de escribir — no se
-  // confía en que la pantalla efectivamente vio Q4 finalizado.
-  const eventos = await prisma.matchEvent.findMany({
-    where: { partidoId, anulado: false },
-    orderBy: { createdAt: "asc" },
-    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
-  });
-  const estado = buildLiveMatchState(eventos, {
-    clubLocalId: partido.clubLocalId,
-    clubVisitanteId: partido.clubVisitanteId,
-  });
+  const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
   if (estado.estadoCuartos !== "CUARTOS_COMPLETADOS") {
     fail("Para finalizar el partido, primero debe terminar Q4.");

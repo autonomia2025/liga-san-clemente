@@ -25,7 +25,12 @@ const TIPOS_FALTA: { valor: TipoFalta; label: string }[] = [
 
 // Badge visible solo para faltas graves — la personal es la esperable y no
 // necesita destacarse en la card, alcanza con el contador.
-const TIPOS_FALTA_BADGE = new Set<TipoFalta>(["TECNICA", "ANTIDEPORTIVA", "DESCALIFICANTE"]);
+const TIPOS_FALTA_BADGE = new Set<TipoFalta>([
+  "TECNICA",
+  "ANTIDEPORTIVA",
+  "DESCALIFICANTE",
+  "EXPULSION_DIRECTA",
+]);
 
 function badgeFalta(tipos: TipoFalta[]): string | null {
   const grave = tipos.find((t) => TIPOS_FALTA_BADGE.has(t));
