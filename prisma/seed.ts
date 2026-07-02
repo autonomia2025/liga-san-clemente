@@ -6,9 +6,20 @@
 // Seguro de correr más de una vez: usa upsert sobre las claves únicas
 // del schema (nombre de club, numeroCamiseta por club, numero de jornada)
 // y no duplica el partido de prueba si ya existe.
+//
+// No corre si la base ya tiene clubes: evita mezclar estos datos
+// ficticios con datos reales ya importados (ver Fase 1, PR 1.0-1.3).
 import { prisma } from "../lib/db";
 
 async function main() {
+  const clubesExistentes = await prisma.club.count();
+  if (clubesExistentes > 0) {
+    console.log(
+      `La base ya tiene ${clubesExistentes} club(es) — el seed de desarrollo no corre para no mezclar datos ficticios con datos reales. Si esto es una base nueva de verdad, borrala o usá otra.`,
+    );
+    return;
+  }
+
   const clubLocal = await prisma.club.upsert({
     where: { nombre: "Halcones CABB" },
     update: {},
