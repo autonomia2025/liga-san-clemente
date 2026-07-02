@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/db";
+import { abrirPartido } from "./actions";
 
-export default async function MesaHome() {
+export default async function MesaHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   const partidos = await prisma.partido.findMany({
     where: { estado: "CONFIRMADO" },
     include: { jornada: true, clubLocal: true, clubVisitante: true },
@@ -12,6 +19,8 @@ export default async function MesaHome() {
       <h1 className="text-xl font-semibold text-foreground">
         Partidos disponibles para operar
       </h1>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       {partidos.length === 0 ? (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border">
@@ -46,6 +55,16 @@ export default async function MesaHome() {
                   ? new Date(partido.fechaHora).toLocaleString("es-CL")
                   : "Sin fecha definida"}
               </span>
+
+              <form action={abrirPartido}>
+                <input type="hidden" name="partidoId" value={partido.id} />
+                <button
+                  type="submit"
+                  className="w-full rounded-md bg-accent-orange px-3 py-3 text-sm font-medium text-white hover:opacity-90"
+                >
+                  Abrir partido
+                </button>
+              </form>
             </div>
           ))}
         </div>
