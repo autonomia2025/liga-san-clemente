@@ -43,3 +43,7 @@ next-env.d.ts
 
 # prisma generated client
 /generated/prisma
+
+# Private league data
+data/private/
+*.xlsx

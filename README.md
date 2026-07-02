@@ -6,7 +6,7 @@ Ver el documento de producto y el plan de PRs por fase en la conversación del p
 
 ## Estado del proyecto
 
-Fase 0 (Fundaciones) completa en código. Pendiente la validación real con un proyecto Supabase — ver el checklist más abajo antes de avanzar a Fase 1.
+Fase 0 (Fundaciones) completa y validada contra un proyecto Supabase real (2026-07-01): migraciones, seed, healthcheck, login admin/mesa, bloqueo cruzado de roles y logout, todo verificado end-to-end. Lista para arrancar Fase 1.
 
 ## Stack
 
@@ -89,22 +89,24 @@ Todavía no existe una UI para gestionar usuarios (eso es PR 1.7 — Fase 1). Ha
 
 4. Ya podés loguearte en [http://localhost:3000/login](http://localhost:3000/login) con ese email y password. Te redirige a `/admin` o `/mesa` según el rol.
 
-## ⚠️ Checklist obligatorio antes de cerrar Fase 0
+## ✅ Cierre de Fase 0 — validación real (2026-07-01)
 
-Todo el código de Fase 0 (PR 0.1 a 0.6) fue validado con `lint`, `build` y, donde fue posible, en runtime — pero **nunca se probó contra un proyecto Supabase real** (no había uno disponible en el entorno de desarrollo). Antes de dar por cerrada la Fase 0 y pasar a Fase 1, hay que correr esta validación manual una vez con un proyecto Supabase real (puede ser el mismo de staging):
+Validado end-to-end contra un proyecto Supabase real:
 
-- [ ] Aplicar migraciones: `npx prisma migrate deploy`.
-- [ ] Correr el seed: `npm run seed`.
-- [ ] Verificar el healthcheck: `curl <url>/api/health` devuelve `{"status":"ok"}`.
-- [ ] Crear un usuario admin (pasos de la sección anterior) e iniciar sesión en `/login`.
-- [ ] Confirmar que entra a `/admin` correctamente.
-- [ ] Confirmar que ese usuario admin **no puede** entrar a `/mesa` (debe redirigir a `/`).
-- [ ] Crear un usuario mesa e iniciar sesión.
-- [ ] Confirmar que entra a `/mesa` correctamente.
-- [ ] Confirmar que ese usuario mesa **no puede** entrar a `/admin` (debe redirigir a `/`).
-- [ ] Cerrar sesión y confirmar que vuelve a pedir login al intentar entrar a `/admin` o `/mesa`.
+- [x] Aplicar migraciones: `npx prisma migrate deploy`.
+- [x] Correr el seed: `npm run seed`.
+- [x] Verificar el healthcheck: `curl <url>/api/health` devuelve `{"status":"ok"}`.
+- [x] Crear un usuario admin e iniciar sesión en `/login`.
+- [x] Confirmar que entra a `/admin` correctamente.
+- [x] Confirmar que ese usuario admin **no puede** entrar a `/mesa` (redirige a `/`).
+- [x] Crear un usuario mesa e iniciar sesión.
+- [x] Confirmar que entra a `/mesa` correctamente.
+- [x] Confirmar que ese usuario mesa **no puede** entrar a `/admin` (redirige a `/`).
+- [x] Cerrar sesión y confirmar que vuelve a pedir login al intentar entrar a `/admin` o `/mesa`.
 
-Si algo de esto falla, es un bug de Fase 0 a resolver antes de Fase 1, no una tarea nueva.
+Hallazgo adicional durante la validación: RLS (Row Level Security) estaba desactivado en las 10 tablas del schema, lo que dejaba la API REST autogenerada de Supabase (PostgREST) abierta a la `anon key` pública. Se activó RLS sin políticas en las 10 tablas (la app no usa PostgREST, todo pasa por Prisma con la conexión directa, así que no afecta a la app) — bloquea el acceso público por completo. Ver detalle en el historial de la conversación del proyecto.
+
+Nota técnica para el setup local: la conexión **directa** de Supabase (`db.<ref>.supabase.co:5432`) es IPv6-only y puede no ser alcanzable según tu red. Si `prisma migrate deploy` no conecta, usá el **Session pooler** (Project Settings → Database → Connection string → Session pooler, puerto 5432) en `DATABASE_URL` en su lugar — soporta las prepared statements que Prisma necesita para migrar (el Transaction pooler, puerto 6543, no las soporta y cuelga `migrate deploy`).
 
 ## Modelo de datos
 
