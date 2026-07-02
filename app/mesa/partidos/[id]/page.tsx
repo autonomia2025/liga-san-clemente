@@ -28,15 +28,20 @@ export default async function MesaPartidoPage({
     redirect(`/mesa?error=${encodeURIComponent("Partido no encontrado.")}`);
   }
 
-  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario!.id) {
+  const puedeVer =
+    (partido.estado === "EN_CURSO" || partido.estado === "FINALIZADO") &&
+    partido.mesaOperadorId === usuario!.id;
+  if (!puedeVer) {
     redirect(
       `/mesa?error=${encodeURIComponent(
-        partido.estado !== "EN_CURSO"
+        partido.estado !== "EN_CURSO" && partido.estado !== "FINALIZADO"
           ? "Este partido todavía no fue abierto — usá el botón 'Abrir partido' desde la lista."
           : "Este partido está siendo operado por otro usuario de Mesa.",
       )}`,
     );
   }
+
+  const partidoFinalizado = partido!.estado === "FINALIZADO";
 
   const [jugadoresLocal, jugadoresVisitante, convocadosActuales, eventos] = await Promise.all([
     prisma.jugador.findMany({
@@ -112,8 +117,14 @@ export default async function MesaPartidoPage({
   return (
     <div className="flex flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="w-fit rounded-full bg-accent-orange/20 px-2 py-0.5 text-xs text-accent-orange">
-          Jornada {partido!.jornada.numero} — En curso
+        <span
+          className={`w-fit rounded-full px-2 py-0.5 text-xs ${
+            partidoFinalizado
+              ? "bg-zinc-500/20 text-muted"
+              : "bg-accent-orange/20 text-accent-orange"
+          }`}
+        >
+          Jornada {partido!.jornada.numero} — {partidoFinalizado ? "Finalizado" : "En curso"}
         </span>
         <span className="text-xs text-muted">
           Operador: {partido!.mesaOperador?.email ?? "—"}
@@ -138,6 +149,9 @@ export default async function MesaPartidoPage({
       {ok === "timeout" && <p className="text-sm text-green-400">Timeout registrado.</p>}
       {ok === "posesion" && <p className="text-sm text-green-400">Posesión actualizada.</p>}
       {ok === "deshacer" && <p className="text-sm text-green-400">Último evento deshecho.</p>}
+      {ok === "finalizado" && (
+        <p className="text-sm text-green-400">Partido finalizado. Listo para generar Acta.</p>
+      )}
 
       {sinConvocados && (
         <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">
@@ -149,7 +163,23 @@ export default async function MesaPartidoPage({
           Ahora selecciona titulares (5 por equipo) para poder armar la cancha.
         </div>
       )}
-      {consolaLista && (
+      {partidoFinalizado && (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface p-6">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+            Marcador final
+          </span>
+          <div className="flex items-center gap-3 text-2xl font-extrabold text-foreground">
+            <span>{partido!.clubLocal.nombre}</span>
+            <span>
+              {liveState.marcadorLocal}&nbsp;-&nbsp;{liveState.marcadorVisitante}
+            </span>
+            <span>{partido!.clubVisitante.nombre}</span>
+          </div>
+          <p className="text-sm text-muted">Partido finalizado. Listo para generar Acta.</p>
+        </div>
+      )}
+
+      {!partidoFinalizado && consolaLista && (
         <ConsolaPartido
           partidoId={partido!.id}
           clubLocalId={partido!.clubLocalId}
@@ -165,39 +195,43 @@ export default async function MesaPartidoPage({
         />
       )}
 
-      <details className="rounded-lg border border-border bg-surface" open={!consolaLista}>
-        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
-          Editar convocados (máximo 12 por equipo)
-        </summary>
-        <div className="px-4 pb-4">
-          <ConvocadosForm
-            partidoId={partido!.id}
-            clubLocalNombre={partido!.clubLocal.nombre}
-            clubVisitanteNombre={partido!.clubVisitante.nombre}
-            jugadoresLocal={jugadoresLocal}
-            jugadoresVisitante={jugadoresVisitante}
-            seleccionadosLocalInicial={seleccionadosLocalInicial}
-            seleccionadosVisitanteInicial={seleccionadosVisitanteInicial}
-          />
-        </div>
-      </details>
+      {!partidoFinalizado && (
+        <>
+          <details className="rounded-lg border border-border bg-surface" open={!consolaLista}>
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
+              Editar convocados (máximo 12 por equipo)
+            </summary>
+            <div className="px-4 pb-4">
+              <ConvocadosForm
+                partidoId={partido!.id}
+                clubLocalNombre={partido!.clubLocal.nombre}
+                clubVisitanteNombre={partido!.clubVisitante.nombre}
+                jugadoresLocal={jugadoresLocal}
+                jugadoresVisitante={jugadoresVisitante}
+                seleccionadosLocalInicial={seleccionadosLocalInicial}
+                seleccionadosVisitanteInicial={seleccionadosVisitanteInicial}
+              />
+            </div>
+          </details>
 
-      <details className="rounded-lg border border-border bg-surface" open={!sinConvocados && !consolaLista}>
-        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
-          Editar titulares (5 por equipo, entre los convocados)
-        </summary>
-        <div className="px-4 pb-4">
-          <TitularesForm
-            partidoId={partido!.id}
-            clubLocalNombre={partido!.clubLocal.nombre}
-            clubVisitanteNombre={partido!.clubVisitante.nombre}
-            convocadosLocal={convocadosLocal}
-            convocadosVisitante={convocadosVisitante}
-            titularesLocalInicial={titularesLocalInicial}
-            titularesVisitanteInicial={titularesVisitanteInicial}
-          />
-        </div>
-      </details>
+          <details className="rounded-lg border border-border bg-surface" open={!sinConvocados && !consolaLista}>
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
+              Editar titulares (5 por equipo, entre los convocados)
+            </summary>
+            <div className="px-4 pb-4">
+              <TitularesForm
+                partidoId={partido!.id}
+                clubLocalNombre={partido!.clubLocal.nombre}
+                clubVisitanteNombre={partido!.clubVisitante.nombre}
+                convocadosLocal={convocadosLocal}
+                convocadosVisitante={convocadosVisitante}
+                titularesLocalInicial={titularesLocalInicial}
+                titularesVisitanteInicial={titularesVisitanteInicial}
+              />
+            </div>
+          </details>
+        </>
+      )}
     </div>
   );
 }

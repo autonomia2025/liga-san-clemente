@@ -688,3 +688,57 @@ export async function deshacerUltimoEvento(formData: FormData) {
 
   redirect(`/mesa/partidos/${partidoId}?ok=deshacer`);
 }
+
+export async function finalizarPartido(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    fail("Sesión inválida.");
+    return;
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    fail("Partido no encontrado.");
+    return;
+  }
+  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
+    fail("No podés finalizar este partido.");
+    return;
+  }
+
+  // Se recalcula el estado desde los eventos justo antes de escribir — no se
+  // confía en que la pantalla efectivamente vio Q4 finalizado.
+  const eventos = await prisma.matchEvent.findMany({
+    where: { partidoId, anulado: false },
+    orderBy: { createdAt: "asc" },
+    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
+  });
+  const estado = buildLiveMatchState(eventos, {
+    clubLocalId: partido.clubLocalId,
+    clubVisitanteId: partido.clubVisitanteId,
+  });
+
+  if (estado.estadoCuartos !== "CUARTOS_COMPLETADOS") {
+    fail("Para finalizar el partido, primero debe terminar Q4.");
+    return;
+  }
+
+  // Atómico con guardia de estado: si otro request ya finalizó este partido
+  // entre el findUnique de arriba y este update, count será 0 y se rechaza
+  // en vez de duplicar el cierre.
+  const { count } = await prisma.partido.updateMany({
+    where: { id: partidoId, estado: "EN_CURSO" },
+    data: { estado: "FINALIZADO" },
+  });
+  if (count === 0) {
+    fail("Este partido ya fue finalizado.");
+    return;
+  }
+
+  redirect(`/mesa/partidos/${partidoId}?ok=finalizado`);
+}

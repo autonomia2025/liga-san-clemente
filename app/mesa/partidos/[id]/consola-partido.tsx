@@ -8,6 +8,7 @@ import {
   registrarTimeout,
   registrarPosesion,
   deshacerUltimoEvento,
+  finalizarPartido,
 } from "./actions";
 
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
@@ -326,6 +327,34 @@ function ControlCuarto({
   );
 }
 
+function FinalizarPartido({
+  partidoId,
+  liveState,
+}: {
+  partidoId: string;
+  liveState: LiveMatchState;
+}) {
+  if (liveState.estadoCuartos !== "CUARTOS_COMPLETADOS") {
+    return (
+      <p className="text-center text-[11px] text-muted">
+        Para finalizar el partido, primero debe terminar Q4.
+      </p>
+    );
+  }
+
+  return (
+    <form action={finalizarPartido} className="flex justify-center">
+      <input type="hidden" name="partidoId" value={partidoId} />
+      <button
+        type="submit"
+        className="rounded-full bg-red-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-red-700"
+      >
+        Finalizar partido ({liveState.marcadorLocal}&nbsp;-&nbsp;{liveState.marcadorVisitante})
+      </button>
+    </form>
+  );
+}
+
 export function ConsolaPartido({
   partidoId,
   clubLocalId,
@@ -375,6 +404,7 @@ export function ConsolaPartido({
           </span>
         </div>
         <ControlCuarto partidoId={partidoId} liveState={liveState} />
+        <FinalizarPartido partidoId={partidoId} liveState={liveState} />
         <BotonDeshacer partidoId={partidoId} descripcion={descripcionUltimoEvento} />
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           <BotonTimeout
