@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "seed": "prisma db seed",
     "import:lbsc": "tsx scripts/import-lbsc.ts",
-    "import:fixture": "tsx scripts/import-fixture.ts"
+    "import:fixture": "tsx scripts/import-fixture.ts",
+    "import:fecha1": "tsx scripts/import-fecha1.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
