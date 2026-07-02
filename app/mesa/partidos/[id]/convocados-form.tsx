@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { guardarConvocados } from "./actions";
 
 const MAX_CONVOCADOS = 12;
@@ -28,15 +29,9 @@ function ConvocadosColumna({
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">{titulo}</h2>
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs ${
-            seleccionados.size >= MAX_CONVOCADOS
-              ? "bg-accent-orange/20 text-accent-orange"
-              : "bg-zinc-500/20 text-muted"
-          }`}
-        >
+        <Badge tone={seleccionados.size >= MAX_CONVOCADOS ? "accent-orange" : "neutral"}>
           {seleccionados.size}/{MAX_CONVOCADOS}
-        </span>
+        </Badge>
       </div>
 
       <div className="flex flex-col gap-1">
@@ -59,15 +54,9 @@ function ConvocadosColumna({
                 onChange={() => onToggle(j.id)}
               />
               <span className="text-foreground">{j.nombre}</span>
-              {j.numeroCamiseta !== null ? (
-                <span className="ml-auto rounded-full bg-accent-blue/20 px-2 py-0.5 text-xs text-accent-blue">
-                  #{j.numeroCamiseta}
-                </span>
-              ) : (
-                <span className="ml-auto rounded-full bg-accent-orange/20 px-2 py-0.5 text-xs text-accent-orange">
-                  Sin dorsal
-                </span>
-              )}
+              <Badge tone={j.numeroCamiseta !== null ? "accent-blue" : "accent-orange"} className="ml-auto">
+                {j.numeroCamiseta !== null ? `#${j.numeroCamiseta}` : "Sin dorsal"}
+              </Badge>
             </label>
           );
         })}
@@ -140,7 +129,7 @@ export function ConvocadosForm({
 
       <button
         type="submit"
-        className="w-fit rounded-md bg-accent-orange px-4 py-3 text-sm font-medium text-white hover:opacity-90"
+        className="w-fit rounded-md bg-accent-orange px-4 py-3 text-sm font-medium text-white hover:opacity-90 active:scale-95"
       >
         Guardar convocados
       </button>

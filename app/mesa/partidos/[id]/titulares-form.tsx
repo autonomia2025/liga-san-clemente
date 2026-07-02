@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { guardarTitulares } from "./actions";
 
 const TITULARES_POR_EQUIPO = 5;
@@ -28,15 +29,9 @@ function TitularesColumna({
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">{titulo}</h2>
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs ${
-            seleccionados.size === TITULARES_POR_EQUIPO
-              ? "bg-green-500/15 text-green-400"
-              : "bg-zinc-500/20 text-muted"
-          }`}
-        >
+        <Badge tone={seleccionados.size === TITULARES_POR_EQUIPO ? "success" : "neutral"}>
           {seleccionados.size}/{TITULARES_POR_EQUIPO}
-        </span>
+        </Badge>
       </div>
 
       <div className="flex flex-col gap-1">
@@ -60,14 +55,12 @@ function TitularesColumna({
               />
               <span className="text-foreground">{j.nombre}</span>
               {j.numeroCamiseta !== null && (
-                <span className="rounded-full bg-accent-blue/20 px-2 py-0.5 text-xs text-accent-blue">
-                  #{j.numeroCamiseta}
-                </span>
+                <Badge tone="accent-blue">#{j.numeroCamiseta}</Badge>
               )}
               {checked && (
-                <span className="ml-auto rounded-full bg-green-500/15 px-2 py-0.5 text-xs text-green-400">
+                <Badge tone="success" className="ml-auto">
                   Titular
-                </span>
+                </Badge>
               )}
             </label>
           );
@@ -143,7 +136,7 @@ export function TitularesForm({
 
       <button
         type="submit"
-        className="w-fit rounded-md bg-accent-orange px-4 py-3 text-sm font-medium text-white hover:opacity-90"
+        className="w-fit rounded-md bg-accent-orange px-4 py-3 text-sm font-medium text-white hover:opacity-90 active:scale-95"
       >
         Guardar titulares
       </button>

@@ -32,7 +32,7 @@ export default async function MesaHome({
         Partidos disponibles para operar
       </h1>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {partidos.length === 0 ? (
         <div className="flex flex-1 animate-fade-in items-center justify-center rounded-lg border border-dashed border-border">
@@ -73,7 +73,7 @@ export default async function MesaHome({
                   <input type="hidden" name="partidoId" value={partido.id} />
                   <button
                     type="submit"
-                    className="w-full rounded-md bg-accent-orange px-3 py-3 text-sm font-medium text-white hover:opacity-90"
+                    className="w-full rounded-md bg-accent-orange px-3 py-3 text-sm font-medium text-white hover:opacity-90 active:scale-95"
                   >
                     {enCurso ? "Continuar operando" : "Abrir partido"}
                   </button>

@@ -189,6 +189,7 @@ function JugadorCanchaCard({
                 <input type="hidden" name="jugadorSaleId" value={jugador.id} />
                 <select
                   name="jugadorEntraId"
+                  aria-label={`Jugador que entra por ${jugador.nombre}`}
                   className="w-full rounded-md border border-border bg-surface px-1 py-0.5 text-[9px] text-foreground"
                 >
                   {banca.map((b) => (

@@ -111,21 +111,23 @@ export default async function PartidoDetallePage({
               <h2 className="bg-surface-hover px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
                 {club.nombre}
               </h2>
-              <table className="w-full text-sm">
-                <tbody>
-                  {stats.map((s, i) => (
-                    <tr key={s.id} className={i % 2 === 1 ? "bg-surface-hover/60" : ""}>
-                      <td className="py-1.5 pl-3 text-foreground">
-                        {s.jugador.numeroCamiseta !== null ? `#${s.jugador.numeroCamiseta} ` : ""}
-                        {s.jugador.nombre}
-                      </td>
-                      <td className="py-1.5 pr-3 text-right font-medium text-accent-blue">
-                        {s.puntos} pts
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <tbody>
+                    {stats.map((s, i) => (
+                      <tr key={s.id} className={i % 2 === 1 ? "bg-surface-hover/60" : ""}>
+                        <td className="py-1.5 pl-3 whitespace-nowrap text-foreground">
+                          {s.jugador.numeroCamiseta !== null ? `#${s.jugador.numeroCamiseta} ` : ""}
+                          {s.jugador.nombre}
+                        </td>
+                        <td className="py-1.5 pr-3 text-right font-medium text-accent-blue">
+                          {s.puntos} pts
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ))}
         </div>

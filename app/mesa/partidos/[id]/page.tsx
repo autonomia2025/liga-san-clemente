@@ -146,20 +146,20 @@ export default async function MesaPartidoPage({
         </div>
       )}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {ok === "convocados" && <p className="text-sm text-green-400">Convocados guardados.</p>}
-      {ok === "titulares" && <p className="text-sm text-green-400">Titulares guardados.</p>}
-      {ok === "cuarto" && <p className="text-sm text-green-400">Cuarto actualizado.</p>}
-      {ok === "punto" && <p className="text-sm text-green-400">Punto registrado.</p>}
-      {ok === "falta" && <p className="text-sm text-green-400">Falta registrada.</p>}
-      {ok === "sustitucion" && <p className="text-sm text-green-400">Sustitución registrada.</p>}
-      {ok === "timeout" && <p className="text-sm text-green-400">Timeout registrado.</p>}
-      {ok === "posesion" && <p className="text-sm text-green-400">Posesión actualizada.</p>}
-      {ok === "deshacer" && <p className="text-sm text-green-400">Último evento deshecho.</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
+      {ok === "convocados" && <p className="text-sm text-success">Convocados guardados.</p>}
+      {ok === "titulares" && <p className="text-sm text-success">Titulares guardados.</p>}
+      {ok === "cuarto" && <p className="text-sm text-success">Cuarto actualizado.</p>}
+      {ok === "punto" && <p className="text-sm text-success">Punto registrado.</p>}
+      {ok === "falta" && <p className="text-sm text-success">Falta registrada.</p>}
+      {ok === "sustitucion" && <p className="text-sm text-success">Sustitución registrada.</p>}
+      {ok === "timeout" && <p className="text-sm text-success">Timeout registrado.</p>}
+      {ok === "posesion" && <p className="text-sm text-success">Posesión actualizada.</p>}
+      {ok === "deshacer" && <p className="text-sm text-success">Último evento deshecho.</p>}
       {ok === "finalizado" && (
-        <p className="text-sm text-green-400">Partido finalizado. Listo para generar Acta.</p>
+        <p className="text-sm text-success">Partido finalizado. Listo para generar Acta.</p>
       )}
-      {ok === "acta" && <p className="text-sm text-green-400">Acta generada.</p>}
+      {ok === "acta" && <p className="text-sm text-success">Acta generada.</p>}
 
       {sinConvocados && (
         <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">
@@ -237,25 +237,27 @@ export default async function MesaPartidoPage({
                       ? partido!.clubLocal.nombre
                       : partido!.clubVisitante.nombre}
                   </h3>
-                  <table className="w-full text-xs">
-                    <tbody>
-                      {boxscore
-                        .filter((s) => s.clubId === clubId)
-                        .map((s, i) => (
-                          <tr
-                            key={s.jugadorId}
-                            className={i % 2 === 1 ? "bg-surface-hover/60" : ""}
-                          >
-                            <td className="py-1.5 pl-3 text-foreground">
-                              {s.jugador.numeroCamiseta !== null ? `#${s.jugador.numeroCamiseta} ` : ""}
-                              {s.jugador.nombre}
-                            </td>
-                            <td className="py-1.5 text-right text-accent-blue">{s.puntos} pts</td>
-                            <td className="py-1.5 pr-3 text-right text-warning">{s.faltas ?? 0} f</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {boxscore
+                          .filter((s) => s.clubId === clubId)
+                          .map((s, i) => (
+                            <tr
+                              key={s.jugadorId}
+                              className={i % 2 === 1 ? "bg-surface-hover/60" : ""}
+                            >
+                              <td className="py-1.5 pl-3 whitespace-nowrap text-foreground">
+                                {s.jugador.numeroCamiseta !== null ? `#${s.jugador.numeroCamiseta} ` : ""}
+                                {s.jugador.nombre}
+                              </td>
+                              <td className="py-1.5 text-right text-accent-blue">{s.puntos} pts</td>
+                              <td className="py-1.5 pr-3 text-right text-warning">{s.faltas ?? 0} f</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ))}
             </div>

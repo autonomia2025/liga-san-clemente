@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { Badge } from "@/components/ui/badge";
 
 export default async function ClubesPage() {
   const clubes = await prisma.club.findMany({
@@ -39,16 +40,10 @@ export default async function ClubesPage() {
                 </span>
                 <span className="min-w-0 truncate font-medium text-foreground">{club.nombre}</span>
               </div>
-              <div className="flex flex-wrap gap-1.5 text-xs text-muted">
-                <span className="rounded-full bg-zinc-500/20 px-2 py-0.5">
-                  {club._count.jugadores} jugadores
-                </span>
-                <span className="rounded-full bg-zinc-500/20 px-2 py-0.5">
-                  {club._count.staff} staff
-                </span>
-                <span className="rounded-full bg-zinc-500/20 px-2 py-0.5">
-                  {partidos} partidos
-                </span>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge tone="neutral">{club._count.jugadores} jugadores</Badge>
+                <Badge tone="neutral">{club._count.staff} staff</Badge>
+                <Badge tone="neutral">{partidos} partidos</Badge>
               </div>
             </Link>
           );

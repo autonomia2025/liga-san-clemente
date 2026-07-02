@@ -88,7 +88,10 @@ export default async function JugadoresPage({
           Filtrar
         </button>
         {(clubId || q) && (
-          <Link href="/admin/jugadores" className="text-sm text-muted underline hover:text-foreground">
+          <Link
+            href="/admin/jugadores"
+            className="text-sm text-muted underline transition-colors hover:text-foreground"
+          >
             Limpiar
           </Link>
         )}
