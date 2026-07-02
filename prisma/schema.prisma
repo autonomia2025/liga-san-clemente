@@ -115,11 +115,13 @@ model ClubStaff {
 // ---------------------------------------------------------------------------
 
 model Jornada {
-  id        String   @id @default(cuid())
-  numero    Int      @unique
-  fecha     DateTime
+  id        String    @id @default(cuid())
+  numero    Int       @unique
+  // Nullable: el fixture real no siempre trae fecha definida al momento de crearse.
+  // No se debe inventar una fecha — se completa después desde Admin.
+  fecha     DateTime?
   nombre    String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   partidos Partido[]
 
@@ -138,7 +140,9 @@ model Partido {
   jornadaId             String
   clubLocalId           String
   clubVisitanteId       String
-  fechaHora             DateTime
+  // Nullable por el mismo motivo que Jornada.fecha — el fixture real
+  // importado no siempre trae fecha/hora definida todavía.
+  fechaHora             DateTime?
   cancha                String?
   estado                EstadoPartido @default(PROGRAMADO)
   cuartoActual          Int           @default(0)
