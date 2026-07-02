@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
+import { TipoEvento } from "@/generated/prisma/client";
+import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
 
 const MAX_CONVOCADOS = 12;
 
@@ -169,4 +171,70 @@ export async function guardarTitulares(formData: FormData) {
   ]);
 
   redirect(`/mesa/partidos/${partidoId}?ok=titulares`);
+}
+
+export async function controlarCuarto(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const accion = String(formData.get("accion") ?? "");
+  const cuarto = Number(formData.get("cuarto") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    fail("Sesión inválida.");
+    return;
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    fail("Partido no encontrado.");
+    return;
+  }
+  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
+    fail("No podés controlar los cuartos de este partido.");
+    return;
+  }
+
+  if ((accion !== "iniciar" && accion !== "finalizar") || !Number.isInteger(cuarto)) {
+    fail("Acción de cuarto inválida.");
+    return;
+  }
+
+  // Se recalcula el estado desde los eventos justo antes de escribir (no se
+  // confía en lo que mandó el form) — evita iniciar/finalizar dos veces o
+  // saltear cuartos si la pantalla quedó desactualizada.
+  const eventos = await prisma.matchEvent.findMany({
+    where: { partidoId, anulado: false },
+    orderBy: { createdAt: "asc" },
+    select: { tipo: true, cuarto: true, anulado: true },
+  });
+  const estado = buildLiveMatchState(eventos);
+
+  if (
+    !estado.proximaAccionCuarto ||
+    estado.proximaAccionCuarto.tipo !== accion ||
+    estado.proximaAccionCuarto.cuarto !== cuarto
+  ) {
+    fail("Esa acción de cuarto ya no está disponible — la pantalla quedó desactualizada, recargá.");
+    return;
+  }
+
+  await prisma.matchEvent.create({
+    data: {
+      partidoId,
+      cuarto,
+      tipo: accion === "iniciar" ? TipoEvento.INICIO_CUARTO : TipoEvento.FIN_CUARTO,
+    },
+  });
+
+  if (accion === "iniciar") {
+    await prisma.partido.update({
+      where: { id: partidoId },
+      data: { cuartoActual: cuarto },
+    });
+  }
+
+  redirect(`/mesa/partidos/${partidoId}?ok=cuarto`);
 }

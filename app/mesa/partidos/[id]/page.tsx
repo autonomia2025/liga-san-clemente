@@ -4,6 +4,7 @@ import { getCurrentUsuario } from "@/lib/auth";
 import { ConvocadosForm } from "./convocados-form";
 import { TitularesForm } from "./titulares-form";
 import { ConsolaPartido } from "./consola-partido";
+import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
 
 export default async function MesaPartidoPage({
   params,
@@ -37,7 +38,7 @@ export default async function MesaPartidoPage({
     );
   }
 
-  const [jugadoresLocal, jugadoresVisitante, convocadosActuales] = await Promise.all([
+  const [jugadoresLocal, jugadoresVisitante, convocadosActuales, eventos] = await Promise.all([
     prisma.jugador.findMany({
       where: { clubId: partido!.clubLocalId, activo: true },
       orderBy: { nombre: "asc" },
@@ -52,7 +53,14 @@ export default async function MesaPartidoPage({
       where: { partidoId: partido!.id, presente: true },
       include: { jugador: { select: { id: true, nombre: true, numeroCamiseta: true } } },
     }),
+    prisma.matchEvent.findMany({
+      where: { partidoId: partido!.id, anulado: false },
+      orderBy: { createdAt: "asc" },
+      select: { tipo: true, cuarto: true, anulado: true },
+    }),
   ]);
+
+  const liveState = buildLiveMatchState(eventos);
 
   const seleccionadosLocalInicial = convocadosActuales
     .filter((c) => c.clubId === partido!.clubLocalId)
@@ -118,6 +126,7 @@ export default async function MesaPartidoPage({
       {error && <p className="text-sm text-red-400">{error}</p>}
       {ok === "convocados" && <p className="text-sm text-green-400">Convocados guardados.</p>}
       {ok === "titulares" && <p className="text-sm text-green-400">Titulares guardados.</p>}
+      {ok === "cuarto" && <p className="text-sm text-green-400">Cuarto actualizado.</p>}
 
       {sinConvocados && (
         <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">
@@ -131,12 +140,14 @@ export default async function MesaPartidoPage({
       )}
       {consolaLista && (
         <ConsolaPartido
+          partidoId={partido!.id}
           clubLocalNombre={partido!.clubLocal.nombre}
           clubVisitanteNombre={partido!.clubVisitante.nombre}
           canchaLocal={canchaLocal}
           canchaVisitante={canchaVisitante}
           bancaLocal={bancaLocal}
           bancaVisitante={bancaVisitante}
+          liveState={liveState}
         />
       )}
 

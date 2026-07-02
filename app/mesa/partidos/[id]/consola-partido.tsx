@@ -1,3 +1,6 @@
+import type { LiveMatchState } from "@/lib/mesa/live-match-state";
+import { controlarCuarto } from "./actions";
+
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
 
 function iniciales(nombre: string): string {
@@ -31,31 +34,57 @@ function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
   );
 }
 
-const ACCIONES_PLACEHOLDER = [
-  "+1",
-  "+2",
-  "+3",
-  "Falta",
-  "Sustitución",
-  "Timeout",
-  "Posesión",
-  "Iniciar cuarto",
-];
+const ACCIONES_PLACEHOLDER = ["+1", "+2", "+3", "Falta", "Sustitución", "Timeout", "Posesión"];
+
+function ControlCuarto({
+  partidoId,
+  liveState,
+}: {
+  partidoId: string;
+  liveState: LiveMatchState;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      <span className="rounded-full bg-accent-orange/20 px-2.5 py-1 text-[11px] font-semibold text-accent-orange">
+        {liveState.mensajeCuartos}
+      </span>
+      {liveState.proximaAccionCuarto && (
+        <form action={controlarCuarto}>
+          <input type="hidden" name="partidoId" value={partidoId} />
+          <input type="hidden" name="accion" value={liveState.proximaAccionCuarto.tipo} />
+          <input type="hidden" name="cuarto" value={liveState.proximaAccionCuarto.cuarto} />
+          <button
+            type="submit"
+            className="rounded-full bg-accent-orange px-3 py-1 text-[11px] font-semibold text-white hover:opacity-90"
+          >
+            {liveState.proximaAccionCuarto.tipo === "iniciar"
+              ? `Iniciar Q${liveState.proximaAccionCuarto.cuarto}`
+              : `Finalizar Q${liveState.proximaAccionCuarto.cuarto}`}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
 
 export function ConsolaPartido({
+  partidoId,
   clubLocalNombre,
   clubVisitanteNombre,
   canchaLocal,
   canchaVisitante,
   bancaLocal,
   bancaVisitante,
+  liveState,
 }: {
+  partidoId: string;
   clubLocalNombre: string;
   clubVisitanteNombre: string;
   canchaLocal: JugadorSlot[];
   canchaVisitante: JugadorSlot[];
   bancaLocal: JugadorSlot[];
   bancaVisitante: JugadorSlot[];
+  liveState: LiveMatchState;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -72,10 +101,8 @@ export function ConsolaPartido({
             {clubVisitanteNombre}
           </span>
         </div>
+        <ControlCuarto partidoId={partidoId} liveState={liveState} />
         <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-muted">
-          <span className="rounded-full bg-accent-orange/20 px-2 py-1 font-semibold text-accent-orange">
-            Q1
-          </span>
           <span className="rounded-full bg-zinc-500/20 px-2 py-1">Posesión: sin asignar</span>
           <span className="rounded-full bg-zinc-500/20 px-2 py-1">Faltas Local: 0</span>
           <span className="rounded-full bg-zinc-500/20 px-2 py-1">Faltas Visita: 0</span>
