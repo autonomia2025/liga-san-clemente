@@ -545,8 +545,10 @@ export function ConsolaPartido({
         <BotonDeshacer partidoId={partidoId} descripcion={descripcionUltimoEvento} />
       </div>
 
-      {/* Cancha */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Cancha: 1 columna en portrait (celular/tablet), lado a lado desde
+          lg — evita que las cards de jugador queden diminutas en pantallas
+          angostas con las dos canchas apretadas una junto a la otra. */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
             {clubLocalNombre} — Cancha
@@ -594,7 +596,7 @@ export function ConsolaPartido({
       </div>
 
       {/* Banca: chips compactos en vez de lista vertical alta. */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
             {clubLocalNombre} — Banca

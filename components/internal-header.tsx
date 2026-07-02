@@ -26,21 +26,21 @@ export function InternalHeader({
   showBrand?: boolean;
 }) {
   return (
-    <header className="flex items-center justify-between border-b border-border px-6 py-4">
+    <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6 sm:py-4">
       {showBrand ? (
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span
-            className={`flex h-8 w-8 items-center justify-center rounded-md ${ACCENT_CLASSES[accent]} text-sm font-bold text-white`}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${ACCENT_CLASSES[accent]} text-sm font-bold text-white`}
           >
             SC
           </span>
-          <span className="text-sm font-semibold tracking-wide">{label}</span>
+          <span className="truncate text-sm font-semibold tracking-wide">{label}</span>
         </div>
       ) : (
         <span />
       )}
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-muted">{userEmail}</span>
+      <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+        <span className="hidden min-w-0 truncate text-sm text-muted sm:inline">{userEmail}</span>
         <LogoutButton />
       </div>
     </header>

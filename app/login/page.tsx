@@ -8,7 +8,7 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6">
+    <div className="flex flex-1 animate-fade-in flex-col items-center justify-center gap-6 px-4">
       <form
         action={login}
         className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-border bg-surface p-6"
@@ -20,7 +20,7 @@ export default async function LoginPage({
           <h1 className="text-sm font-semibold tracking-wide">LIGA SC</h1>
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <label className="flex flex-col gap-1 text-sm text-muted">
           Email
@@ -46,7 +46,7 @@ export default async function LoginPage({
 
         <button
           type="submit"
-          className="rounded-md bg-accent-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="rounded-md bg-accent-blue px-3 py-2 text-sm font-medium text-white hover:opacity-90 active:scale-95"
         >
           Entrar
         </button>

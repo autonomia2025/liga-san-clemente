@@ -39,8 +39,10 @@ const NAV_GROUPS = [
   },
 ];
 
-// Layout base del Admin: sidebar + contenido. Algunas secciones (Fixture,
-// Partidos, Actas) siguen siendo placeholders hasta sus PRs correspondientes.
+const NAV_ITEMS_FLAT = NAV_GROUPS.flatMap((g) => g.items);
+
+// Layout base del Admin: sidebar (desktop/tablet) + nav horizontal con
+// scroll (mobile, donde un sidebar fijo se comería casi toda la pantalla).
 export default async function AdminLayout({
   children,
 }: {
@@ -49,8 +51,8 @@ export default async function AdminLayout({
   const usuario = await requireRole("ADMIN");
 
   return (
-    <div className="flex flex-1">
-      <aside className="flex w-60 flex-col border-r border-border bg-surface/40">
+    <div className="flex flex-1 flex-col md:flex-row">
+      <aside className="hidden w-60 flex-col border-r border-border bg-surface/40 md:flex">
         <div className="flex items-center gap-2 border-b border-border px-4 py-4">
           <span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent-blue text-xs font-bold text-white">
             SC
@@ -80,7 +82,14 @@ export default async function AdminLayout({
           userEmail={usuario.email}
           showBrand={false}
         />
-        <main className="flex flex-1 flex-col p-6">{children}</main>
+        <nav className="flex gap-1 overflow-x-auto border-b border-border px-2 py-2 md:hidden">
+          {NAV_ITEMS_FLAT.map((item) => (
+            <div key={item.href} className="shrink-0">
+              <AdminNavLink href={item.href} label={item.label} icon={item.icon} />
+            </div>
+          ))}
+        </nav>
+        <main className="flex flex-1 flex-col p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
