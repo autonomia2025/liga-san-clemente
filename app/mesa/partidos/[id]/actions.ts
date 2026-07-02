@@ -382,3 +382,93 @@ export async function registrarFalta(formData: FormData) {
 
   redirect(`/mesa/partidos/${partidoId}?ok=falta`);
 }
+
+export async function registrarSustitucion(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const jugadorSaleId = String(formData.get("jugadorSaleId") ?? "");
+  const jugadorEntraId = String(formData.get("jugadorEntraId") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    fail("Sesión inválida.");
+    return;
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    fail("Partido no encontrado.");
+    return;
+  }
+  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
+    fail("No podés registrar sustituciones en este partido.");
+    return;
+  }
+
+  if (!jugadorSaleId || !jugadorEntraId || jugadorSaleId === jugadorEntraId) {
+    fail("Sustitución inválida.");
+    return;
+  }
+
+  const [partidoJugadorSale, partidoJugadorEntra] = await Promise.all([
+    prisma.partidoJugador.findUnique({
+      where: { partidoId_jugadorId: { partidoId, jugadorId: jugadorSaleId } },
+    }),
+    prisma.partidoJugador.findUnique({
+      where: { partidoId_jugadorId: { partidoId, jugadorId: jugadorEntraId } },
+    }),
+  ]);
+
+  if (!partidoJugadorSale || !partidoJugadorSale.presente || !partidoJugadorSale.enCancha) {
+    fail("El jugador que sale debe estar convocado y en cancha.");
+    return;
+  }
+  if (!partidoJugadorEntra || !partidoJugadorEntra.presente || partidoJugadorEntra.enCancha) {
+    fail("El jugador que entra debe estar convocado y en banca.");
+    return;
+  }
+  if (partidoJugadorSale.clubId !== partidoJugadorEntra.clubId) {
+    fail("La sustitución debe ser entre jugadores del mismo equipo.");
+    return;
+  }
+
+  const eventos = await prisma.matchEvent.findMany({
+    where: { partidoId, anulado: false },
+    orderBy: { createdAt: "asc" },
+    select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
+  });
+  const estado = buildLiveMatchState(eventos, {
+    clubLocalId: partido.clubLocalId,
+    clubVisitanteId: partido.clubVisitanteId,
+  });
+
+  if (estado.cuartoActivo === null) {
+    fail("No hay un cuarto activo — iniciá el cuarto antes de registrar sustituciones.");
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.partidoJugador.update({
+      where: { id: partidoJugadorSale.id },
+      data: { enCancha: false },
+    }),
+    prisma.partidoJugador.update({
+      where: { id: partidoJugadorEntra.id },
+      data: { enCancha: true },
+    }),
+    prisma.matchEvent.create({
+      data: {
+        partidoId,
+        cuarto: estado.cuartoActivo,
+        tipo: TipoEvento.SUSTITUCION,
+        jugadorId: jugadorEntraId,
+        clubId: partidoJugadorSale.clubId,
+        detalle: { jugadorEntraId, jugadorSaleId },
+      },
+    }),
+  ]);
+
+  redirect(`/mesa/partidos/${partidoId}?ok=sustitucion`);
+}

@@ -132,6 +132,7 @@ export default async function MesaPartidoPage({
       {ok === "cuarto" && <p className="text-sm text-green-400">Cuarto actualizado.</p>}
       {ok === "punto" && <p className="text-sm text-green-400">Punto registrado.</p>}
       {ok === "falta" && <p className="text-sm text-green-400">Falta registrada.</p>}
+      {ok === "sustitucion" && <p className="text-sm text-green-400">Sustitución registrada.</p>}
 
       {sinConvocados && (
         <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">

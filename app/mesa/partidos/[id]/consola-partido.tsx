@@ -1,6 +1,6 @@
 import type { TipoFalta } from "@/generated/prisma/client";
 import type { LiveMatchState } from "@/lib/mesa/live-match-state";
-import { controlarCuarto, registrarPunto, registrarFalta } from "./actions";
+import { controlarCuarto, registrarPunto, registrarFalta, registrarSustitucion } from "./actions";
 
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
 
@@ -39,6 +39,7 @@ function JugadorCanchaCard({
   faltas,
   tiposFalta,
   puedeAnotar,
+  banca,
 }: {
   jugador: JugadorSlot;
   partidoId: string;
@@ -46,6 +47,7 @@ function JugadorCanchaCard({
   faltas: number;
   tiposFalta: TipoFalta[];
   puedeAnotar: boolean;
+  banca: JugadorSlot[];
 }) {
   const badge = badgeFalta(tiposFalta);
 
@@ -101,6 +103,34 @@ function JugadorCanchaCard({
               ))}
             </div>
           </details>
+          {banca.length > 0 && (
+            <details className="w-full">
+              <summary className="cursor-pointer select-none text-center text-[10px] font-semibold text-muted hover:text-accent-blue">
+                Sustituir
+              </summary>
+              <form action={registrarSustitucion} className="mt-1 flex flex-col items-center gap-1">
+                <input type="hidden" name="partidoId" value={partidoId} />
+                <input type="hidden" name="jugadorSaleId" value={jugador.id} />
+                <select
+                  name="jugadorEntraId"
+                  className="w-full rounded-md border border-border bg-surface px-1 py-0.5 text-[9px] text-foreground"
+                >
+                  {banca.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.numeroCamiseta !== null ? `#${b.numeroCamiseta} ` : ""}
+                      {b.nombre}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="rounded-md border border-border px-1.5 py-0.5 text-[9px] font-semibold text-muted hover:bg-accent-blue hover:text-white"
+                >
+                  Confirmar entrada
+                </button>
+              </form>
+            </details>
+          )}
         </div>
       )}
     </div>
@@ -118,7 +148,7 @@ function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
   );
 }
 
-const ACCIONES_PLACEHOLDER = ["Sustitución", "Timeout", "Posesión"];
+const ACCIONES_PLACEHOLDER = ["Timeout", "Posesión"];
 
 function ControlCuarto({
   partidoId,
@@ -213,6 +243,7 @@ export function ConsolaPartido({
                 faltas={liveState.faltasPorJugador.get(j.id) ?? 0}
                 tiposFalta={liveState.tiposFaltaPorJugador.get(j.id) ?? []}
                 puedeAnotar={liveState.cuartoActivo !== null}
+                banca={bancaLocal}
               />
             ))}
           </div>
@@ -234,6 +265,7 @@ export function ConsolaPartido({
                 faltas={liveState.faltasPorJugador.get(j.id) ?? 0}
                 tiposFalta={liveState.tiposFaltaPorJugador.get(j.id) ?? []}
                 puedeAnotar={liveState.cuartoActivo !== null}
+                banca={bancaVisitante}
               />
             ))}
           </div>
