@@ -5,6 +5,7 @@ import { ConvocadosForm } from "./convocados-form";
 import { TitularesForm } from "./titulares-form";
 import { ConsolaPartido } from "./consola-partido";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
+import { generarActa } from "./actions";
 
 export default async function MesaPartidoPage({
   params,
@@ -42,6 +43,17 @@ export default async function MesaPartidoPage({
   }
 
   const partidoFinalizado = partido!.estado === "FINALIZADO";
+
+  const acta = partidoFinalizado
+    ? await prisma.acta.findUnique({ where: { partidoId: partido!.id } })
+    : null;
+  const boxscore = acta
+    ? await prisma.jugadorPartidoStat.findMany({
+        where: { partidoId: partido!.id, origen: "EVENTOS" },
+        include: { jugador: { select: { nombre: true, numeroCamiseta: true } } },
+        orderBy: [{ clubId: "asc" }, { puntos: "desc" }],
+      })
+    : [];
 
   const [jugadoresLocal, jugadoresVisitante, convocadosActuales, eventos] = await Promise.all([
     prisma.jugador.findMany({
@@ -152,6 +164,7 @@ export default async function MesaPartidoPage({
       {ok === "finalizado" && (
         <p className="text-sm text-green-400">Partido finalizado. Listo para generar Acta.</p>
       )}
+      {ok === "acta" && <p className="text-sm text-green-400">Acta generada.</p>}
 
       {sinConvocados && (
         <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">
@@ -164,18 +177,69 @@ export default async function MesaPartidoPage({
         </div>
       )}
       {partidoFinalizado && (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface p-6">
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-surface p-6">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-            Marcador final
+            {acta ? "Resultado oficial" : "Marcador final"}
           </span>
           <div className="flex items-center gap-3 text-2xl font-extrabold text-foreground">
             <span>{partido!.clubLocal.nombre}</span>
             <span>
-              {liveState.marcadorLocal}&nbsp;-&nbsp;{liveState.marcadorVisitante}
+              {acta ? acta.resultadoLocal : liveState.marcadorLocal}
+              &nbsp;-&nbsp;
+              {acta ? acta.resultadoVisitante : liveState.marcadorVisitante}
             </span>
             <span>{partido!.clubVisitante.nombre}</span>
           </div>
-          <p className="text-sm text-muted">Partido finalizado. Listo para generar Acta.</p>
+
+          {!acta && (
+            <>
+              <p className="text-sm text-muted">
+                El partido está finalizado. Falta generar Acta oficial.
+              </p>
+              <form action={generarActa}>
+                <input type="hidden" name="partidoId" value={partido!.id} />
+                <button
+                  type="submit"
+                  className="rounded-full bg-accent-blue px-4 py-1.5 text-[11px] font-semibold text-white hover:opacity-90"
+                >
+                  Generar Acta
+                </button>
+              </form>
+            </>
+          )}
+
+          {acta && (
+            <>
+              <p className="text-sm text-green-400">Acta generada.</p>
+              <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+                {[partido!.clubLocalId, partido!.clubVisitanteId].map((clubId) => (
+                  <div key={clubId} className="flex flex-col gap-1">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                      {clubId === partido!.clubLocalId
+                        ? partido!.clubLocal.nombre
+                        : partido!.clubVisitante.nombre}
+                    </h3>
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {boxscore
+                          .filter((s) => s.clubId === clubId)
+                          .map((s) => (
+                            <tr key={s.jugadorId} className="border-b border-border/50">
+                              <td className="py-1 text-foreground">
+                                {s.jugador.numeroCamiseta !== null ? `#${s.jugador.numeroCamiseta} ` : ""}
+                                {s.jugador.nombre}
+                              </td>
+                              <td className="py-1 text-right text-accent-blue">{s.puntos} pts</td>
+                              <td className="py-1 text-right text-accent-orange">{s.faltas ?? 0} f</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 

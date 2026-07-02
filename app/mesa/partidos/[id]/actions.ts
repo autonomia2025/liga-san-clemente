@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
-import { TipoEvento, TipoFalta } from "@/generated/prisma/client";
+import { TipoEvento, TipoFalta, OrigenStat } from "@/generated/prisma/client";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
 
 const MAX_CONVOCADOS = 12;
@@ -741,4 +741,77 @@ export async function finalizarPartido(formData: FormData) {
   }
 
   redirect(`/mesa/partidos/${partidoId}?ok=finalizado`);
+}
+
+export async function generarActa(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    fail("Sesión inválida.");
+    return;
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    fail("Partido no encontrado.");
+    return;
+  }
+  if (partido.estado !== "FINALIZADO" || partido.mesaOperadorId !== usuario.id) {
+    fail("No podés generar el Acta de este partido.");
+    return;
+  }
+
+  const [eventos, convocados] = await Promise.all([
+    prisma.matchEvent.findMany({
+      where: { partidoId, anulado: false },
+      orderBy: { createdAt: "asc" },
+      select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
+    }),
+    prisma.partidoJugador.findMany({ where: { partidoId, presente: true } }),
+  ]);
+
+  if (convocados.length === 0) {
+    fail("No hay jugadores convocados para generar estadísticas.");
+    return;
+  }
+
+  const estado = buildLiveMatchState(eventos, {
+    clubLocalId: partido.clubLocalId,
+    clubVisitanteId: partido.clubVisitanteId,
+  });
+
+  // Idempotente: reemplaza Acta (upsert por partidoId único) y las stats
+  // EVENTOS de este partido en la misma transacción — regenerar el Acta
+  // nunca duplica filas, solo recalcula desde los eventos vigentes actuales.
+  await prisma.$transaction([
+    prisma.acta.upsert({
+      where: { partidoId },
+      create: {
+        partidoId,
+        resultadoLocal: estado.marcadorLocal,
+        resultadoVisitante: estado.marcadorVisitante,
+      },
+      update: {
+        resultadoLocal: estado.marcadorLocal,
+        resultadoVisitante: estado.marcadorVisitante,
+      },
+    }),
+    prisma.jugadorPartidoStat.deleteMany({ where: { partidoId, origen: OrigenStat.EVENTOS } }),
+    prisma.jugadorPartidoStat.createMany({
+      data: convocados.map((c) => ({
+        partidoId,
+        jugadorId: c.jugadorId,
+        clubId: c.clubId,
+        puntos: estado.puntosPorJugador.get(c.jugadorId) ?? 0,
+        faltas: estado.faltasPorJugador.get(c.jugadorId) ?? 0,
+        origen: OrigenStat.EVENTOS,
+      })),
+    }),
+  ]);
+
+  redirect(`/mesa/partidos/${partidoId}?ok=acta`);
 }
