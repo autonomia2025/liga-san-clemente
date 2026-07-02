@@ -7,6 +7,7 @@ import {
   registrarSustitucion,
   registrarTimeout,
   registrarPosesion,
+  deshacerUltimoEvento,
 } from "./actions";
 
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
@@ -28,6 +29,61 @@ const TIPOS_FALTA_BADGE = new Set<TipoFalta>(["TECNICA", "ANTIDEPORTIVA", "DESCA
 function badgeFalta(tipos: TipoFalta[]): string | null {
   const grave = tipos.find((t) => TIPOS_FALTA_BADGE.has(t));
   return grave ? TIPOS_FALTA.find((t) => t.valor === grave)?.label ?? null : null;
+}
+
+function labelFalta(tipoFalta: unknown): string {
+  return TIPOS_FALTA.find((t) => t.valor === tipoFalta)?.label ?? "Falta";
+}
+
+function describirUltimoEvento(
+  evento: LiveMatchState["ultimoEventoVigente"],
+  context: {
+    clubLocalId: string;
+    clubVisitanteId: string;
+    clubLocalNombre: string;
+    clubVisitanteNombre: string;
+    nombresJugadores: Map<string, string>;
+  },
+): string | null {
+  if (!evento) return null;
+
+  const nombreClub = (clubId: string | null) =>
+    clubId === context.clubLocalId
+      ? context.clubLocalNombre
+      : clubId === context.clubVisitanteId
+        ? context.clubVisitanteNombre
+        : "equipo";
+  const nombreJugador = (jugadorId: string | null) =>
+    (jugadorId && context.nombresJugadores.get(jugadorId)) || "jugador";
+
+  switch (evento.tipo) {
+    case "PUNTO": {
+      const valor =
+        evento.detalle && typeof evento.detalle === "object" && "valor" in evento.detalle
+          ? (evento.detalle as { valor: unknown }).valor
+          : "";
+      return `Último: +${valor} ${nombreJugador(evento.jugadorId)}`;
+    }
+    case "FALTA": {
+      const tipoFalta =
+        evento.detalle && typeof evento.detalle === "object" && "tipoFalta" in evento.detalle
+          ? (evento.detalle as { tipoFalta: unknown }).tipoFalta
+          : null;
+      return `Último: Falta ${labelFalta(tipoFalta)} ${nombreJugador(evento.jugadorId)}`;
+    }
+    case "TIMEOUT":
+      return `Último: Timeout ${nombreClub(evento.clubId)}`;
+    case "POSESION":
+      return `Último: Posesión ${nombreClub(evento.clubId)}`;
+    case "SUSTITUCION":
+      return "Último: Sustitución";
+    case "INICIO_CUARTO":
+      return `Último: Inicio Q${evento.cuarto}`;
+    case "FIN_CUARTO":
+      return `Último: Fin Q${evento.cuarto}`;
+    default:
+      return "Último: evento";
+  }
 }
 
 function iniciales(nombre: string): string {
@@ -215,6 +271,30 @@ function BotonPosesion({
   );
 }
 
+function BotonDeshacer({
+  partidoId,
+  descripcion,
+}: {
+  partidoId: string;
+  descripcion: string | null;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-muted">
+      <span>{descripcion ?? "Sin eventos para deshacer"}</span>
+      <form action={deshacerUltimoEvento}>
+        <input type="hidden" name="partidoId" value={partidoId} />
+        <button
+          type="submit"
+          disabled={!descripcion}
+          className="rounded-full border border-border px-2.5 py-1 font-semibold text-muted hover:bg-red-500/80 hover:text-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Deshacer último
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function ControlCuarto({
   partidoId,
   liveState,
@@ -257,6 +337,7 @@ export function ConsolaPartido({
   bancaLocal,
   bancaVisitante,
   liveState,
+  nombresJugadores,
 }: {
   partidoId: string;
   clubLocalId: string;
@@ -268,7 +349,16 @@ export function ConsolaPartido({
   bancaLocal: JugadorSlot[];
   bancaVisitante: JugadorSlot[];
   liveState: LiveMatchState;
+  nombresJugadores: Map<string, string>;
 }) {
+  const descripcionUltimoEvento = describirUltimoEvento(liveState.ultimoEventoVigente, {
+    clubLocalId,
+    clubVisitanteId,
+    clubLocalNombre,
+    clubVisitanteNombre,
+    nombresJugadores,
+  });
+
   return (
     <div className="flex flex-col gap-3">
       {/* Scoreboard: pieza principal de la pantalla, sticky para no perderla al scrollear. */}
@@ -285,6 +375,7 @@ export function ConsolaPartido({
           </span>
         </div>
         <ControlCuarto partidoId={partidoId} liveState={liveState} />
+        <BotonDeshacer partidoId={partidoId} descripcion={descripcionUltimoEvento} />
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           <BotonTimeout
             partidoId={partidoId}

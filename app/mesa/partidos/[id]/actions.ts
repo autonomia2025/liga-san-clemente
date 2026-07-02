@@ -582,3 +582,109 @@ export async function registrarPosesion(formData: FormData) {
 
   redirect(`/mesa/partidos/${partidoId}?ok=posesion`);
 }
+
+export async function deshacerUltimoEvento(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    fail("Sesión inválida.");
+    return;
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    fail("Partido no encontrado.");
+    return;
+  }
+  if (partido.estado !== "EN_CURSO" || partido.mesaOperadorId !== usuario.id) {
+    fail("No podés deshacer eventos de este partido.");
+    return;
+  }
+
+  // Se busca directo en la base (no vía buildLiveMatchState) porque acá se
+  // necesita el id de la fila para anularla, no solo la proyección de estado.
+  const ultimoEvento = await prisma.matchEvent.findFirst({
+    where: { partidoId, anulado: false },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!ultimoEvento) {
+    fail("No hay eventos para deshacer.");
+    return;
+  }
+
+  if (ultimoEvento.tipo === TipoEvento.SUSTITUCION) {
+    const detalle = ultimoEvento.detalle as { jugadorEntraId?: string; jugadorSaleId?: string } | null;
+    const jugadorEntraId = detalle?.jugadorEntraId;
+    const jugadorSaleId = detalle?.jugadorSaleId;
+    if (!jugadorEntraId || !jugadorSaleId) {
+      fail("No se puede deshacer esta sustitución: faltan datos del evento.");
+      return;
+    }
+
+    const [partidoJugadorEntra, partidoJugadorSale] = await Promise.all([
+      prisma.partidoJugador.findUnique({
+        where: { partidoId_jugadorId: { partidoId, jugadorId: jugadorEntraId } },
+      }),
+      prisma.partidoJugador.findUnique({
+        where: { partidoId_jugadorId: { partidoId, jugadorId: jugadorSaleId } },
+      }),
+    ]);
+    if (!partidoJugadorEntra || !partidoJugadorSale) {
+      fail("No se puede deshacer esta sustitución: jugadores no encontrados en el partido.");
+      return;
+    }
+
+    await prisma.$transaction([
+      prisma.partidoJugador.update({
+        where: { id: partidoJugadorEntra.id },
+        data: { enCancha: false },
+      }),
+      prisma.partidoJugador.update({
+        where: { id: partidoJugadorSale.id },
+        data: { enCancha: true },
+      }),
+      prisma.matchEvent.update({
+        where: { id: ultimoEvento.id },
+        data: { anulado: true, anuladoPorId: usuario.id, anuladoAt: new Date() },
+      }),
+    ]);
+
+    redirect(`/mesa/partidos/${partidoId}?ok=deshacer`);
+  }
+
+  if (ultimoEvento.tipo === TipoEvento.INICIO_CUARTO) {
+    await prisma.$transaction(async (tx) => {
+      await tx.matchEvent.update({
+        where: { id: ultimoEvento.id },
+        data: { anulado: true, anuladoPorId: usuario.id, anuladoAt: new Date() },
+      });
+      const iniciosVigentes = await tx.matchEvent.findMany({
+        where: { partidoId, anulado: false, tipo: TipoEvento.INICIO_CUARTO },
+        select: { cuarto: true },
+      });
+      const nuevoCuartoActual =
+        iniciosVigentes.length > 0 ? Math.max(...iniciosVigentes.map((e) => e.cuarto)) : 0;
+      await tx.partido.update({
+        where: { id: partidoId },
+        data: { cuartoActual: nuevoCuartoActual },
+      });
+    });
+
+    redirect(`/mesa/partidos/${partidoId}?ok=deshacer`);
+  }
+
+  // FIN_CUARTO, PUNTO, FALTA, TIMEOUT, POSESION: alcanza con anular el
+  // evento — buildLiveMatchState recalcula todo lo demás desde eventos
+  // vigentes (cuartoActual no se toca al finalizar, así que no hace falta
+  // sincronizarlo acá).
+  await prisma.matchEvent.update({
+    where: { id: ultimoEvento.id },
+    data: { anulado: true, anuladoPorId: usuario.id, anuladoAt: new Date() },
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=deshacer`);
+}

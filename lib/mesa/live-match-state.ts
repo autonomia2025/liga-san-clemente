@@ -4,8 +4,11 @@
 //
 // PR 3.1 resolvió cuartos. PR 3.2 sumó marcador y puntos por jugador. PR 3.3
 // sumó faltas por jugador/equipo/cuarto. PR 3.5 sumó timeouts por equipo y
-// por equipo/cuarto. PR 3.6 suma la posesión actual, derivada del último
-// evento POSESION vigente — nunca se guarda posesión en Partido. Queda
+// por equipo/cuarto. PR 3.6 sumó la posesión actual. PR 3.7 expone el último
+// evento vigente (para "Deshacer último" y su descripción en la consola) —
+// los eventos anulados ya se excluyen acá, así que deshacer solo necesita
+// marcar `anulado` en el evento (y sincronizar caches operativos si
+// corresponde) para que este módulo recalcule todo automáticamente. Queda
 // preparado para sumar en próximos PRs: timeline visible. La cancha/banca en
 // vivo sigue viniendo de PartidoJugador.enCancha (PR 2.4/2.5), no de eventos.
 import type { MatchEvent, PartidoJugador, TipoFalta } from "@/generated/prisma/client";
@@ -43,6 +46,7 @@ export type LiveMatchState = {
   timeoutsVisitantePorCuarto: Map<number, number>;
   posesionClubId: string | null;
   posesionEquipo: PosesionEquipo;
+  ultimoEventoVigente: MatchEventLite | null;
 };
 
 type MatchEventLite = Pick<
@@ -274,5 +278,6 @@ export function buildLiveMatchState(
     ...calcularFaltas(vigentes, context, estadoCuartos.cuartoActivo),
     ...calcularTimeouts(vigentes, context),
     ...calcularPosesion(vigentes, context),
+    ultimoEventoVigente: vigentes.length > 0 ? vigentes[vigentes.length - 1] : null,
   };
 }

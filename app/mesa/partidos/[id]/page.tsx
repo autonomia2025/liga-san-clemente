@@ -87,6 +87,8 @@ export default async function MesaPartidoPage({
 
   // La cancha sale de enCancha (estado operativo), no de titular directamente
   // — son iguales recién ahora, pero van a divergir cuando existan sustituciones.
+  const nombresJugadores = new Map(convocadosActuales.map((c) => [c.jugadorId, c.jugador.nombre]));
+
   const canchaLocal = convocadosActuales
     .filter((c) => c.clubId === partido!.clubLocalId && c.enCancha)
     .map((c) => c.jugador);
@@ -135,6 +137,7 @@ export default async function MesaPartidoPage({
       {ok === "sustitucion" && <p className="text-sm text-green-400">Sustitución registrada.</p>}
       {ok === "timeout" && <p className="text-sm text-green-400">Timeout registrado.</p>}
       {ok === "posesion" && <p className="text-sm text-green-400">Posesión actualizada.</p>}
+      {ok === "deshacer" && <p className="text-sm text-green-400">Último evento deshecho.</p>}
 
       {sinConvocados && (
         <div className="rounded-lg border border-dashed border-accent-orange/50 bg-accent-orange/10 p-4 text-sm text-accent-orange">
@@ -158,6 +161,7 @@ export default async function MesaPartidoPage({
           bancaLocal={bancaLocal}
           bancaVisitante={bancaVisitante}
           liveState={liveState}
+          nombresJugadores={nombresJugadores}
         />
       )}
 
