@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
+import { Badge } from "@/components/ui/badge";
 import { abrirPartido } from "./actions";
 
 export default async function MesaHome({
@@ -33,7 +34,7 @@ export default async function MesaHome({
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       {partidos.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border">
+        <div className="flex flex-1 animate-fade-in items-center justify-center rounded-lg border border-dashed border-border">
           <p className="max-w-sm text-center text-sm text-muted">
             Todavía no hay partidos confirmados para operar. Cuando el Admin
             confirme un partido, va a aparecer acá.
@@ -46,18 +47,12 @@ export default async function MesaHome({
             return (
               <div
                 key={partido.id}
-                className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-5"
+                className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-5 transition-transform duration-150 hover:-translate-y-0.5 hover:border-accent-orange/40"
               >
-                <span
-                  className={`w-fit rounded-full px-2 py-0.5 text-xs ${
-                    enCurso
-                      ? "bg-green-500/15 text-green-400"
-                      : "bg-accent-orange/20 text-accent-orange"
-                  }`}
-                >
+                <Badge tone={enCurso ? "success" : "accent-orange"} live={enCurso}>
                   Jornada {partido.jornada.numero}
                   {enCurso ? " — En curso" : ""}
-                </span>
+                </Badge>
 
                 <div className="flex items-center justify-between text-base">
                   <span className="font-medium text-foreground">

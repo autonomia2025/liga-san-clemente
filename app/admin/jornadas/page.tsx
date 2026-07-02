@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { Badge } from "@/components/ui/badge";
 
 export default async function JornadasPage() {
   const jornadas = await prisma.jornada.findMany({
@@ -24,7 +25,7 @@ export default async function JornadasPage() {
             <Link
               key={jornada.id}
               href={`/admin/jornadas/${jornada.id}`}
-              className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 hover:bg-surface-hover"
+              className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 transition-transform duration-150 hover:-translate-y-0.5 hover:border-accent-blue/40 hover:bg-surface-hover"
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium text-foreground">
@@ -35,21 +36,19 @@ export default async function JornadasPage() {
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-2 text-xs">
+              <div className="flex flex-wrap gap-2">
                 {finalizados > 0 && (
-                  <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-green-400">
+                  <Badge tone="success">
                     {finalizados} finalizado{finalizados !== 1 ? "s" : ""}
-                  </span>
+                  </Badge>
                 )}
                 {programados > 0 && (
-                  <span className="rounded-full bg-zinc-500/20 px-2 py-0.5 text-muted">
+                  <Badge tone="neutral">
                     {programados} programado{programados !== 1 ? "s" : ""}
-                  </span>
+                  </Badge>
                 )}
                 {otros > 0 && (
-                  <span className="rounded-full bg-accent-blue/20 px-2 py-0.5 text-accent-blue">
-                    {otros} en otro estado
-                  </span>
+                  <Badge tone="accent-blue">{otros} en otro estado</Badge>
                 )}
               </div>
 

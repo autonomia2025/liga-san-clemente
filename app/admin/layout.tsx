@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
-import { LogoutButton } from "@/components/logout-button";
+import { InternalHeader } from "@/components/internal-header";
 
 const NAV_ITEMS = [
   { href: "/admin/clubes", label: "Clubes" },
@@ -12,8 +12,8 @@ const NAV_ITEMS = [
   { href: "/admin/usuarios-mesa", label: "Usuarios de Mesa" },
 ];
 
-// Layout base del Admin: sidebar + contenido. Las secciones son placeholders
-// (sin CRUD todavía) — se implementan en los PRs de Fase 1.
+// Layout base del Admin: sidebar + contenido. Algunas secciones (Fixture,
+// Partidos, Actas) siguen siendo placeholders hasta sus PRs correspondientes.
 export default async function AdminLayout({
   children,
 }: {
@@ -44,10 +44,12 @@ export default async function AdminLayout({
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border px-6 py-4">
-          <span className="text-sm text-muted">{usuario.email}</span>
-          <LogoutButton />
-        </header>
+        <InternalHeader
+          label="Admin"
+          accent="accent-blue"
+          userEmail={usuario.email}
+          showBrand={false}
+        />
         <main className="flex flex-1 flex-col p-6">{children}</main>
       </div>
     </div>

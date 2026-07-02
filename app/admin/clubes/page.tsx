@@ -31,7 +31,7 @@ export default async function ClubesPage() {
             <Link
               key={club.id}
               href={`/admin/clubes/${club.id}`}
-              className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 hover:bg-surface-hover"
+              className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 transition-transform duration-150 hover:-translate-y-0.5 hover:border-accent-blue/40 hover:bg-surface-hover"
             >
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-md bg-accent-blue text-sm font-bold text-white">

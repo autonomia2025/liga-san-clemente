@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { Badge } from "@/components/ui/badge";
 import { createUsuarioMesa, toggleActivoUsuarioMesa } from "./actions";
 
 export default async function UsuariosMesaPage({
@@ -70,13 +71,9 @@ export default async function UsuariosMesaPage({
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs ${
-                  u.activo ? "bg-green-500/15 text-green-400" : "bg-zinc-500/20 text-muted"
-                }`}
-              >
+              <Badge tone={u.activo ? "success" : "neutral"}>
                 {u.activo ? "Activo" : "Inactivo"}
-              </span>
+              </Badge>
               <form action={toggleActivoUsuarioMesa}>
                 <input type="hidden" name="usuarioId" value={u.id} />
                 <button

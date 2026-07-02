@@ -5,6 +5,7 @@ import { ConvocadosForm } from "./convocados-form";
 import { TitularesForm } from "./titulares-form";
 import { ConsolaPartido } from "./consola-partido";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
+import { Badge } from "@/components/ui/badge";
 import { generarActa } from "./actions";
 
 export default async function MesaPartidoPage({
@@ -129,15 +130,9 @@ export default async function MesaPartidoPage({
   return (
     <div className="flex flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={`w-fit rounded-full px-2 py-0.5 text-xs ${
-            partidoFinalizado
-              ? "bg-zinc-500/20 text-muted"
-              : "bg-accent-orange/20 text-accent-orange"
-          }`}
-        >
+        <Badge tone={partidoFinalizado ? "neutral" : "accent-orange"} live={!partidoFinalizado}>
           Jornada {partido!.jornada.numero} — {partidoFinalizado ? "Finalizado" : "En curso"}
-        </span>
+        </Badge>
         <span className="text-xs text-muted">
           Operador: {partido!.mesaOperador?.email ?? "—"}
         </span>
