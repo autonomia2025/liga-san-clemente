@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { LbscButton } from "@/components/design-system/lbsc-button";
 
 // Hero de la Home. Entrada on-load con stagger (CSS .lbsc-fade-up). Imagen
-// placeholder con tratamiento del design system (sin foto real/stock).
+// oficial con tratamiento del design system.
 // Parallax leve SOLO en desktop y solo si no hay reduced-motion.
 
 function scrollToId(id: string) {
@@ -43,22 +43,12 @@ export function HeroSection() {
       <div className="absolute inset-0 lg:relative lg:col-start-2">
         <div ref={parallaxRef} className="h-full w-full will-change-transform">
           <div className="lbsc-image-settle lbsc-photo-treatment h-full min-h-[85vh] w-full lg:min-h-full lg:scale-105 lg:[transform-origin:center]">
-            {/* Placeholder: gradientes duros + court abstracto. NO foto real. */}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #241245 0%, #0a0e1a 55%, #10162a 100%)" }} />
             <div
-              className="absolute inset-0 opacity-70"
-              style={{
-                background:
-                  "radial-gradient(60% 50% at 75% 25%, rgba(124,58,237,0.35), transparent 60%), radial-gradient(50% 45% at 20% 90%, rgba(249,115,22,0.28), transparent 60%)",
-              }}
+              className="absolute inset-0 bg-cover bg-center lg:bg-[position:58%_center]"
+              style={{ backgroundImage: "url('/hero-lbsc.webp')" }}
+              aria-hidden="true"
             />
-            {/* Court abstracto: arcos y línea central en trazo fino. */}
-            <svg className="absolute inset-0 h-full w-full opacity-[0.13]" viewBox="0 0 400 600" preserveAspectRatio="xMidYMid slice" fill="none" aria-hidden="true">
-              <circle cx="200" cy="300" r="70" stroke="#ffffff" strokeWidth="2" />
-              <line x1="0" y1="300" x2="400" y2="300" stroke="#ffffff" strokeWidth="2" />
-              <path d="M120 60 A120 120 0 0 1 280 60" stroke="#ffffff" strokeWidth="2" />
-              <path d="M120 540 A120 120 0 0 0 280 540" stroke="#ffffff" strokeWidth="2" />
-            </svg>
+            <div className="absolute inset-0 bg-bg-base/20 lg:bg-bg-base/10" aria-hidden="true" />
             <div className="lbsc-noise" />
             <div className="lbsc-vignette" />
             {/* Overlay más oscuro en mobile para legibilidad del texto encima. */}
