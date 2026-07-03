@@ -39,9 +39,22 @@ function matchDate(match: FixtureMatch): Date {
   return new Date(match.date);
 }
 
+// Key de agrupación por día CALENDARIO CHILE, no UTC. Un partido a las 20:00
+// Chile puede caer en el día siguiente en UTC (ej. 2026-07-06T00:00:00.000Z =
+// 2026-07-05 20:00 Chile) — agrupar por toISOString() lo separaría en otro
+// bloque aunque sea la misma fecha/jornada para el público.
 function dateKey(match: FixtureMatch): string {
   const d = matchDate(match);
-  return d.toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  return `${year}-${month}-${day}`;
 }
 
 // timeZone explícito en los tres: este componente es "use client" y sin
