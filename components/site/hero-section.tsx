@@ -40,15 +40,18 @@ export function HeroSection() {
       className="relative flex min-h-[85vh] items-center overflow-hidden pt-8 lg:grid lg:min-h-screen lg:grid-cols-[55%_45%] lg:items-stretch lg:pt-14"
     >
       {/* Imagen / bloque visual (fondo en mobile, columna derecha en desktop) */}
-      <div className="absolute inset-0 lg:relative lg:col-start-2">
+      <div className="absolute inset-0 lg:relative lg:col-start-2 lg:-ml-28">
         <div ref={parallaxRef} className="h-full w-full will-change-transform">
           <div className="lbsc-image-settle lbsc-photo-treatment h-full min-h-[85vh] w-full lg:min-h-full lg:scale-105 lg:[transform-origin:center]">
             <div
-              className="absolute inset-0 bg-cover bg-center lg:bg-[position:58%_center]"
+              className="absolute inset-0 bg-cover bg-center lg:bg-[position:center_center]"
               style={{ backgroundImage: "url('/hero-lbsc.webp')" }}
               aria-hidden="true"
             />
-            <div className="absolute inset-0 bg-bg-base/20 lg:bg-bg-base/10" aria-hidden="true" />
+            <div
+              className="absolute inset-0 bg-bg-base/20 lg:bg-[linear-gradient(90deg,var(--bg-base)_0%,rgba(10,14,26,0.94)_14%,rgba(10,14,26,0.66)_34%,rgba(10,14,26,0.18)_62%,transparent_84%)]"
+              aria-hidden="true"
+            />
             <div className="lbsc-noise" />
             <div className="lbsc-vignette" />
             {/* Overlay más oscuro en mobile para legibilidad del texto encima. */}
