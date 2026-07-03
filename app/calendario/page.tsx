@@ -17,8 +17,8 @@ const TIME_ZONE = "America/Santiago";
 
 const FOOTER_NAV_LINKS: FooterLink[] = [
   { label: "Inicio", href: "/" },
-  { label: "En Vivo", href: "/#en-vivo" },
-  { label: "Tabla", href: "/#tabla" },
+  { label: "En Vivo", href: "/en-vivo" },
+  { label: "Tabla", href: "/tabla" },
   { label: "Calendario", href: "/calendario" },
   { label: "Equipos", href: "/#equipos" },
 ];

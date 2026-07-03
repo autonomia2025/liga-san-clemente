@@ -7,10 +7,6 @@ import { LbscButton } from "@/components/design-system/lbsc-button";
 // oficial con tratamiento del design system.
 // Parallax leve SOLO en desktop y solo si no hay reduced-motion.
 
-function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-}
-
 export function HeroSection() {
   const parallaxRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +33,7 @@ export function HeroSection() {
   return (
     <section
       id="inicio"
-      className="relative flex min-h-[85vh] items-center overflow-hidden pt-8 lg:grid lg:min-h-screen lg:grid-cols-[55%_45%] lg:items-stretch lg:pt-14"
+      className="lbsc-anchor relative flex min-h-[85vh] items-center overflow-hidden pt-8 lg:grid lg:min-h-screen lg:grid-cols-[55%_45%] lg:items-stretch lg:pt-14"
     >
       {/* Imagen / bloque visual (fondo en mobile, columna derecha en desktop) */}
       <div className="absolute inset-0 lg:relative lg:col-start-2 lg:-ml-28">
@@ -90,14 +86,14 @@ export function HeroSection() {
           className="lbsc-fade-up flex w-full flex-col gap-3 sm:w-auto sm:flex-row"
           style={{ animationDelay: "300ms" }}
         >
-          <LbscButton size="lg" className="w-full sm:w-auto" onClick={() => scrollToId("calendario")}>
+          <LbscButton size="lg" className="w-full sm:w-auto" onClick={() => (window.location.href = "/calendario")}>
             Ver Calendario
           </LbscButton>
           <LbscButton
             variant="secondary"
             size="lg"
             className="w-full sm:w-auto"
-            onClick={() => scrollToId("historia")}
+            onClick={() => (window.location.href = "/#historia")}
           >
             Conoce la Liga
           </LbscButton>

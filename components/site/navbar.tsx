@@ -12,12 +12,17 @@ type NavbarProps = {
   isLiveNow?: boolean;
 };
 
+// Rutas absolutas a propósito: el navbar aparece en todas las páginas
+// (/, /calendario, /tabla, /en-vivo, /equipo/[slug]), así que un anchor suelto
+// como "#tabla" se rompería fuera de Home (iría a "/en-vivo#tabla", que no
+// existe). "Equipos" sigue siendo una sección resumen de Home (no tiene
+// página propia todavía), por eso usa "/#equipos".
 const LINKS = [
-  { href: "#inicio", label: "Inicio" },
-  { href: "#en-vivo", label: "En Vivo" },
-  { href: "#tabla", label: "Tabla" },
-  { href: "#calendario", label: "Calendario" },
-  { href: "#equipos", label: "Equipos" },
+  { href: "/", label: "Inicio" },
+  { href: "/en-vivo", label: "En Vivo" },
+  { href: "/tabla", label: "Tabla" },
+  { href: "/calendario", label: "Calendario" },
+  { href: "/#equipos", label: "Equipos" },
 ];
 
 // Logo placeholder: círculo + montaña/águila abstracta. SVG inline, sin imagen
@@ -66,7 +71,7 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
       }`}
     >
       <div className="lbsc-container flex h-full items-center justify-between">
-        <a href="#inicio" className="flex h-full items-center gap-2.5">
+        <a href="/" className="flex h-full items-center gap-2.5">
           <Logo />
           <span className="font-head text-xl uppercase tracking-wide text-text-primary">
             LBSC<span className="text-accent-purple">·</span>2026

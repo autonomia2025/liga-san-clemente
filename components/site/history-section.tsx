@@ -173,7 +173,7 @@ export function HistorySection({
   };
 
   return (
-    <section id="historia" className="lbsc-container lbsc-section-tight">
+    <section id="historia" className="lbsc-anchor lbsc-container lbsc-section-tight">
       {/* Intro narrativa asimétrica */}
       <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[1fr_1.15fr] lg:gap-14">
         <div className="flex flex-col gap-5">

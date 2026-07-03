@@ -572,3 +572,11 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .lbsc-page-enter { animation: lbsc-page-enter 300ms var(--lbsc-ease) both; }
 }
+
+/* Secciones ancla (#inicio, #en-vivo, #tabla, #calendario, #equipos,
+   #historia): el navbar es fixed, así que sin esto el scroll a un anchor deja
+   el título tapado debajo de la barra. No es visual, solo corrige el punto de
+   scroll-stop. */
+.lbsc-anchor {
+  scroll-margin-top: calc(var(--navbar-height) + 24px);
+}

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 const FOOTER_NAV_LINKS: FooterLink[] = [
   { label: "Inicio", href: "/" },
-  { label: "En Vivo", href: "/#en-vivo" },
+  { label: "En Vivo", href: "/en-vivo" },
   { label: "Tabla", href: "/tabla" },
   { label: "Calendario", href: "/calendario" },
   { label: "Equipos", href: "/#equipos" },

@@ -231,7 +231,7 @@ function UpcomingState({
       )}
 
       <div className="mt-8 flex justify-center">
-        <LbscButton variant="secondary" onClick={() => document.getElementById("calendario")?.scrollIntoView({ behavior: "smooth" })}>
+        <LbscButton variant="secondary" onClick={() => (window.location.href = "/calendario")}>
           Ver Calendario Completo →
         </LbscButton>
       </div>
@@ -246,7 +246,7 @@ function NoneState() {
       <p className="font-body text-base uppercase tracking-wide text-text-secondary">
         Sin partidos programados por el momento
       </p>
-      <LbscButton variant="secondary" onClick={() => document.getElementById("tabla")?.scrollIntoView({ behavior: "smooth" })}>
+      <LbscButton variant="secondary" onClick={() => (window.location.href = "/tabla")}>
         Ver Tabla de Posiciones →
       </LbscButton>
     </div>
@@ -285,7 +285,7 @@ export function MatchFeature(props: MatchFeatureProps) {
   }
 
   return (
-    <section id="en-vivo" className="lbsc-container lbsc-section-tight">
+    <section id="en-vivo" className="lbsc-anchor lbsc-container lbsc-section-tight">
       <div key={matchState} className={reduce ? "" : "lbsc-cross-in"}>
         {contenido}
       </div>

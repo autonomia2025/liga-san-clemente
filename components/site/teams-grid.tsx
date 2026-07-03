@@ -54,7 +54,7 @@ export function TeamsGrid({ teams }: TeamsGridProps) {
   }, []);
 
   return (
-    <section id="equipos" className="lbsc-container lbsc-section-tight">
+    <section id="equipos" className="lbsc-anchor lbsc-container lbsc-section-tight">
       <div className="mb-8 flex flex-col gap-2">
         <span className="font-body text-xs font-bold uppercase tracking-[0.24em] text-accent-orange">
           8 equipos · una sola pasión

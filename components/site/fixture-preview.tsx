@@ -163,7 +163,7 @@ function EmptyState() {
         El fixture aparecerá cuando se confirme la próxima fecha.
       </p>
       <a
-        href="#tabla"
+        href="/tabla"
         className="mt-5 inline-flex rounded-lg border border-white/15 bg-white/[0.02] px-5 py-2.5 font-body text-sm font-semibold uppercase tracking-wide text-text-primary transition-colors hover:border-accent-purple/60 hover:bg-accent-purple/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
       >
         Ver tabla de posiciones →
@@ -214,7 +214,7 @@ export function FixturePreview({ matches, href = "/calendario" }: FixturePreview
   const enterClass = armed && !inView ? "translate-y-4 opacity-0" : "translate-y-0 opacity-100";
 
   return (
-    <section id="calendario" ref={sectionRef} className="lbsc-container lbsc-section-tight">
+    <section id="calendario" ref={sectionRef} className="lbsc-anchor lbsc-container lbsc-section-tight">
       <div className={`mb-8 flex flex-col gap-5 transition-all duration-500 ease-[var(--lbsc-ease)] ${enterClass} lg:flex-row lg:items-end lg:justify-between`}>
         <div className="max-w-2xl">
           <span className="font-body text-xs font-bold uppercase tracking-[0.24em] text-accent-orange">

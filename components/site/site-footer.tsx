@@ -18,12 +18,15 @@ export type SiteFooterProps = {
   contactPhone?: string;
 };
 
+// Rutas absolutas: SiteFooter se renderiza en todas las páginas públicas, así
+// que un anchor suelto se rompería fuera de Home. "Equipos" sigue siendo
+// sección resumen de Home (sin página propia todavía).
 const DEFAULT_NAV: FooterLink[] = [
   { label: "Inicio", href: "/" },
-  { label: "En Vivo", href: "#en-vivo" },
-  { label: "Tabla", href: "#tabla" },
-  { label: "Calendario", href: "#calendario" },
-  { label: "Equipos", href: "#equipos" },
+  { label: "En Vivo", href: "/en-vivo" },
+  { label: "Tabla", href: "/tabla" },
+  { label: "Calendario", href: "/calendario" },
+  { label: "Equipos", href: "/#equipos" },
 ];
 
 const DEFAULT_SOCIAL: SocialLink[] = [
@@ -132,7 +135,7 @@ export function SiteFooter({
             <span className="font-body text-sm text-text-secondary">{contactEmail}</span>
             <span className="font-body text-sm text-text-secondary">{contactPhone}</span>
             <a
-              href="#contacto"
+              href="/#contacto"
               className="mt-1 inline-flex w-fit items-center rounded-lg bg-accent-purple px-5 py-2.5 font-body text-sm font-semibold uppercase tracking-wide text-white transition-colors hover:bg-accent-purple-glow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
             >
               Inscribe tu Equipo

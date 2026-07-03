@@ -86,7 +86,7 @@ export function StandingsPreview({
   }, []);
 
   return (
-    <section id="tabla" className="lbsc-container lbsc-section-tight">
+    <section id="tabla" className="lbsc-anchor lbsc-container lbsc-section-tight">
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <div className="flex flex-col gap-2">
