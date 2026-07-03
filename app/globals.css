@@ -359,3 +359,57 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .lbsc-cross-in { animation: lbsc-cross-in 300ms var(--lbsc-ease) both; }
 }
+
+/* ---------------------------------------------------------------------------
+   Standings preview: entrada en cascada, borde del líder que se dibuja, hover.
+   Progressive enhancement: las filas SOLO se ocultan cuando el JS las "arma"
+   (.lbsc-srow--armed). Sin JS o con prefers-reduced-motion quedan visibles y
+   estáticas (nunca invisibles).
+--------------------------------------------------------------------------- */
+@keyframes lbsc-srow-in {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes lbsc-srow-lead-draw {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* Borde izquierdo del líder (2px oro). Por defecto, alto completo estático. */
+.lbsc-srow--lead::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-gold);
+  transform-origin: top;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Antes de entrar: fila oculta (cascada) y borde del líder sin dibujar. */
+  .lbsc-srow--armed { opacity: 0; }
+  .lbsc-srow--lead.lbsc-srow--armed::before { transform: scaleY(0); }
+
+  /* Al entrar en viewport: anima con stagger (--srow-delay por fila). */
+  .lbsc-srow--armed.lbsc-srow--in {
+    animation: lbsc-srow-in 500ms var(--lbsc-ease) both;
+    animation-delay: var(--srow-delay, 0ms);
+  }
+  .lbsc-srow--lead.lbsc-srow--armed.lbsc-srow--in::before {
+    animation: lbsc-srow-lead-draw 420ms var(--lbsc-ease) both;
+    animation-delay: var(--srow-delay, 0ms);
+  }
+}
+
+/* Hover solo desktop: fondo elevado siempre; desliza 4px solo si no hay
+   reduced-motion. El transform va en el cuerpo interno para no chocar con la
+   animación de entrada de la fila. */
+@media (hover: hover) and (pointer: fine) {
+  .lbsc-srow-body { transition: transform 150ms var(--lbsc-ease), background-color 150ms var(--lbsc-ease); }
+  .lbsc-srow:hover .lbsc-srow-body { background-color: var(--bg-elevated); }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .lbsc-srow:hover .lbsc-srow-body { transform: translateX(4px); }
+}
