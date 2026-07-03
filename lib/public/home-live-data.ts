@@ -7,6 +7,7 @@ import type { MatchFeatureProps } from "@/components/site/match-feature";
 import type { StandingPreviewTeam } from "@/components/site/standings-preview";
 import type { FeaturedMvp, SeasonLeader } from "@/components/site/mvp-leaders-section";
 import type { TeamGridItem } from "@/components/site/teams-grid";
+import type { FixtureMatch } from "@/components/site/fixture-preview";
 
 // Capa de datos ÚNICA para la Home pública. Reutiliza los helpers públicos
 // existentes (getHeroData, getStandings, getTopScorers, getEquipos, display.*)
@@ -31,6 +32,7 @@ export type HomePageData = {
   standings: Loaded<StandingPreviewTeam[]>;
   mvp: Loaded<MvpData>;
   teams: Loaded<TeamGridItem[]>;
+  fixture: Loaded<FixtureMatch[]>;
 };
 
 /* ---- utilidades ---------------------------------------------------------- */
@@ -76,6 +78,46 @@ function teamRef(club: { nombre: string; escudoUrl: string | null }) {
     abbr: clubAbrev(club.nombre),
     logoUrl: club.escudoUrl ?? undefined,
     color: clubColor(club.nombre),
+  };
+}
+
+function fixtureStatus(estado: "PROGRAMADO" | "CONFIRMADO" | "EN_CURSO" | "FINALIZADO"): FixtureMatch["status"] {
+  if (estado === "EN_CURSO") return "live";
+  if (estado === "FINALIZADO") return "finished";
+  return "scheduled";
+}
+
+function timeLabel(date: Date | null): string | undefined {
+  if (!date) return undefined;
+  return date.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+type FixturePartido = {
+  id: string;
+  fechaHora: Date | null;
+  estado: "PROGRAMADO" | "CONFIRMADO" | "EN_CURSO" | "FINALIZADO";
+  cancha: string | null;
+  jornada: { numero: number; fecha: Date | null };
+  clubLocal: { nombre: string; escudoUrl: string | null };
+  clubVisitante: { nombre: string; escudoUrl: string | null };
+  acta: { resultadoLocal: number; resultadoVisitante: number } | null;
+};
+
+function toFixtureMatch(partido: FixturePartido): FixtureMatch | null {
+  const date = partido.fechaHora ?? partido.jornada.fecha;
+  if (!date) return null;
+
+  return {
+    id: partido.id,
+    jornada: `Fecha ${partido.jornada.numero}`,
+    date,
+    timeLabel: timeLabel(partido.fechaHora),
+    venue: partido.cancha ?? undefined,
+    status: fixtureStatus(partido.estado),
+    homeTeam: teamRef(partido.clubLocal),
+    awayTeam: teamRef(partido.clubVisitante),
+    homeScore: partido.acta?.resultadoLocal ?? null,
+    awayScore: partido.acta?.resultadoVisitante ?? null,
   };
 }
 
@@ -239,17 +281,57 @@ async function loadTeams(): Promise<TeamGridItem[]> {
   }));
 }
 
+async function loadFixturePreview(): Promise<FixtureMatch[]> {
+  const upcoming = await prisma.partido.findMany({
+    where: { estado: { in: ["EN_CURSO", "PROGRAMADO", "CONFIRMADO"] } },
+    orderBy: [{ fechaHora: "asc" }, { updatedAt: "asc" }],
+    take: 12,
+    select: {
+      id: true,
+      fechaHora: true,
+      estado: true,
+      cancha: true,
+      jornada: { select: { numero: true, fecha: true } },
+      clubLocal: { select: { nombre: true, escudoUrl: true } },
+      clubVisitante: { select: { nombre: true, escudoUrl: true } },
+      acta: { select: { resultadoLocal: true, resultadoVisitante: true } },
+    },
+  });
+
+  const upcomingMatches = upcoming.map(toFixtureMatch).filter((m): m is FixtureMatch => m !== null);
+  if (upcomingMatches.length > 0) return upcomingMatches.slice(0, 6);
+
+  const finished = await prisma.partido.findMany({
+    where: { estado: "FINALIZADO", acta: { isNot: null } },
+    orderBy: [{ fechaHora: "desc" }, { updatedAt: "desc" }],
+    take: 12,
+    select: {
+      id: true,
+      fechaHora: true,
+      estado: true,
+      cancha: true,
+      jornada: { select: { numero: true, fecha: true } },
+      clubLocal: { select: { nombre: true, escudoUrl: true } },
+      clubVisitante: { select: { nombre: true, escudoUrl: true } },
+      acta: { select: { resultadoLocal: true, resultadoVisitante: true } },
+    },
+  });
+
+  return finished.map(toFixtureMatch).filter((m): m is FixtureMatch => m !== null).slice(0, 6);
+}
+
 /* ---- entrada única ------------------------------------------------------- */
 
 export async function getHomePageData(): Promise<HomePageData> {
-  const [matchFeature, standings, mvp, teams] = await Promise.all([
+  const [matchFeature, standings, mvp, teams, fixture] = await Promise.all([
     safe(loadMatchFeature),
     safe(loadStandings),
     safe(loadMvp),
     safe(loadTeams),
+    safe(loadFixturePreview),
   ]);
 
   const isLiveNow = matchFeature.ok && matchFeature.data.matchState === "live";
 
-  return { isLiveNow, matchFeature, standings, mvp, teams };
+  return { isLiveNow, matchFeature, standings, mvp, teams, fixture };
 }

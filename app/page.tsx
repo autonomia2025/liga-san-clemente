@@ -7,6 +7,7 @@ import { StandingsPreview } from "@/components/site/standings-preview";
 import { MvpLeadersSection } from "@/components/site/mvp-leaders-section";
 import { TeamsGrid } from "@/components/site/teams-grid";
 import { HistorySection } from "@/components/site/history-section";
+import { FixturePreview } from "@/components/site/fixture-preview";
 import { SponsorsSection, type Sponsor } from "@/components/site/sponsors-section";
 import { SiteFooter, type FooterLink, type SocialLink } from "@/components/site/site-footer";
 import {
@@ -14,6 +15,7 @@ import {
   StandingsPreviewError,
   MvpLeadersError,
   TeamsGridError,
+  FixturePreviewError,
 } from "@/components/site/loading-states";
 import { getHomePageData } from "@/lib/public/home-live-data";
 
@@ -99,6 +101,11 @@ export default async function Home() {
           {data.teams.ok ? <TeamsGrid teams={data.teams.data} /> : <TeamsGridError />}
 
           <HistorySection />
+          {data.fixture.ok ? (
+            <FixturePreview matches={data.fixture.data} href="/calendario" />
+          ) : (
+            <FixturePreviewError />
+          )}
           <SponsorsSection sponsors={MOCK_SPONSORS} />
           <SiteFooter navLinks={FOOTER_NAV_LINKS} socialLinks={FOOTER_SOCIAL_LINKS} />
         </PageTransition>

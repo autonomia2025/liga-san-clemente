@@ -168,3 +168,11 @@ export function TeamsGridError() {
     </section>
   );
 }
+
+export function FixturePreviewError() {
+  return (
+    <section id="calendario" className="lbsc-container lbsc-section-tight">
+      <ModuleError label="el fixture" minHeight="min-h-[260px]" />
+    </section>
+  );
+}
