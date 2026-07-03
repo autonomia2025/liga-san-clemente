@@ -45,7 +45,9 @@ export type SeasonLeader = {
 };
 
 export type MvpLeadersSectionProps = {
-  mvp: FeaturedMvp;
+  // Opcional: si todavía no hay MVP registrado en un acta, se muestra un empty
+  // state calmado en vez de inventar un jugador.
+  mvp?: FeaturedMvp;
   leaders: SeasonLeader[];
 };
 
@@ -317,6 +319,17 @@ function SeasonLeaders({ leaders }: { leaders: SeasonLeader[] }) {
 
 /* ---- sección ------------------------------------------------------------- */
 
+function EmptyMvp() {
+  return (
+    <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-3xl border border-white/10 bg-bg-elevated p-8 text-center">
+      <span className="font-head text-2xl uppercase tracking-tight text-text-primary">MVP del último partido</span>
+      <p className="max-w-md font-body text-sm text-text-secondary">
+        El MVP del último partido aparecerá cuando el acta esté confirmada.
+      </p>
+    </div>
+  );
+}
+
 export function MvpLeadersSection({ mvp, leaders }: MvpLeadersSectionProps) {
   const reduce = usePrefersReducedMotion();
   return (
@@ -328,8 +341,13 @@ export function MvpLeadersSection({ mvp, leaders }: MvpLeadersSectionProps) {
         </h2>
       </div>
 
-      <FeaturedMvpCard mvp={mvp} reduce={reduce} />
-      <SeasonLeaders leaders={leaders} />
+      {mvp ? <FeaturedMvpCard mvp={mvp} reduce={reduce} /> : <EmptyMvp />}
+
+      {leaders.length > 0 ? (
+        <SeasonLeaders leaders={leaders} />
+      ) : (
+        <p className="mt-8 font-body text-sm text-text-secondary">Los líderes de temporada aparecerán a medida que se registren estadísticas.</p>
+      )}
     </section>
   );
 }

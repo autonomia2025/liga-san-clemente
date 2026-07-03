@@ -2,21 +2,24 @@ import type { Metadata } from "next";
 import { Navbar } from "@/components/site/navbar";
 import { PageTransition } from "@/components/site/page-transition";
 import { HeroSection } from "@/components/site/hero-section";
-import { MatchFeature, type MatchState } from "@/components/site/match-feature";
-import { StandingsPreview, type StandingPreviewTeam } from "@/components/site/standings-preview";
-import {
-  MvpLeadersSection,
-  type FeaturedMvp,
-  type SeasonLeader,
-} from "@/components/site/mvp-leaders-section";
-import { TeamsGrid, type TeamGridItem } from "@/components/site/teams-grid";
+import { MatchFeature } from "@/components/site/match-feature";
+import { StandingsPreview } from "@/components/site/standings-preview";
+import { MvpLeadersSection } from "@/components/site/mvp-leaders-section";
+import { TeamsGrid } from "@/components/site/teams-grid";
 import { HistorySection } from "@/components/site/history-section";
 import { SponsorsSection, type Sponsor } from "@/components/site/sponsors-section";
+import { SiteFooter, type FooterLink, type SocialLink } from "@/components/site/site-footer";
 import {
-  SiteFooter,
-  type FooterLink,
-  type SocialLink,
-} from "@/components/site/site-footer";
+  MatchFeatureError,
+  StandingsPreviewError,
+  MvpLeadersError,
+  TeamsGridError,
+} from "@/components/site/loading-states";
+import { getHomePageData } from "@/lib/public/home-live-data";
+
+// Depende de datos en vivo (partido en curso, próxima jornada, standings) →
+// no puede quedar prerenderizada estática; se resuelve en cada request.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "LBSC 2026 — Liga de Básquetbol San Clemente | Temporada 2026",
@@ -32,60 +35,9 @@ export const metadata: Metadata = {
   },
 };
 
-// PR Preview 2.0 — Home con Navbar + Hero + MatchFeature + StandingsPreview +
-// mini-stats. Todavía SIN datos reales; todo mock para revisar visualmente.
-// Cambiá MOCK_MATCH_STATE entre "live" | "upcoming" | "none".
-const MOCK_MATCH_STATE: MatchState = "live"; // "live" | "upcoming" | "none"
-
-const MOCK_MATCH = {
-  homeTeam: { name: "Equipo Local", abbr: "LOC", color: "#7C3AED" },
-  awayTeam: { name: "Equipo Visitante", abbr: "VIS", color: "#F97316" },
-  homeScore: 54,
-  awayScore: 44,
-  periodLabel: "3ER CUARTO",
-  gameClock: "06:42",
-  scheduledAt: new Date("2026-07-05T20:40:00-04:00"),
-  venue: "Polideportivo San Clemente",
-  leaders: [
-    { name: "Jugador Local", initials: "JL", points: 18, teamAbbr: "LOC" },
-    { name: "Jugador Visita", initials: "JV", points: 14, teamAbbr: "VIS" },
-    { name: "Base Local", initials: "BL", points: 12, teamAbbr: "LOC" },
-  ],
-};
-
-// Mock de standings (solo visual, sin datos reales de la liga).
-const MOCK_STANDINGS: StandingPreviewTeam[] = [
-  { position: 1, team: { name: "Equipo Uno", abbr: "E1", color: "#FBBF24" }, played: 1, wins: 1, losses: 0, pointDiff: 15, tablePoints: 2, streak: "win" },
-  { position: 2, team: { name: "Equipo Dos", abbr: "E2", color: "#7C3AED" }, played: 1, wins: 1, losses: 0, pointDiff: 11, tablePoints: 2, streak: "win" },
-  { position: 3, team: { name: "Equipo Tres", abbr: "E3", color: "#F97316" }, played: 1, wins: 1, losses: 0, pointDiff: 8, tablePoints: 2, streak: null },
-  { position: 4, team: { name: "Equipo Cuatro", abbr: "E4", color: "#3B82F6" }, played: 1, wins: 0, losses: 1, pointDiff: -4, tablePoints: 1, streak: "loss" },
-  { position: 5, team: { name: "Equipo Cinco", abbr: "E5", color: "#9CA3AF" }, played: 1, wins: 0, losses: 1, pointDiff: -9, tablePoints: 1, streak: "loss" },
-];
-
-// Mock de MVP + líderes (solo visual, sin nombres reales).
-const MOCK_FEATURED_MVP: FeaturedMvp = {
-  playerName: "Jugador Destacado",
-  playerInitials: "JD",
-  playerPhotoUrl: undefined,
-  teamName: "Equipo Uno",
-  teamAbbr: "E1",
-  teamAccentColor: "#FBBF24",
-  points: 27,
-  matchResult: {
-    homeTeam: { name: "Equipo Uno", abbr: "E1", color: "#FBBF24" },
-    awayTeam: { name: "Equipo Dos", abbr: "E2", color: "#7C3AED" },
-    homeScore: 68,
-    awayScore: 61,
-  },
-};
-
-const MOCK_SEASON_LEADERS: SeasonLeader[] = [
-  { category: "Líder en Puntos", playerName: "Anotador Mock", playerInitials: "AM", teamName: "Equipo Uno", teamAbbr: "E1", teamAccentColor: "#FBBF24", value: 24, suffix: "PTS" },
-  { category: "Líder en Rebotes", playerName: "Rebotero Mock", playerInitials: "RM", teamName: "Equipo Dos", teamAbbr: "E2", teamAccentColor: "#7C3AED", value: 13, suffix: "REB" },
-  { category: "Líder en Asistencias", playerName: "Base Mock", playerInitials: "BM", teamName: "Equipo Tres", teamAbbr: "E3", teamAccentColor: "#F97316", value: 9, suffix: "AST" },
-];
-
-// Mock de auspiciadores (solo visual, sin logos reales todavía).
+// Historia, auspiciadores y footer siguen con constantes/placeholders por ahora
+// (no son dinámicos en este PR). El resto de la Home usa datos reales de DB vía
+// getHomePageData(), con estado de error por módulo si una query falla.
 const MOCK_SPONSORS: Sponsor[] = [
   { name: "Spalding", tier: "main", label: "Auspiciador Oficial" },
   { name: "Depore", tier: "support" },
@@ -94,7 +46,6 @@ const MOCK_SPONSORS: Sponsor[] = [
   { name: "MV Nutrition", tier: "support" },
 ];
 
-// Mock de footer (links y redes; sin URLs reales confirmadas).
 const FOOTER_NAV_LINKS: FooterLink[] = [
   { label: "Inicio", href: "/" },
   { label: "En Vivo", href: "#en-vivo" },
@@ -109,40 +60,43 @@ const FOOTER_SOCIAL_LINKS: SocialLink[] = [
   { label: "Facebook", href: "#" },
 ];
 
-// Mock de equipos (solo visual, sin datos reales de la liga).
-const MOCK_TEAMS: TeamGridItem[] = [
-  { name: "Equipo Uno", slug: "equipo-uno", abbr: "E1", accentColor: "#7C3AED", currentPosition: 1, tablePoints: 12 },
-  { name: "Equipo Dos", slug: "equipo-dos", abbr: "E2", accentColor: "#F97316", currentPosition: 2, tablePoints: 10 },
-  { name: "Equipo Tres", slug: "equipo-tres", abbr: "E3", accentColor: "#FBBF24", currentPosition: 3, tablePoints: 9 },
-  { name: "Equipo Cuatro", slug: "equipo-cuatro", abbr: "E4", accentColor: "#3B82F6", currentPosition: 4, tablePoints: 8 },
-  { name: "Equipo Cinco", slug: "equipo-cinco", abbr: "E5", accentColor: "#8B5CF6", currentPosition: 5, tablePoints: 7 },
-  { name: "Equipo Seis", slug: "equipo-seis", abbr: "E6", accentColor: "#EF4444", currentPosition: 6, tablePoints: 6 },
-  { name: "Equipo Siete", slug: "equipo-siete", abbr: "E7", accentColor: "#10B981", currentPosition: 7, tablePoints: 5 },
-  { name: "Equipo Ocho", slug: "equipo-ocho", abbr: "E8", accentColor: "#9CA3AF", currentPosition: 8, tablePoints: 4 },
-];
+export default async function Home() {
+  const data = await getHomePageData();
 
-export default function Home() {
   return (
     <div className="min-h-screen bg-bg-base font-body text-text-primary">
-      {/* Navbar fuera de PageTransition: es position:fixed y el transform del
-          wrapper de transición rompería su posicionamiento. */}
-      <Navbar isLiveNow={false} />
+      {/* Navbar fuera de PageTransition: es fixed y el transform del wrapper le
+          rompería el posicionamiento. isLiveNow viene de datos reales. */}
+      <Navbar isLiveNow={data.isLiveNow} />
 
-      {/* PageTransition envuelve solo el contenido principal + footer (entrada
-          fade + translateY, respeta reduced-motion). MiniStats se quitó del
-          ensamblaje final: repetía la identidad del Hero y cortaba el ritmo
-          entre Historia y Auspiciadores. */}
       <PageTransition>
         <HeroSection />
-        <MatchFeature matchState={MOCK_MATCH_STATE} {...MOCK_MATCH} />
-        <StandingsPreview
-          seasonLabel="TEMPORADA 2026"
-          title="TABLA DE POSICIONES"
-          href="/tabla"
-          teams={MOCK_STANDINGS}
-        />
-        <MvpLeadersSection mvp={MOCK_FEATURED_MVP} leaders={MOCK_SEASON_LEADERS} />
-        <TeamsGrid teams={MOCK_TEAMS} />
+
+        {data.matchFeature.ok ? (
+          <MatchFeature {...data.matchFeature.data} />
+        ) : (
+          <MatchFeatureError />
+        )}
+
+        {data.standings.ok ? (
+          <StandingsPreview
+            seasonLabel="TEMPORADA 2026"
+            title="TABLA DE POSICIONES"
+            href="/tabla"
+            teams={data.standings.data}
+          />
+        ) : (
+          <StandingsPreviewError />
+        )}
+
+        {data.mvp.ok ? (
+          <MvpLeadersSection mvp={data.mvp.data.featuredMvp} leaders={data.mvp.data.seasonLeaders} />
+        ) : (
+          <MvpLeadersError />
+        )}
+
+        {data.teams.ok ? <TeamsGrid teams={data.teams.data} /> : <TeamsGridError />}
+
         <HistorySection />
         <SponsorsSection sponsors={MOCK_SPONSORS} />
         <SiteFooter navLinks={FOOTER_NAV_LINKS} socialLinks={FOOTER_SOCIAL_LINKS} />

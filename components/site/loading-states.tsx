@@ -1,5 +1,7 @@
 "use client";
 
+import { ModuleError } from "@/components/site/module-error";
+
 // Skeletons y error states para los módulos que en el futuro vendrán de datos
 // (MatchFeature, StandingsPreview, MvpLeadersSection, TeamsGrid). Preparados
 // para ese momento; hoy no se renderizan en la Home (que usa los componentes
@@ -130,66 +132,39 @@ export function TeamsGridSkeleton() {
 }
 
 /* ===========================================================================
-   ERROR STATES (visuales, no técnicos)
+   ERROR STATES (visuales, no técnicos). El retry vive en ModuleError
+   (router.refresh()), self-contained, así funciona renderizado desde el
+   Server Component de la Home sin pasar funciones por props.
 =========================================================================== */
 
-const ERROR_MESSAGE = "No pudimos cargar la información en este momento.";
-
-function ErrorBox({
-  onRetry,
-  minHeight = "min-h-[220px]",
-  label,
-}: {
-  onRetry?: () => void;
-  minHeight?: string;
-  label: string;
-}) {
-  return (
-    <div
-      role="alert"
-      className={`flex ${minHeight} flex-col items-center justify-center gap-4 rounded-2xl border border-white/10 bg-bg-elevated p-8 text-center`}
-    >
-      <p className="max-w-sm font-body text-sm text-text-secondary">{ERROR_MESSAGE}</p>
-      <button
-        type="button"
-        onClick={() => onRetry?.()}
-        className="rounded-lg border border-white/15 bg-white/[0.02] px-5 py-2.5 font-body text-sm font-semibold uppercase tracking-wide text-text-primary transition-colors hover:border-accent-purple/60 hover:bg-accent-purple/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
-        aria-label={`Reintentar cargar ${label}`}
-      >
-        Reintentar
-      </button>
-    </div>
-  );
-}
-
-export function MatchFeatureError({ onRetry }: { onRetry?: () => void }) {
+export function MatchFeatureError() {
   return (
     <section className="lbsc-container lbsc-section-tight">
-      <ErrorBox onRetry={onRetry} minHeight="min-h-[260px]" label="el partido" />
+      <ModuleError label="el partido" minHeight="min-h-[260px]" />
     </section>
   );
 }
 
-export function StandingsPreviewError({ onRetry }: { onRetry?: () => void }) {
+export function StandingsPreviewError() {
   return (
     <section className="lbsc-container lbsc-section-tight">
-      <ErrorBox onRetry={onRetry} minHeight="min-h-[300px]" label="la tabla" />
+      <ModuleError label="la tabla" minHeight="min-h-[300px]" />
     </section>
   );
 }
 
-export function MvpLeadersError({ onRetry }: { onRetry?: () => void }) {
+export function MvpLeadersError() {
   return (
     <section className="lbsc-container lbsc-section-tight">
-      <ErrorBox onRetry={onRetry} minHeight="min-h-[300px]" label="las figuras" />
+      <ModuleError label="las figuras" minHeight="min-h-[300px]" />
     </section>
   );
 }
 
-export function TeamsGridError({ onRetry }: { onRetry?: () => void }) {
+export function TeamsGridError() {
   return (
     <section className="lbsc-container lbsc-section-tight">
-      <ErrorBox onRetry={onRetry} minHeight="min-h-[260px]" label="los equipos" />
+      <ModuleError label="los equipos" minHeight="min-h-[260px]" />
     </section>
   );
 }

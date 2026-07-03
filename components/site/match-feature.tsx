@@ -114,23 +114,12 @@ function LiveState({
   periodLabel,
   gameClock,
   leaders = [],
-  reduce,
 }: Required<Pick<MatchFeatureProps, "homeTeam" | "awayTeam">> &
-  Pick<MatchFeatureProps, "homeScore" | "awayScore" | "periodLabel" | "gameClock" | "leaders"> & { reduce: boolean }) {
-  // Simulación visual del marcador (demo, NO lógica final). Bajo reduced-motion
-  // no se simula: el marcador queda estático en el valor de props.
-  const [home, setHome] = useState(homeScore);
-  const [away, setAway] = useState(awayScore);
-
-  useEffect(() => {
-    if (reduce) return;
-    const id = setInterval(() => {
-      const inc = Math.random() > 0.5 ? 2 : 3;
-      if (Math.random() > 0.5) setHome((h) => h + inc);
-      else setAway((a) => a + inc);
-    }, 3500);
-    return () => clearInterval(id);
-  }, [reduce]);
+  Pick<MatchFeatureProps, "homeScore" | "awayScore" | "periodLabel" | "gameClock" | "leaders">) {
+  // Marcador REAL (props). No se simula: el flip/roll (key por valor) solo se
+  // dispara si el marcador real cambia entre renders (ej. tras router.refresh).
+  const home = homeScore;
+  const away = awayScore;
 
   return (
     <div className="lbsc-live-glow rounded-2xl border border-accent-orange/25 bg-bg-elevated p-6 sm:p-8">
@@ -285,7 +274,6 @@ export function MatchFeature(props: MatchFeatureProps) {
         periodLabel={props.periodLabel}
         gameClock={props.gameClock}
         leaders={props.leaders}
-        reduce={reduce}
       />
     );
   } else if (matchState === "upcoming" && tieneEquipos) {
