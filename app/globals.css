@@ -310,3 +310,14 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .lbsc-fade-up { animation: lbsc-fade-up var(--lbsc-dur-section) var(--lbsc-ease) both; }
 }
+
+/* Asentamiento de imagen del hero: entra levemente escalada y se asienta.
+   Se aplica a un elemento distinto del wrapper de parallax para que no peleen
+   por `transform`. Guardado por prefers-reduced-motion. */
+@keyframes lbsc-image-settle {
+  from { transform: scale(1.05); }
+  to { transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-image-settle { animation: lbsc-image-settle 800ms var(--lbsc-ease) both; }
+}
