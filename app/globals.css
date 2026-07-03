@@ -474,3 +474,26 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .lbsc-tg-microdata { opacity: 1 !important; }
 }
+
+/* ---------------------------------------------------------------------------
+   History timeline: la línea conectora se dibuja al entrar en viewport
+   (vertical en mobile, horizontal en desktop) y los puntos hacen pop con
+   stagger. Progressive enhancement: sin JS o con reduced-motion, línea y
+   puntos quedan completos y estáticos.
+--------------------------------------------------------------------------- */
+.lbsc-tl-line-v { transform-origin: top; }
+.lbsc-tl-line-h { transform-origin: left; }
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-tl-line-v.lbsc-tl-line--armed { transform: scaleY(0); }
+  .lbsc-tl-line-h.lbsc-tl-line--armed { transform: scaleX(0); }
+  .lbsc-tl-line--armed.lbsc-tl-line--in { transition: transform 700ms var(--lbsc-ease); }
+  .lbsc-tl-line-v.lbsc-tl-line--armed.lbsc-tl-line--in { transform: scaleY(1); }
+  .lbsc-tl-line-h.lbsc-tl-line--armed.lbsc-tl-line--in { transform: scaleX(1); }
+
+  .lbsc-tl-dot--armed { transform: scale(0); }
+  .lbsc-tl-dot--armed.lbsc-tl-dot--in {
+    transform: scale(1);
+    transition: transform 300ms var(--lbsc-ease);
+    transition-delay: var(--tl-delay, 0ms);
+  }
+}

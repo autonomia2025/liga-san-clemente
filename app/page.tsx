@@ -10,6 +10,7 @@ import {
   type SeasonLeader,
 } from "@/components/site/mvp-leaders-section";
 import { TeamsGrid, type TeamGridItem } from "@/components/site/teams-grid";
+import { HistorySection } from "@/components/site/history-section";
 
 export const metadata: Metadata = {
   title: "LBSC 2026 | Liga de Básquetbol San Clemente",
@@ -103,6 +104,7 @@ export default function Home() {
       />
       <MvpLeadersSection mvp={MOCK_FEATURED_MVP} leaders={MOCK_SEASON_LEADERS} />
       <TeamsGrid teams={MOCK_TEAMS} />
+      <HistorySection />
       <MiniStats />
     </div>
   );
