@@ -497,3 +497,38 @@ body {
     transition-delay: var(--tl-delay, 0ms);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Auspiciadores: marquee (solo CSS, transform) + logos monocromo con fade.
+--------------------------------------------------------------------------- */
+@keyframes lbsc-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.lbsc-marquee-track {
+  display: inline-flex;
+  width: max-content;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Velocidad baja; el track lleva la lista duplicada, -50% = un ancho de lista
+     (loop sin salto). Se pausa al hover/tap. */
+  .lbsc-marquee-track { animation: lbsc-marquee 32s linear infinite; }
+  .lbsc-marquee:hover .lbsc-marquee-track,
+  .lbsc-marquee:active .lbsc-marquee-track { animation-play-state: paused; }
+}
+
+/* Logo/wordmark de auspiciador: monocromo + baja opacidad; a color/opacidad
+   plena en hover (desktop). Estático bajo reduced-motion. */
+.lbsc-sponsor {
+  opacity: 0.55;
+  filter: grayscale(1);
+  transition: opacity 250ms var(--lbsc-ease), filter 250ms var(--lbsc-ease), color 250ms var(--lbsc-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .lbsc-sponsor:hover,
+  .lbsc-sponsor:focus-within { opacity: 1; filter: grayscale(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lbsc-sponsor { transition: none; }
+}

@@ -11,6 +11,12 @@ import {
 } from "@/components/site/mvp-leaders-section";
 import { TeamsGrid, type TeamGridItem } from "@/components/site/teams-grid";
 import { HistorySection } from "@/components/site/history-section";
+import { SponsorsSection, type Sponsor } from "@/components/site/sponsors-section";
+import {
+  SiteFooter,
+  type FooterLink,
+  type SocialLink,
+} from "@/components/site/site-footer";
 
 export const metadata: Metadata = {
   title: "LBSC 2026 | Liga de Básquetbol San Clemente",
@@ -78,6 +84,30 @@ const MOCK_SEASON_LEADERS: SeasonLeader[] = [
   { category: "Líder en Asistencias", playerName: "Base Mock", playerInitials: "BM", teamName: "Equipo Tres", teamAbbr: "E3", teamAccentColor: "#F97316", value: 9, suffix: "AST" },
 ];
 
+// Mock de auspiciadores (solo visual, sin logos reales todavía).
+const MOCK_SPONSORS: Sponsor[] = [
+  { name: "Spalding", tier: "main", label: "Auspiciador Oficial" },
+  { name: "Depore", tier: "support" },
+  { name: "CCF", tier: "support" },
+  { name: "Meneagro", tier: "support" },
+  { name: "MV Nutrition", tier: "support" },
+];
+
+// Mock de footer (links y redes; sin URLs reales confirmadas).
+const FOOTER_NAV_LINKS: FooterLink[] = [
+  { label: "Inicio", href: "/" },
+  { label: "En Vivo", href: "#en-vivo" },
+  { label: "Tabla", href: "#tabla" },
+  { label: "Calendario", href: "#calendario" },
+  { label: "Equipos", href: "#equipos" },
+];
+
+const FOOTER_SOCIAL_LINKS: SocialLink[] = [
+  { label: "Instagram", href: "#" },
+  { label: "TikTok", href: "#" },
+  { label: "Facebook", href: "#" },
+];
+
 // Mock de equipos (solo visual, sin datos reales de la liga).
 const MOCK_TEAMS: TeamGridItem[] = [
   { name: "Equipo Uno", slug: "equipo-uno", abbr: "E1", accentColor: "#7C3AED", currentPosition: 1, tablePoints: 12 },
@@ -106,6 +136,8 @@ export default function Home() {
       <TeamsGrid teams={MOCK_TEAMS} />
       <HistorySection />
       <MiniStats />
+      <SponsorsSection sponsors={MOCK_SPONSORS} />
+      <SiteFooter navLinks={FOOTER_NAV_LINKS} socialLinks={FOOTER_SOCIAL_LINKS} />
     </div>
   );
 }
