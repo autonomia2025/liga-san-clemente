@@ -321,3 +321,41 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .lbsc-image-settle { animation: lbsc-image-settle 800ms var(--lbsc-ease) both; }
 }
+
+/* Glow de "respiración" para el módulo en vivo (borde naranja tenue que late).
+   Solo CSS. Se desactiva con prefers-reduced-motion. */
+.lbsc-live-glow { position: relative; }
+.lbsc-live-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.5;
+  box-shadow: 0 0 34px -6px rgba(249, 115, 22, 0.5), inset 0 0 24px -10px rgba(249, 115, 22, 0.45);
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lbsc-glow-breathe {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.7; }
+  }
+  .lbsc-live-glow::before { animation: lbsc-glow-breathe 3s ease-in-out infinite; }
+}
+
+/* Roll corto del número de marcador cuando cambia (se re-monta por key). */
+@keyframes lbsc-score-roll {
+  from { opacity: 0; transform: translateY(-38%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-score-roll { animation: lbsc-score-roll 200ms var(--lbsc-ease); }
+}
+
+/* Crossfade al cambiar de estado (live/upcoming/none). Guardado por reduced-motion. */
+@keyframes lbsc-cross-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-cross-in { animation: lbsc-cross-in 300ms var(--lbsc-ease) both; }
+}
