@@ -44,17 +44,34 @@ function dateKey(match: FixtureMatch): string {
   return d.toISOString().slice(0, 10);
 }
 
+// timeZone explícito en los tres: este componente es "use client" y sin
+// timeZone el navegador usa la hora local del dispositivo del visitante (y el
+// server, en el primer render, usa UTC) — ninguno de los dos es la hora Chile
+// que debe verse acá, y además genera mismatch de hidratación entre SSR/CSR.
 function formatShortDate(date: Date): string {
-  return upper(date.toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" }).replace(".", ""));
+  return upper(
+    date
+      .toLocaleDateString("es-CL", { timeZone: "America/Santiago", weekday: "short", day: "numeric", month: "short" })
+      .replace(".", ""),
+  );
 }
 
 function formatLongDate(date: Date): string {
-  return upper(date.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "short" }).replace(".", ""));
+  return upper(
+    date
+      .toLocaleDateString("es-CL", { timeZone: "America/Santiago", weekday: "long", day: "numeric", month: "short" })
+      .replace(".", ""),
+  );
 }
 
 function formatTime(match: FixtureMatch): string {
   if (match.timeLabel) return match.timeLabel;
-  return matchDate(match).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return matchDate(match).toLocaleTimeString("es-CL", {
+    timeZone: "America/Santiago",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 function groupLabel(match: FixtureMatch): string {

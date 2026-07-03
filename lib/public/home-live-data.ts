@@ -89,7 +89,15 @@ function fixtureStatus(estado: "PROGRAMADO" | "CONFIRMADO" | "EN_CURSO" | "FINAL
 
 function timeLabel(date: Date | null): string | undefined {
   if (!date) return undefined;
-  return date.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
+  // timeZone explícito: Partido.fechaHora es un instante real y este archivo
+  // corre en el servidor (Vercel = UTC) — sin timeZone mostraría la hora UTC,
+  // no la hora Chile que ve el público.
+  return date.toLocaleTimeString("es-CL", {
+    timeZone: "America/Santiago",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 type FixturePartido = {
