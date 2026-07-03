@@ -413,3 +413,23 @@ body {
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .lbsc-srow:hover .lbsc-srow-body { transform: translateX(4px); }
 }
+
+/* ---------------------------------------------------------------------------
+   MVP feature: entrada de la foto (fade + scale) al entrar en viewport.
+   Progressive enhancement: solo se oculta cuando el JS la "arma"; sin JS o con
+   reduced-motion queda visible y estática.
+--------------------------------------------------------------------------- */
+@keyframes lbsc-mvp-photo-in {
+  from { opacity: 0; transform: scale(1.05); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-mvp-photo--armed { opacity: 0; }
+  .lbsc-mvp-photo--armed.lbsc-mvp-photo--in {
+    animation: lbsc-mvp-photo-in 800ms var(--lbsc-ease) both;
+  }
+}
+
+/* Carrusel de líderes en mobile: ocultar scrollbar (scroll-snap sigue activo). */
+.lbsc-no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.lbsc-no-scrollbar::-webkit-scrollbar { display: none; }

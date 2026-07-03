@@ -4,6 +4,11 @@ import { HeroSection } from "@/components/site/hero-section";
 import { MiniStats } from "@/components/site/mini-stats";
 import { MatchFeature, type MatchState } from "@/components/site/match-feature";
 import { StandingsPreview, type StandingPreviewTeam } from "@/components/site/standings-preview";
+import {
+  MvpLeadersSection,
+  type FeaturedMvp,
+  type SeasonLeader,
+} from "@/components/site/mvp-leaders-section";
 
 export const metadata: Metadata = {
   title: "LBSC 2026 | Liga de Básquetbol San Clemente",
@@ -48,6 +53,29 @@ const MOCK_STANDINGS: StandingPreviewTeam[] = [
   { position: 5, team: { name: "Equipo Cinco", abbr: "E5", color: "#9CA3AF" }, played: 1, wins: 0, losses: 1, pointDiff: -9, tablePoints: 1, streak: "loss" },
 ];
 
+// Mock de MVP + líderes (solo visual, sin nombres reales).
+const MOCK_FEATURED_MVP: FeaturedMvp = {
+  playerName: "Jugador Destacado",
+  playerInitials: "JD",
+  playerPhotoUrl: undefined,
+  teamName: "Equipo Uno",
+  teamAbbr: "E1",
+  teamAccentColor: "#FBBF24",
+  points: 27,
+  matchResult: {
+    homeTeam: { name: "Equipo Uno", abbr: "E1", color: "#FBBF24" },
+    awayTeam: { name: "Equipo Dos", abbr: "E2", color: "#7C3AED" },
+    homeScore: 68,
+    awayScore: 61,
+  },
+};
+
+const MOCK_SEASON_LEADERS: SeasonLeader[] = [
+  { category: "Líder en Puntos", playerName: "Anotador Mock", playerInitials: "AM", teamName: "Equipo Uno", teamAbbr: "E1", teamAccentColor: "#FBBF24", value: 24, suffix: "PTS" },
+  { category: "Líder en Rebotes", playerName: "Rebotero Mock", playerInitials: "RM", teamName: "Equipo Dos", teamAbbr: "E2", teamAccentColor: "#7C3AED", value: 13, suffix: "REB" },
+  { category: "Líder en Asistencias", playerName: "Base Mock", playerInitials: "BM", teamName: "Equipo Tres", teamAbbr: "E3", teamAccentColor: "#F97316", value: 9, suffix: "AST" },
+];
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-bg-base font-body text-text-primary">
@@ -60,6 +88,7 @@ export default function Home() {
         href="/tabla"
         teams={MOCK_STANDINGS}
       />
+      <MvpLeadersSection mvp={MOCK_FEATURED_MVP} leaders={MOCK_SEASON_LEADERS} />
       <MiniStats />
     </div>
   );
