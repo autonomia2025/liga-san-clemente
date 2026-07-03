@@ -35,9 +35,11 @@ const DEFAULT_SOCIAL: SocialLink[] = [
   { label: "Facebook", href: "#" },
 ];
 
-// Placeholders de contacto (reemplazar por datos reales).
-const PLACEHOLDER_EMAIL = "[PLACEHOLDER: email oficial]";
-const PLACEHOLDER_PHONE = "[PLACEHOLDER: WhatsApp inscripciones]";
+// Contacto oficial de la liga. El email es real y clickeable (mailto). No hay
+// número de WhatsApp confirmado todavía — se deja el texto sin link en vez de
+// inventar un número.
+const CONTACT_EMAIL = "ligabasketballsanclemente@gmail.com";
+const CONTACT_PHONE_LABEL = "Inscripciones y consultas por WhatsApp";
 
 function FooterShield() {
   return (
@@ -89,8 +91,8 @@ function SocialIcon({ label }: { label: SocialLink["label"] }) {
 export function SiteFooter({
   navLinks = DEFAULT_NAV,
   socialLinks = DEFAULT_SOCIAL,
-  contactEmail = PLACEHOLDER_EMAIL,
-  contactPhone = PLACEHOLDER_PHONE,
+  contactEmail = CONTACT_EMAIL,
+  contactPhone = CONTACT_PHONE_LABEL,
 }: SiteFooterProps) {
   const anio = 2026;
   return (
@@ -132,7 +134,14 @@ export function SiteFooter({
           {/* Contacto */}
           <div className="flex flex-col gap-3">
             <span className="font-body text-[11px] font-bold uppercase tracking-widest text-text-secondary">Contacto</span>
-            <span className="font-body text-sm text-text-secondary">{contactEmail}</span>
+            <a
+              href={`mailto:${contactEmail}`}
+              className="font-body text-sm text-text-secondary transition-colors hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+            >
+              {contactEmail}
+            </a>
+            {/* Sin número de WhatsApp confirmado todavía: texto informativo,
+                no un link a un número inventado. */}
             <span className="font-body text-sm text-text-secondary">{contactPhone}</span>
             <a
               href="/#contacto"

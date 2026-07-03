@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { LbscButton } from "@/components/design-system/lbsc-button";
 
-// Sección Historia / Nosotros de la Home. NO usa base de datos. El copy y las
-// fotos son placeholders claramente marcados para reemplazar por texto/fotos
-// reales más adelante (por props o editando las constantes de abajo).
+// Sección Historia / Nosotros de la Home. NO usa base de datos. El copy es
+// texto oficial de la liga (editable por props o en las constantes de abajo).
+// Las fotos siguen siendo placeholder visual (sin stock) hasta tener imágenes
+// reales — solo los captions ya son definitivos.
 
 export type HistoryMilestone = {
   date: string;
@@ -24,7 +25,9 @@ export type HistorySectionProps = {
   titleLineOne?: string;
   titleLineTwo?: string;
   highlightedWord?: string;
-  body?: string;
+  // Acepta un string único o varios párrafos — el texto oficial son 3 frases
+  // que se leen mejor como 3 párrafos cortos que como un bloque pegado.
+  body?: string | string[];
   milestones?: HistoryMilestone[];
   photos?: HistoryPhoto[];
   closing?: string;
@@ -32,36 +35,34 @@ export type HistorySectionProps = {
   ctaHref?: string;
 };
 
-/* ---- copy real de la liga -------------------------------------------------
-   El texto base (3 frases) se reparte en los dos slots narrativos que ya
-   existen en el layout, sin agregar bloques nuevos:
-   - body: primera + segunda frase (intro narrativa, ya pensada para 3-4
-     líneas con max-w-[65ch]).
-   - closing: tercera frase (llamada comunitaria, justo antes del CTA).
+/* ---- copy oficial LBSC (versión final) ------------------------------------
+   El texto principal se divide en 3 párrafos cortos (mismo bloque de intro,
+   sin agregar secciones nuevas). El cierre usa un texto de invitación propio
+   y distinto del texto principal, para no repetir la misma frase dos veces.
 --------------------------------------------------------------------------- */
 
-const HISTORY_COPY =
-  "La Liga de Básquetbol San Clemente nace para reunir a los equipos, jugadores y familias que viven el básquetbol con pasión en nuestra comuna y sus alrededores. Más que una competencia, la LBSC 2026 busca entregar una vitrina seria, ordenada y motivadora al básquetbol amateur, fortaleciendo el respeto, la sana competencia y el sentido de comunidad.";
+const HISTORY_COPY = [
+  "La Liga de Básquetbol San Clemente nace para reunir a los equipos, jugadores y familias que viven el básquetbol con pasión en nuestra comuna y sus alrededores.",
+  "Más que una competencia, la LBSC 2026 busca entregar una vitrina seria, ordenada y motivadora al básquetbol amateur, fortaleciendo el respeto, la sana competencia y el sentido de comunidad.",
+  "Cada fecha es una oportunidad para crecer, competir y demostrar que en San Clemente el básquetbol se juega con identidad, esfuerzo y corazón.",
+];
 
-// Descripciones cortas y neutras — solo datos ya confirmados en el resto del
-// sitio (8 equipos, Spalding como auspiciador oficial). Sin fechas de
-// fundación ni resultados que no estén confirmados.
 const HISTORY_MILESTONES: HistoryMilestone[] = [
-  { date: "2026", title: "Nace la temporada", description: "La temporada 2026 reúne a ocho equipos en una competencia pensada para ordenar, visibilizar y fortalecer el básquetbol amateur local." },
-  { date: "28 JUN", title: "Primera fecha", description: "La primera fecha marcó el inicio oficial de la competencia en las canchas de San Clemente." },
-  { date: "8 EQUIPOS", title: "La liga toma forma", description: "Ocho clubes confirmaron su participación y le dieron forma al calendario de la temporada." },
-  { date: "SPALDING", title: "Auspiciador oficial", description: "Spalding se sumó como auspiciador oficial, aportando respaldo y visibilidad a cada fecha de la competencia." },
+  { date: "2026", title: "Nace la temporada", description: "Comienza oficialmente la temporada LBSC 2026, con equipos preparados para competir y representar con orgullo a sus clubes." },
+  { date: "28 JUN", title: "Primera fecha", description: "San Clemente vivió una primera jornada llena de energía, emoción y grandes partidos en el Polideportivo." },
+  { date: "8 EQUIPOS", title: "La liga toma forma", description: "Ocho equipos dan vida a una competencia que crece fecha a fecha, consolidando el básquetbol local y regional." },
+  { date: "SPALDING", title: "Auspiciador oficial", description: "Spalding se suma como auspiciador oficial, entregando respaldo y prestigio a una liga que busca seguir elevando su nivel." },
 ];
 
 const HISTORY_PHOTOS: HistoryPhoto[] = [
-  { src: undefined, alt: "Placeholder para foto real de partido LBSC", label: "[PLACEHOLDER: Partido]" },
-  { src: undefined, alt: "Placeholder para foto real de equipo en huddle", label: "[PLACEHOLDER: Comunidad]" },
-  { src: undefined, alt: "Placeholder para foto real del gimnasio", label: "[PLACEHOLDER: Polideportivo]" },
-  { src: undefined, alt: "Placeholder para foto real de entrenamiento", label: "[PLACEHOLDER: Entrenamiento]" },
+  { src: undefined, alt: "Placeholder para foto real de partido LBSC", label: "Intensidad en cancha" },
+  { src: undefined, alt: "Placeholder para foto real de equipo en huddle", label: "La familia del básquet" },
+  { src: undefined, alt: "Placeholder para foto real del gimnasio", label: "Nuestra casa deportiva" },
+  { src: undefined, alt: "Placeholder para foto real de entrenamiento", label: "Preparación y compromiso" },
 ];
 
 const HISTORY_CLOSING =
-  "Cada fecha es una oportunidad para crecer, competir y demostrar que en San Clemente el básquetbol se juega con identidad, esfuerzo y corazón.";
+  "Equipos, jugadores, familias y amantes del básquetbol: sean parte de la LBSC 2026 y acompañen cada fecha de esta liga que sigue creciendo en San Clemente.";
 
 /* ---- placeholder visual de foto (sin stock) ------------------------------ */
 
@@ -192,12 +193,18 @@ export function HistorySection({
             <br />
             {renderTitleTwo()}
           </h2>
-          <p className="max-w-[65ch] font-body text-base leading-[1.7] text-text-secondary">{body}</p>
+          <div className="flex max-w-[65ch] flex-col gap-4">
+            {(Array.isArray(body) ? body : [body]).map((parrafo, i) => (
+              <p key={i} className="font-body text-base leading-[1.7] text-text-secondary">
+                {parrafo}
+              </p>
+            ))}
+          </div>
         </div>
 
         {/* Imagen principal (placeholder ligeramente dominante) */}
         <PhotoPlaceholder
-          photo={{ src: undefined, alt: "Placeholder para foto real de la Liga de Básquetbol San Clemente", label: "[PLACEHOLDER: Comunidad LBSC]" }}
+          photo={{ src: undefined, alt: "Placeholder para foto real de la Liga de Básquetbol San Clemente", label: "Comunidad LBSC" }}
           accent="#7c3aed"
           className="aspect-[4/3] w-full lg:aspect-[5/4]"
         />
