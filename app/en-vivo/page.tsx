@@ -1,0 +1,394 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { LiveBadge } from "@/components/design-system/live-badge";
+import { ScoreNumber } from "@/components/design-system/score-number";
+import { ModuleError } from "@/components/site/module-error";
+import { Navbar } from "@/components/site/navbar";
+import { SiteFooter, type FooterLink, type SocialLink } from "@/components/site/site-footer";
+import {
+  getLivePageData,
+  type LiveBoxscoreRow,
+  type LiveGameData,
+  type LivePlayerStat,
+  type LiveTeam,
+} from "@/lib/public/live-page-data";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "En vivo | LBSC 2026",
+  description: "Marcador y estadísticas en vivo de la Liga de Básquetbol San Clemente.",
+};
+
+const TIME_ZONE = "America/Santiago";
+
+const FOOTER_NAV_LINKS: FooterLink[] = [
+  { label: "Inicio", href: "/" },
+  { label: "En Vivo", href: "/en-vivo" },
+  { label: "Tabla", href: "/tabla" },
+  { label: "Calendario", href: "/calendario" },
+  { label: "Equipos", href: "/#equipos" },
+];
+
+const FOOTER_SOCIAL_LINKS: SocialLink[] = [
+  { label: "Instagram", href: "#" },
+  { label: "TikTok", href: "#" },
+  { label: "Facebook", href: "#" },
+];
+
+const dateTimeFormatter = new Intl.DateTimeFormat("es-CL", {
+  timeZone: TIME_ZONE,
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function upper(value: string): string {
+  return value.toLocaleUpperCase("es-CL").replace(/\./g, "");
+}
+
+function scheduledLabel(value: string | Date | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return upper(dateTimeFormatter.format(date));
+}
+
+/* ---- piezas compartidas ---------------------------------------------------- */
+
+function TeamBlock({ team, align }: { team: LiveTeam; align: "left" | "right" }) {
+  return (
+    <div className={`flex min-w-0 flex-1 flex-col items-center gap-3 text-center ${align === "left" ? "sm:items-end sm:text-right" : "sm:items-start sm:text-left"}`}>
+      <span
+        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl font-head text-lg uppercase leading-none text-white ring-1 ring-white/10 sm:h-20 sm:w-20"
+        style={{
+          background: team.logoUrl
+            ? `center/cover no-repeat url(${team.logoUrl})`
+            : `linear-gradient(155deg, ${team.color ?? "#7c3aed"}, #0a0e1a 82%)`,
+        }}
+        aria-hidden={team.logoUrl ? true : undefined}
+      >
+        {team.logoUrl ? "" : team.abbr}
+      </span>
+      <span className="max-w-[10rem] truncate font-head text-lg uppercase leading-none tracking-tight text-text-primary sm:text-xl">
+        {team.name}
+      </span>
+    </div>
+  );
+}
+
+function LeadersRow({ leaders }: { leaders: LivePlayerStat[] }) {
+  if (leaders.length === 0) {
+    return (
+      <p className="font-body text-sm text-text-secondary">
+        Los líderes aparecerán cuando se registren estadísticas.
+      </p>
+    );
+  }
+  return (
+    <ul className="flex flex-wrap justify-center gap-x-8 gap-y-4">
+      {leaders.map((l) => (
+        <li key={l.id ?? l.name} className="flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-bg-elevated font-head text-[11px] uppercase leading-none text-text-primary ring-1 ring-white/10">
+            {l.initials}
+          </span>
+          <div className="flex flex-col">
+            <span className="font-body text-sm font-semibold uppercase tracking-wide text-text-primary">{l.name}</span>
+            {l.teamAbbr && (
+              <span className="font-body text-[11px] uppercase tracking-wide text-text-secondary">{l.teamAbbr}</span>
+            )}
+          </div>
+          <span className="font-head text-xl leading-none tabular-nums text-accent-gold">
+            {l.points}
+            <span className="ml-1 font-body text-[10px] font-semibold uppercase tracking-widest text-text-secondary">
+              pts
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function BoxscoreTeam({ team, rows }: { team: LiveTeam; rows: LiveBoxscoreRow[] }) {
+  return (
+    <div className="flex-1">
+      <div className="mb-3 flex items-center gap-2.5">
+        <span
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md font-head text-[10px] uppercase leading-none text-white ring-1 ring-white/10"
+          style={{
+            background: team.logoUrl
+              ? `center/cover no-repeat url(${team.logoUrl})`
+              : `linear-gradient(155deg, ${team.color ?? "#7c3aed"}, #0a0e1a 82%)`,
+          }}
+        >
+          {team.logoUrl ? "" : team.abbr}
+        </span>
+        <span className="font-head text-base uppercase leading-none tracking-tight text-text-primary">{team.name}</span>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="font-body text-xs text-text-secondary">Sin jugadores registrados todavía.</p>
+      ) : (
+        <>
+          {/* Desktop: tabla mini */}
+          <table className="hidden w-full border-collapse sm:table">
+            <thead>
+              <tr className="border-b border-white/10">
+                <th className="px-2 py-2 text-left font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
+                  Jugador
+                </th>
+                <th className="px-2 py-2 text-right font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
+                  PTS
+                </th>
+                <th className="px-2 py-2 text-right font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
+                  F
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id ?? r.playerName} className="border-b border-white/[0.06] last:border-b-0">
+                  <td className="px-2 py-2 font-body text-sm text-text-primary">
+                    {r.number != null && <span className="mr-1.5 text-text-secondary">#{r.number}</span>}
+                    {r.playerName}
+                  </td>
+                  <td className="px-2 py-2 text-right font-mono text-sm tabular-nums text-text-primary">{r.points}</td>
+                  <td className="px-2 py-2 text-right font-mono text-sm tabular-nums text-text-secondary">
+                    {r.fouls ?? 0}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Mobile: lista compacta, sin scroll horizontal */}
+          <ul className="flex flex-col divide-y divide-white/[0.06] sm:hidden">
+            {rows.map((r) => (
+              <li key={r.id ?? r.playerName} className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0 truncate font-body text-sm text-text-primary">
+                  {r.number != null && <span className="mr-1.5 text-text-secondary">#{r.number}</span>}
+                  {r.playerName}
+                </span>
+                <span className="shrink-0 font-mono text-sm tabular-nums text-text-secondary">
+                  {r.points} PTS · {r.fouls ?? 0} F
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ---- estados de la página ---------------------------------------------------- */
+
+function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> }) {
+  const hasScore = match.homeScore != null && match.awayScore != null;
+  return (
+    <div className="lbsc-container pb-16">
+      <div className="rounded-2xl border border-white/10 bg-bg-elevated p-6 sm:p-10">
+        <div className="mb-8 flex flex-wrap items-center justify-center gap-3 text-center">
+          <LiveBadge />
+          <span className="font-body text-sm font-bold uppercase tracking-[0.2em] text-text-primary">
+            {match.periodLabel ?? "EN CURSO"}
+            {match.gameClock ? ` · ${match.gameClock}` : ""}
+          </span>
+        </div>
+
+        <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
+          <TeamBlock team={match.homeTeam} align="left" />
+          <div className="shrink-0">
+            {hasScore ? (
+              <div className="flex items-center gap-3 sm:gap-5">
+                <ScoreNumber value={match.homeScore!} size="xl" accent="gold" />
+                <span className="font-head text-4xl leading-none text-text-secondary sm:text-5xl">-</span>
+                <ScoreNumber value={match.awayScore!} size="xl" accent="gold" />
+              </div>
+            ) : (
+              <span className="font-head text-3xl uppercase leading-none text-accent-orange">En curso</span>
+            )}
+          </div>
+          <TeamBlock team={match.awayTeam} align="right" />
+        </div>
+
+        {match.venue && (
+          <p className="mt-6 text-center font-body text-xs uppercase tracking-widest text-text-secondary">
+            {match.venue}
+          </p>
+        )}
+      </div>
+
+      <div className="mt-10">
+        <h2 className="mb-4 text-center font-head text-2xl uppercase leading-none tracking-tight text-text-primary">
+          Líderes del partido
+        </h2>
+        <LeadersRow leaders={match.leaders ?? []} />
+      </div>
+
+      <div className="mt-10">
+        <h2 className="mb-5 font-head text-2xl uppercase leading-none tracking-tight text-text-primary">Boxscore</h2>
+        {(match.homeBoxscore?.length ?? 0) === 0 && (match.awayBoxscore?.length ?? 0) === 0 ? (
+          <p className="font-body text-sm text-text-secondary">
+            El boxscore aparecerá cuando la mesa registre estadísticas.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-8 rounded-2xl border border-white/10 bg-bg-elevated p-5 sm:flex-row sm:gap-10 sm:p-6">
+            <BoxscoreTeam team={match.homeTeam} rows={match.homeBoxscore ?? []} />
+            <div className="hidden w-px bg-white/10 sm:block" aria-hidden="true" />
+            <BoxscoreTeam team={match.awayTeam} rows={match.awayBoxscore ?? []} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingMatchView({ match }: { match: NonNullable<LiveGameData["match"]> }) {
+  const fecha = scheduledLabel(match.scheduledAt);
+  return (
+    <div className="lbsc-container pb-16">
+      <div className="rounded-2xl border border-white/10 bg-bg-elevated p-6 sm:p-10">
+        <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
+          <TeamBlock team={match.homeTeam} align="left" />
+          <span className="shrink-0 font-head text-2xl uppercase leading-none text-text-secondary">vs</span>
+          <TeamBlock team={match.awayTeam} align="right" />
+        </div>
+        <div className="mt-6 flex flex-col items-center gap-1 text-center">
+          {fecha && (
+            <span className="font-body text-sm font-semibold uppercase tracking-wide text-text-primary">{fecha}</span>
+          )}
+          {match.venue && (
+            <span className="font-body text-xs uppercase tracking-widest text-text-secondary">{match.venue}</span>
+          )}
+        </div>
+      </div>
+      <div className="mt-8 flex justify-center">
+        <Link
+          href="/calendario"
+          className="inline-flex rounded-lg border border-white/15 bg-white/[0.02] px-5 py-2.5 font-body text-sm font-semibold uppercase tracking-wide text-text-primary transition-colors hover:border-accent-purple/60 hover:bg-accent-purple/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+        >
+          Ver calendario completo
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function NoneView() {
+  return (
+    <section className="lbsc-container pb-16">
+      <div className="rounded-2xl border border-white/10 bg-bg-elevated px-5 py-14 text-center sm:px-8">
+        <p className="mx-auto max-w-md font-body text-sm leading-relaxed text-text-secondary">
+          Revisa el calendario para conocer la próxima fecha de la LBSC.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Link
+            href="/calendario"
+            className="inline-flex rounded-lg border border-white/15 bg-white/[0.02] px-5 py-2.5 font-body text-sm font-semibold uppercase tracking-wide text-text-primary transition-colors hover:border-accent-purple/60 hover:bg-accent-purple/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+          >
+            Ver calendario
+          </Link>
+          <Link
+            href="/tabla"
+            className="inline-flex rounded-lg border border-white/15 bg-white/[0.02] px-5 py-2.5 font-body text-sm font-semibold uppercase tracking-wide text-text-primary transition-colors hover:border-accent-purple/60 hover:bg-accent-purple/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+          >
+            Ver tabla
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LiveError() {
+  return (
+    <section className="lbsc-container pb-16">
+      <ModuleError label="el en vivo" minHeight="min-h-[260px]" />
+    </section>
+  );
+}
+
+/* ---- header dinámico ---------------------------------------------------------- */
+
+function PageHeader({ state }: { state: LiveGameData["state"] | "error" }) {
+  const title = state === "live" ? "Partido en vivo" : state === "upcoming" ? "Próximo partido" : "En vivo";
+  const subtitle =
+    state === "live"
+      ? "Marcador y estadísticas del partido en curso."
+      : state === "upcoming"
+        ? "El próximo partido aparecerá aquí cuando comience."
+        : "No hay partidos en vivo por el momento.";
+
+  return (
+    <header className="lbsc-container pb-8 pt-14 sm:pt-18 lg:pb-10 lg:pt-20">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <span className="font-body text-xs font-bold uppercase tracking-[0.24em] text-accent-orange">
+            LBSC en vivo
+          </span>
+          <h1 className="mt-3 font-head text-6xl uppercase leading-none tracking-tight text-text-primary sm:text-7xl lg:text-8xl">
+            {title}
+          </h1>
+          <p className="mt-4 max-w-xl font-body text-sm leading-relaxed text-text-secondary sm:text-base">{subtitle}</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/calendario"
+            className="inline-flex w-fit rounded-lg border border-white/15 bg-white/[0.02] px-5 py-2.5 font-body text-sm font-semibold uppercase tracking-wide text-text-primary transition-colors hover:border-accent-purple/60 hover:bg-accent-purple/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+          >
+            Ver calendario
+          </Link>
+          <Link
+            href="/tabla"
+            className="inline-flex w-fit rounded-lg border border-white/15 bg-white/[0.02] px-5 py-2.5 font-body text-sm font-semibold uppercase tracking-wide text-text-primary transition-colors hover:border-accent-purple/60 hover:bg-accent-purple/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+          >
+            Ver tabla
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ---- página ------------------------------------------------------------------ */
+
+export default async function EnVivoPage() {
+  let data: LiveGameData | null = null;
+  let failed = false;
+
+  try {
+    data = await getLivePageData();
+  } catch {
+    failed = true;
+  }
+
+  const isLiveNow = data?.state === "live";
+  const headerState = failed ? "error" : (data?.state ?? "none");
+
+  return (
+    <div className="min-h-screen bg-bg-base font-body text-text-primary">
+      <Navbar isLiveNow={isLiveNow} />
+
+      <main className="pt-[var(--navbar-height)]">
+        <PageHeader state={headerState} />
+
+        {failed || !data ? (
+          <LiveError />
+        ) : data.state === "live" && data.match ? (
+          <LiveMatchView match={data.match} />
+        ) : data.state === "upcoming" && data.match ? (
+          <UpcomingMatchView match={data.match} />
+        ) : (
+          <NoneView />
+        )}
+      </main>
+
+      <SiteFooter navLinks={FOOTER_NAV_LINKS} socialLinks={FOOTER_SOCIAL_LINKS} />
+    </div>
+  );
+}
