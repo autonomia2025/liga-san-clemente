@@ -433,3 +433,44 @@ body {
 /* Carrusel de líderes en mobile: ocultar scrollbar (scroll-snap sigue activo). */
 .lbsc-no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .lbsc-no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ---------------------------------------------------------------------------
+   Teams grid: entrada tipo mosaico diagonal + glow por color de equipo +
+   micro-dato (hover en desktop, siempre visible en mobile / reduced-motion).
+   Progressive enhancement: solo se ocultan cuando el JS las "arma".
+--------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-tg-item--armed { opacity: 0; transform: scale(0.9); }
+  .lbsc-tg-item--armed.lbsc-tg-item--in {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 500ms var(--lbsc-ease), transform 500ms var(--lbsc-ease);
+    transition-delay: var(--tg-delay-m, 0ms); /* mobile 2 columnas */
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (min-width: 640px) {
+  .lbsc-tg-item--armed.lbsc-tg-item--in {
+    transition-delay: var(--tg-delay-d, 0ms); /* desktop 4 columnas */
+  }
+}
+
+/* Glow del escudo con el color propio del equipo (--tg-accent, inline). Solo
+   desktop con hover y sin reduced-motion. */
+.lbsc-tg-shield { transition: box-shadow 200ms var(--lbsc-ease); }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .lbsc-tg-item:hover .lbsc-tg-shield,
+  .lbsc-tg-item:focus-within .lbsc-tg-shield {
+    box-shadow: 0 0 30px -4px var(--tg-accent), 0 0 0 1px color-mix(in srgb, var(--tg-accent) 40%, transparent);
+  }
+}
+
+/* Micro-dato: en mobile siempre visible; en desktop con hover aparece con
+   fade 200ms. Bajo reduced-motion queda siempre visible. */
+@media (hover: hover) and (pointer: fine) {
+  .lbsc-tg-microdata { opacity: 0; transition: opacity 200ms var(--lbsc-ease); }
+  .lbsc-tg-item:hover .lbsc-tg-microdata,
+  .lbsc-tg-item:focus-within .lbsc-tg-microdata { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lbsc-tg-microdata { opacity: 1 !important; }
+}

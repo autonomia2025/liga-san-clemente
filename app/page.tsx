@@ -9,6 +9,7 @@ import {
   type FeaturedMvp,
   type SeasonLeader,
 } from "@/components/site/mvp-leaders-section";
+import { TeamsGrid, type TeamGridItem } from "@/components/site/teams-grid";
 
 export const metadata: Metadata = {
   title: "LBSC 2026 | Liga de Básquetbol San Clemente",
@@ -76,6 +77,18 @@ const MOCK_SEASON_LEADERS: SeasonLeader[] = [
   { category: "Líder en Asistencias", playerName: "Base Mock", playerInitials: "BM", teamName: "Equipo Tres", teamAbbr: "E3", teamAccentColor: "#F97316", value: 9, suffix: "AST" },
 ];
 
+// Mock de equipos (solo visual, sin datos reales de la liga).
+const MOCK_TEAMS: TeamGridItem[] = [
+  { name: "Equipo Uno", slug: "equipo-uno", abbr: "E1", accentColor: "#7C3AED", currentPosition: 1, tablePoints: 12 },
+  { name: "Equipo Dos", slug: "equipo-dos", abbr: "E2", accentColor: "#F97316", currentPosition: 2, tablePoints: 10 },
+  { name: "Equipo Tres", slug: "equipo-tres", abbr: "E3", accentColor: "#FBBF24", currentPosition: 3, tablePoints: 9 },
+  { name: "Equipo Cuatro", slug: "equipo-cuatro", abbr: "E4", accentColor: "#3B82F6", currentPosition: 4, tablePoints: 8 },
+  { name: "Equipo Cinco", slug: "equipo-cinco", abbr: "E5", accentColor: "#8B5CF6", currentPosition: 5, tablePoints: 7 },
+  { name: "Equipo Seis", slug: "equipo-seis", abbr: "E6", accentColor: "#EF4444", currentPosition: 6, tablePoints: 6 },
+  { name: "Equipo Siete", slug: "equipo-siete", abbr: "E7", accentColor: "#10B981", currentPosition: 7, tablePoints: 5 },
+  { name: "Equipo Ocho", slug: "equipo-ocho", abbr: "E8", accentColor: "#9CA3AF", currentPosition: 8, tablePoints: 4 },
+];
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-bg-base font-body text-text-primary">
@@ -89,6 +102,7 @@ export default function Home() {
         teams={MOCK_STANDINGS}
       />
       <MvpLeadersSection mvp={MOCK_FEATURED_MVP} leaders={MOCK_SEASON_LEADERS} />
+      <TeamsGrid teams={MOCK_TEAMS} />
       <MiniStats />
     </div>
   );
