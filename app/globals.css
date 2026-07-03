@@ -532,3 +532,35 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .lbsc-sponsor { transition: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   Skeletons: bloque base (--bg-elevated) + shimmer CSS puro (translateX de un
+   highlight, GPU-friendly). Bajo reduced-motion: bloque estático sin shimmer.
+--------------------------------------------------------------------------- */
+.lbsc-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+.lbsc-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lbsc-shimmer { 100% { transform: translateX(100%); } }
+  .lbsc-skeleton::after { animation: lbsc-shimmer 1.5s ease-in-out infinite; }
+}
+
+/* Entrada de página (fade + translateY 8px, 300ms). Solo entrada; la salida
+   entre rutas de App Router no se fuerza (ver components/site/page-transition).
+   Guardada por reduced-motion. */
+@keyframes lbsc-page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-page-enter { animation: lbsc-page-enter 300ms var(--lbsc-ease) both; }
+}

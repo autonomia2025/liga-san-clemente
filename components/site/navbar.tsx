@@ -96,7 +96,7 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
           onClick={() => setOpen(true)}
           aria-label="Abrir menú"
           aria-expanded={open}
-          className="flex h-10 w-10 flex-col items-center justify-center gap-1.5 rounded-lg border border-white/10 lg:hidden"
+          className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-lg border border-white/10 lg:hidden"
         >
           <span className="h-0.5 w-5 rounded-full bg-text-primary" />
           <span className="h-0.5 w-5 rounded-full bg-text-primary" />
@@ -115,7 +115,7 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Cerrar menú"
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10"
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                 <path d="M5 5 L15 15 M15 5 L5 15" stroke="currentColor" strokeWidth="1.8" className="text-text-primary" strokeLinecap="round" />

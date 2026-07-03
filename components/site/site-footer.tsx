@@ -148,7 +148,7 @@ export function SiteFooter({
                   key={s.label}
                   href={s.href}
                   aria-label={s.label}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-text-secondary transition-colors hover:border-accent-purple/50 hover:text-accent-purple focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-text-secondary transition-colors hover:border-accent-purple/50 hover:text-accent-purple focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
                 >
                   <SocialIcon label={s.label} />
                 </a>

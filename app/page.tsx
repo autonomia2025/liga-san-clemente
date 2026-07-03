@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Navbar } from "@/components/site/navbar";
+import { PageTransition } from "@/components/site/page-transition";
 import { HeroSection } from "@/components/site/hero-section";
-import { MiniStats } from "@/components/site/mini-stats";
 import { MatchFeature, type MatchState } from "@/components/site/match-feature";
 import { StandingsPreview, type StandingPreviewTeam } from "@/components/site/standings-preview";
 import {
@@ -19,15 +19,16 @@ import {
 } from "@/components/site/site-footer";
 
 export const metadata: Metadata = {
-  title: "LBSC 2026 | Liga de Básquetbol San Clemente",
+  title: "LBSC 2026 — Liga de Básquetbol San Clemente | Temporada 2026",
   description:
-    "Liga de Básquetbol San Clemente — Temporada 2026. 8 equipos, una sola pasión.",
+    "Resultados, calendario, tabla de posiciones y comunidad de la Liga de Básquetbol San Clemente 2026.",
   openGraph: {
-    title: "LBSC 2026 | Liga de Básquetbol San Clemente",
+    title: "LBSC 2026 — Liga de Básquetbol San Clemente | Temporada 2026",
     description:
-      "Liga de Básquetbol San Clemente — Temporada 2026. 8 equipos, una sola pasión.",
+      "Resultados, calendario, tabla de posiciones y comunidad de la Liga de Básquetbol San Clemente 2026.",
     type: "website",
     locale: "es_CL",
+    // TODO: agregar og-image real cuando tengamos escudo/foto oficial en /public.
   },
 };
 
@@ -123,21 +124,29 @@ const MOCK_TEAMS: TeamGridItem[] = [
 export default function Home() {
   return (
     <div className="min-h-screen bg-bg-base font-body text-text-primary">
+      {/* Navbar fuera de PageTransition: es position:fixed y el transform del
+          wrapper de transición rompería su posicionamiento. */}
       <Navbar isLiveNow={false} />
-      <HeroSection />
-      <MatchFeature matchState={MOCK_MATCH_STATE} {...MOCK_MATCH} />
-      <StandingsPreview
-        seasonLabel="TEMPORADA 2026"
-        title="TABLA DE POSICIONES"
-        href="/tabla"
-        teams={MOCK_STANDINGS}
-      />
-      <MvpLeadersSection mvp={MOCK_FEATURED_MVP} leaders={MOCK_SEASON_LEADERS} />
-      <TeamsGrid teams={MOCK_TEAMS} />
-      <HistorySection />
-      <MiniStats />
-      <SponsorsSection sponsors={MOCK_SPONSORS} />
-      <SiteFooter navLinks={FOOTER_NAV_LINKS} socialLinks={FOOTER_SOCIAL_LINKS} />
+
+      {/* PageTransition envuelve solo el contenido principal + footer (entrada
+          fade + translateY, respeta reduced-motion). MiniStats se quitó del
+          ensamblaje final: repetía la identidad del Hero y cortaba el ritmo
+          entre Historia y Auspiciadores. */}
+      <PageTransition>
+        <HeroSection />
+        <MatchFeature matchState={MOCK_MATCH_STATE} {...MOCK_MATCH} />
+        <StandingsPreview
+          seasonLabel="TEMPORADA 2026"
+          title="TABLA DE POSICIONES"
+          href="/tabla"
+          teams={MOCK_STANDINGS}
+        />
+        <MvpLeadersSection mvp={MOCK_FEATURED_MVP} leaders={MOCK_SEASON_LEADERS} />
+        <TeamsGrid teams={MOCK_TEAMS} />
+        <HistorySection />
+        <SponsorsSection sponsors={MOCK_SPONSORS} />
+        <SiteFooter navLinks={FOOTER_NAV_LINKS} socialLinks={FOOTER_SOCIAL_LINKS} />
+      </PageTransition>
     </div>
   );
 }
