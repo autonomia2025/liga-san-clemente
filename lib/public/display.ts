@@ -47,19 +47,31 @@ export function clubAbrev(nombreOficial: string): string {
   return CLUB_DISPLAY[nombreOficial]?.abrev ?? abrevFallback(nombreOficial);
 }
 
-// Paleta fija de acentos para avatares de club — se elige por hash estable
-// del nombre, así cada club siempre cae en el mismo color entre renders y
-// entre secciones (hero, tabla, equipos, etc.) sin guardar nada en DB.
-const PALETA_ACENTO = [
-  "from-orange-500/90 to-red-600/90",
-  "from-blue-500/90 to-indigo-600/90",
-  "from-emerald-500/90 to-teal-600/90",
-  "from-fuchsia-500/90 to-purple-600/90",
-  "from-amber-500/90 to-orange-600/90",
-  "from-cyan-500/90 to-blue-600/90",
-  "from-rose-500/90 to-pink-600/90",
-  "from-lime-500/90 to-emerald-600/90",
-] as const;
+// Color de identidad por club — curado a mano para los 8 clubes reales, así
+// cada equipo tiene su acento propio y distintivo (avatares, badges,
+// gradientes) igual que en una liga profesional. No se guarda en DB, es puro
+// display. Para clubes fuera del mapa se deriva un color estable por hash.
+const CLUB_COLOR: Record<string, string> = {
+  "C.D. PARK": "#ff7a1a",
+  "CSDC JORGE MENESES MATURANA": "#3e8cff",
+  "LAS AMERICAS": "#9b6bff",
+  PUMAS: "#f5a623",
+  "CLUB DEPORTIVO BASKETBALL DUAO": "#22d3ee",
+  "CLUB UNIVERSIDAD CATÓLICA DEL MAULE": "#6d7bff",
+  "CLUB DE BASQUETBOL ALAMEDA LINARES": "#2dd4bf",
+  "JMM U19": "#7a8496",
+};
+
+const PALETA_FALLBACK = [
+  "#ff7a1a",
+  "#3e8cff",
+  "#9b6bff",
+  "#f5a623",
+  "#22d3ee",
+  "#6d7bff",
+  "#2dd4bf",
+  "#e2506b",
+];
 
 function hashEstable(texto: string): number {
   let hash = 0;
@@ -69,6 +81,14 @@ function hashEstable(texto: string): number {
   return hash;
 }
 
-export function clubAcento(nombreOficial: string): string {
-  return PALETA_ACENTO[hashEstable(nombreOficial) % PALETA_ACENTO.length];
+// Color base del club (hex). Se usa para armar el gradiente del avatar con
+// color-mix en el componente.
+export function clubColor(nombreOficial: string): string {
+  return CLUB_COLOR[nombreOficial] ?? PALETA_FALLBACK[hashEstable(nombreOficial) % PALETA_FALLBACK.length];
+}
+
+// Gradiente listo para usar en `background` (inline style) del avatar de club.
+export function clubGradient(nombreOficial: string): string {
+  const c = clubColor(nombreOficial);
+  return `linear-gradient(155deg, ${c}, color-mix(in srgb, ${c} 42%, #05070a))`;
 }

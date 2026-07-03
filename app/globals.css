@@ -30,8 +30,17 @@
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-warning: var(--warning);
+  /* Tokens dark extra usados por la landing pública (navy más profundo tipo
+     marcador deportivo). Aditivos — Admin/Mesa no los usan, no cambian. */
+  --color-bg-soft: #080b11;
+  --color-surface-2: #121926;
+  --color-border-strong: rgba(255, 255, 255, 0.16);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Fuentes deportivas de la landing pública (ver app/layout.tsx). Generan
+     las utilidades font-head (Anton, títulos) y font-ui (Oswald, labels). */
+  --font-head: var(--font-anton), Impact, "Arial Narrow", sans-serif;
+  --font-ui: var(--font-oswald), "Arial Narrow", sans-serif;
 }
 
 body {
@@ -140,4 +149,51 @@ body {
       animation-range: entry 0% cover 22%;
     }
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Landing pública — paleta y piezas específicas (scope .landing-shell).
+   NO toca los tokens globales (--background/--surface/--accent), así Admin y
+   Mesa mantienen exactamente su aspecto. Solo la landing usa este navy más
+   profundo y estas piezas de "competición".
+--------------------------------------------------------------------------- */
+.landing-shell {
+  --lbsc-bg: #05070a;
+  --lbsc-surface: #0d121a;
+  --lbsc-surface-2: #121926;
+  --lbsc-border: rgba(255, 255, 255, 0.08);
+  --lbsc-border-strong: rgba(255, 255, 255, 0.16);
+  background:
+    radial-gradient(60% 45% at 85% 0%, rgba(62, 140, 255, 0.1), transparent 60%),
+    radial-gradient(55% 45% at 5% 100%, rgba(249, 115, 22, 0.1), transparent 60%),
+    var(--lbsc-bg);
+  color: var(--foreground);
+}
+
+/* Borde con gradiente naranja→azul para el panel del scoreboard (misma técnica
+   de máscara que el HTML de referencia — se ve como una pieza premium). */
+.sb-frame {
+  position: relative;
+}
+.sb-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(150deg, rgba(249, 115, 22, 0.5), transparent 32%, transparent 68%, rgba(62, 140, 255, 0.45));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Punto "en vivo" con halo pulsante (verde), estilo marcador deportivo. */
+@keyframes live-halo {
+  0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .live-halo { animation: live-halo 2s infinite; }
 }
