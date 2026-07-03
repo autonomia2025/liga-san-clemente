@@ -32,16 +32,25 @@ export type HistorySectionProps = {
   ctaHref?: string;
 };
 
-/* ---- placeholders (reemplazar por contenido real) ------------------------ */
+/* ---- copy real de la liga -------------------------------------------------
+   El texto base (3 frases) se reparte en los dos slots narrativos que ya
+   existen en el layout, sin agregar bloques nuevos:
+   - body: primera + segunda frase (intro narrativa, ya pensada para 3-4
+     líneas con max-w-[65ch]).
+   - closing: tercera frase (llamada comunitaria, justo antes del CTA).
+--------------------------------------------------------------------------- */
 
 const HISTORY_COPY =
-  "[PLACEHOLDER: 3-4 frases sobre el origen de la liga en San Clemente, la comunidad del básquet local, los equipos que la forman y el objetivo de darle una vitrina seria a la competencia amateur.]";
+  "La Liga de Básquetbol San Clemente nace para reunir a los equipos, jugadores y familias que viven el básquetbol con pasión en nuestra comuna y sus alrededores. Más que una competencia, la LBSC 2026 busca entregar una vitrina seria, ordenada y motivadora al básquetbol amateur, fortaleciendo el respeto, la sana competencia y el sentido de comunidad.";
 
+// Descripciones cortas y neutras — solo datos ya confirmados en el resto del
+// sitio (8 equipos, Spalding como auspiciador oficial). Sin fechas de
+// fundación ni resultados que no estén confirmados.
 const HISTORY_MILESTONES: HistoryMilestone[] = [
-  { date: "2026", title: "Nace la temporada", description: "[PLACEHOLDER: frase breve sobre el inicio formal de la temporada LBSC 2026.]" },
-  { date: "28 JUN", title: "Primera fecha", description: "[PLACEHOLDER: frase breve sobre la primera jornada disputada en San Clemente.]" },
-  { date: "8 EQUIPOS", title: "La liga toma forma", description: "[PLACEHOLDER: frase breve sobre la confirmación de los clubes participantes.]" },
-  { date: "SPALDING", title: "Auspiciador oficial", description: "[PLACEHOLDER: frase breve sobre la llegada de Spalding como apoyo a la competencia.]" },
+  { date: "2026", title: "Nace la temporada", description: "La temporada 2026 reúne a ocho equipos en una competencia pensada para ordenar, visibilizar y fortalecer el básquetbol amateur local." },
+  { date: "28 JUN", title: "Primera fecha", description: "La primera fecha marcó el inicio oficial de la competencia en las canchas de San Clemente." },
+  { date: "8 EQUIPOS", title: "La liga toma forma", description: "Ocho clubes confirmaron su participación y le dieron forma al calendario de la temporada." },
+  { date: "SPALDING", title: "Auspiciador oficial", description: "Spalding se sumó como auspiciador oficial, aportando respaldo y visibilidad a cada fecha de la competencia." },
 ];
 
 const HISTORY_PHOTOS: HistoryPhoto[] = [
@@ -52,7 +61,7 @@ const HISTORY_PHOTOS: HistoryPhoto[] = [
 ];
 
 const HISTORY_CLOSING =
-  "[PLACEHOLDER: frase breve de invitación para equipos, jugadores y comunidad que quieran ser parte de la liga.]";
+  "Cada fecha es una oportunidad para crecer, competir y demostrar que en San Clemente el básquetbol se juega con identidad, esfuerzo y corazón.";
 
 /* ---- placeholder visual de foto (sin stock) ------------------------------ */
 
