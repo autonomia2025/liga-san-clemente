@@ -16,6 +16,26 @@
   --success: #4ade80;
   --danger: #f87171;
   --warning: #fbbf24;
+
+  /* --- LBSC design system (PR 4.2) — fundación visual nueva, ADITIVA. --------
+     Paleta "poster deportivo / boxeo-UFC / liga local". No reemplaza ningún
+     token de arriba: Admin, Mesa y la landing actual siguen exactamente igual.
+     Estos tokens solo los consumen /design-system y components/design-system/*.
+     --accent-orange (#f97316) y --accent-blue (#3b82f6) ya existen arriba con
+     los valores pedidos por el spec, así que se reutilizan tal cual. */
+  --bg-base: #0a0e1a;
+  --bg-elevated: #10162a;
+  --accent-purple: #7c3aed;
+  --accent-purple-glow: #8b5cf6;
+  --accent-gold: #fbbf24;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --live-pulse: #ef4444;
+
+  /* Tokens de movimiento del design system. */
+  --lbsc-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --lbsc-dur-micro: 180ms;
+  --lbsc-dur-section: 500ms;
 }
 
 @theme inline {
@@ -41,6 +61,19 @@
      las utilidades font-head (Anton, títulos) y font-ui (Oswald, labels). */
   --font-head: var(--font-anton), Impact, "Arial Narrow", sans-serif;
   --font-ui: var(--font-oswald), "Arial Narrow", sans-serif;
+
+  /* --- LBSC design system (PR 4.2) — mapeo a utilidades Tailwind. --------- */
+  --color-bg-base: var(--bg-base);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-purple-glow: var(--accent-purple-glow);
+  --color-accent-gold: var(--accent-gold);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-live-pulse: var(--live-pulse);
+  /* Body/UI del design system: Inter (ver app/layout.tsx). Genera font-body.
+     No cambia el body global (Admin/Mesa/landing siguen en Geist/--font-sans). */
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
@@ -196,4 +229,84 @@ body {
 }
 @media (prefers-reduced-motion: no-preference) {
   .live-halo { animation: live-halo 2s infinite; }
+}
+
+/* ===========================================================================
+   LBSC DESIGN SYSTEM (PR 4.2) — utilidades de fundación visual.
+   Todo lo de acá es aditivo y solo lo usa /design-system + components/design-system.
+   No afecta a Admin, Mesa ni la landing actual.
+=========================================================================== */
+
+/* Layout / spacing -------------------------------------------------------- */
+.lbsc-container {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+@media (min-width: 768px) {
+  .lbsc-container { padding-inline: 2rem; }
+}
+@media (min-width: 1024px) {
+  .lbsc-container { padding-inline: 2.5rem; }
+}
+.lbsc-section { padding-block: clamp(3.5rem, 8vw, 7rem); }
+.lbsc-section-tight { padding-block: clamp(2rem, 5vw, 3.5rem); }
+
+/* Textura / tratamiento de imagen ---------------------------------------- */
+/* Overlay de grano sutil. Se pone como hijo absoluto de un contenedor
+   `position: relative`. Opacidad baja (5%), no interfiere con clics. */
+.lbsc-noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Viñeta: oscurece los bordes para dar foco central (poster deportivo). */
+.lbsc-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 120% at 50% 38%, transparent 52%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+/* Tratamiento para contenedores de foto (cuando después se inserten fotos
+   reales vía props/CMS): alto contraste + gradiente oscuro inferior + viñeta.
+   Se aplica al contenedor; el gradiente va en ::after. */
+.lbsc-photo-treatment {
+  position: relative;
+  filter: contrast(1.12) saturate(0.92);
+  overflow: hidden;
+}
+.lbsc-photo-treatment::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(10, 14, 26, 0.1) 0%, rgba(10, 14, 26, 0.35) 55%, rgba(10, 14, 26, 0.82) 100%);
+}
+
+/* Movimiento -------------------------------------------------------------- */
+/* Punto "EN VIVO" con pulso (scale + opacity loop), rojo del design system.
+   Respeta prefers-reduced-motion. */
+@keyframes lbsc-live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.7); }
+}
+.lbsc-live-dot { transform-origin: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-live-dot { animation: lbsc-live-pulse 1.3s var(--lbsc-ease) infinite; }
+}
+
+/* Reveal sutil (principio: fade + translateY 20px). One-shot al montar.
+   Guardado por prefers-reduced-motion. */
+@keyframes lbsc-fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-fade-up { animation: lbsc-fade-up var(--lbsc-dur-section) var(--lbsc-ease) both; }
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Anton, Oswald } from "next/font/google";
+import { Geist, Geist_Mono, Anton, Oswald, Inter } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +30,16 @@ const oswald = Oswald({
   display: "swap",
 });
 
+// Body/UI del design system nuevo (PR 4.2). Solo agrega la variable --font-inter;
+// no cambia el font-family del body global, así Admin/Mesa/landing siguen en
+// Geist. El navegador solo baja Inter en las páginas que usan font-body
+// (por ahora /design-system).
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Liga SC",
   description: "Plataforma de gestión y seguimiento de la Liga SC",
@@ -43,7 +53,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} ${anton.variable} ${oswald.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${anton.variable} ${oswald.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         {children}
