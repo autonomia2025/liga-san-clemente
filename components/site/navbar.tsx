@@ -61,12 +61,12 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+      className={`fixed inset-x-0 top-0 z-50 h-[var(--navbar-height)] transition-all duration-300 ${
         scrolled ? "border-b border-white/10 bg-bg-elevated/85 backdrop-blur-md" : "border-b border-transparent bg-transparent"
       }`}
     >
-      <div className="lbsc-container flex h-16 items-center justify-between">
-        <a href="#inicio" className="flex items-center gap-2.5">
+      <div className="lbsc-container flex h-full items-center justify-between">
+        <a href="#inicio" className="flex h-full items-center gap-2.5">
           <Logo />
           <span className="font-head text-xl uppercase tracking-wide text-text-primary">
             LBSC<span className="text-accent-purple">·</span>2026
@@ -74,12 +74,12 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
         </a>
 
         {/* Desktop */}
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-7 xl:gap-8 2xl:gap-10 lg:flex">
           {LINKS.map((l) => (
             <a
               key={l.label}
               href={l.href}
-              className="flex items-center gap-2 rounded-full px-3.5 py-2 font-body text-[13px] font-semibold uppercase tracking-wide text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+              className="flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-2 font-body text-[13px] font-semibold uppercase tracking-wide text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary xl:px-3.5"
             >
               {l.label}
               {l.label === "En Vivo" && isLiveNow && <LiveBadge />}
@@ -107,7 +107,7 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
       {/* Mobile: menú fullscreen */}
       {open && (
         <div className="fixed inset-0 z-50 flex flex-col bg-bg-base lg:hidden">
-          <div className="lbsc-container flex h-16 items-center justify-between">
+          <div className="lbsc-container flex h-[var(--navbar-height)] items-center justify-between">
             <span className="font-head text-xl uppercase tracking-wide text-text-primary">
               LBSC<span className="text-accent-purple">·</span>2026
             </span>

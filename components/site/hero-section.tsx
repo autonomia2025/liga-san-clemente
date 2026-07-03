@@ -37,7 +37,7 @@ export function HeroSection() {
   return (
     <section
       id="inicio"
-      className="relative flex min-h-[85vh] items-center overflow-hidden lg:grid lg:min-h-screen lg:grid-cols-[55%_45%] lg:items-stretch"
+      className="relative flex min-h-[85vh] items-center overflow-hidden pt-8 lg:grid lg:min-h-screen lg:grid-cols-[55%_45%] lg:items-stretch lg:pt-14"
     >
       {/* Imagen / bloque visual (fondo en mobile, columna derecha en desktop) */}
       <div className="absolute inset-0 lg:relative lg:col-start-2">
@@ -68,7 +68,7 @@ export function HeroSection() {
       </div>
 
       {/* Texto / identidad */}
-      <div className="lbsc-container relative z-10 flex flex-col items-start gap-6 py-28 lg:col-start-1 lg:row-start-1 lg:max-w-2xl lg:py-0">
+      <div className="lbsc-container relative z-10 flex flex-col items-start gap-6 pb-28 pt-20 lg:col-start-1 lg:row-start-1 lg:max-w-2xl lg:pb-0 lg:pt-0">
         <span
           className="lbsc-fade-up font-body text-xs font-bold uppercase tracking-[0.28em] text-accent-orange"
           style={{ animationDelay: "0ms" }}

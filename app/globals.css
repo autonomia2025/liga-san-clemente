@@ -31,11 +31,19 @@
   --text-primary: #ffffff;
   --text-secondary: #9ca3af;
   --live-pulse: #ef4444;
+  --navbar-height: 88px;
+  --navbar-height-mobile: 64px;
 
   /* Tokens de movimiento del design system. */
   --lbsc-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --lbsc-dur-micro: 180ms;
   --lbsc-dur-section: 500ms;
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --navbar-height: var(--navbar-height-mobile);
+  }
 }
 
 @theme inline {

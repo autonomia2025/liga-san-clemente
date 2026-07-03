@@ -69,38 +69,40 @@ export default async function Home() {
           rompería el posicionamiento. isLiveNow viene de datos reales. */}
       <Navbar isLiveNow={data.isLiveNow} />
 
-      <PageTransition>
-        <HeroSection />
+      <main className="pt-[var(--navbar-height)]">
+        <PageTransition>
+          <HeroSection />
 
-        {data.matchFeature.ok ? (
-          <MatchFeature {...data.matchFeature.data} />
-        ) : (
-          <MatchFeatureError />
-        )}
+          {data.matchFeature.ok ? (
+            <MatchFeature {...data.matchFeature.data} />
+          ) : (
+            <MatchFeatureError />
+          )}
 
-        {data.standings.ok ? (
-          <StandingsPreview
-            seasonLabel="TEMPORADA 2026"
-            title="TABLA DE POSICIONES"
-            href="/tabla"
-            teams={data.standings.data}
-          />
-        ) : (
-          <StandingsPreviewError />
-        )}
+          {data.standings.ok ? (
+            <StandingsPreview
+              seasonLabel="TEMPORADA 2026"
+              title="TABLA DE POSICIONES"
+              href="/tabla"
+              teams={data.standings.data}
+            />
+          ) : (
+            <StandingsPreviewError />
+          )}
 
-        {data.mvp.ok ? (
-          <MvpLeadersSection mvp={data.mvp.data.featuredMvp} leaders={data.mvp.data.seasonLeaders} />
-        ) : (
-          <MvpLeadersError />
-        )}
+          {data.mvp.ok ? (
+            <MvpLeadersSection mvp={data.mvp.data.featuredMvp} leaders={data.mvp.data.seasonLeaders} />
+          ) : (
+            <MvpLeadersError />
+          )}
 
-        {data.teams.ok ? <TeamsGrid teams={data.teams.data} /> : <TeamsGridError />}
+          {data.teams.ok ? <TeamsGrid teams={data.teams.data} /> : <TeamsGridError />}
 
-        <HistorySection />
-        <SponsorsSection sponsors={MOCK_SPONSORS} />
-        <SiteFooter navLinks={FOOTER_NAV_LINKS} socialLinks={FOOTER_SOCIAL_LINKS} />
-      </PageTransition>
+          <HistorySection />
+          <SponsorsSection sponsors={MOCK_SPONSORS} />
+          <SiteFooter navLinks={FOOTER_NAV_LINKS} socialLinks={FOOTER_SOCIAL_LINKS} />
+        </PageTransition>
+      </main>
     </div>
   );
 }
