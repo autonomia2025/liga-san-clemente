@@ -75,6 +75,25 @@ export function extraerClock(detalle: unknown): { minuto: number; segundo: numbe
   return null;
 }
 
+// jugadorEntraId/jugadorSaleId ya se guardan en detalle desde siempre (ver
+// registrarSustitucion en actions.ts) — esto solo los extrae de forma segura
+// para poder resolver nombres en la descripción y en /en-vivo.
+export function extraerSustitucion(detalle: unknown): { entraId: string; saleId: string } | null {
+  if (
+    detalle &&
+    typeof detalle === "object" &&
+    !Array.isArray(detalle) &&
+    "jugadorEntraId" in detalle &&
+    "jugadorSaleId" in detalle &&
+    typeof (detalle as { jugadorEntraId: unknown }).jugadorEntraId === "string" &&
+    typeof (detalle as { jugadorSaleId: unknown }).jugadorSaleId === "string"
+  ) {
+    const d = detalle as { jugadorEntraId: string; jugadorSaleId: string };
+    return { entraId: d.jugadorEntraId, saleId: d.jugadorSaleId };
+  }
+  return null;
+}
+
 // Parsea "MM:SS" (lo que manda el cronómetro cliente de Mesa) a sus partes.
 // Nunca lanza — si el formato es inválido devuelve null y el evento se guarda
 // sin tiempo, en vez de fallar el registro de la jugada por un dato opcional.
@@ -105,8 +124,11 @@ export function describirEvento(evento: EventoDescribible, context: DescribirCon
       return `Timeout ${nombreClubDe(evento.clubId, context)}`;
     case "POSESION":
       return `Posesión ${nombreClubDe(evento.clubId, context)}`;
-    case "SUSTITUCION":
-      return "Sustitución";
+    case "SUSTITUCION": {
+      const sub = extraerSustitucion(evento.detalle);
+      if (!sub) return "Sustitución";
+      return `Entra ${nombreJugadorDe(sub.entraId, context)} · Sale ${nombreJugadorDe(sub.saleId, context)}`;
+    }
     case "INICIO_CUARTO":
       return `Inicio Q${evento.cuarto}`;
     case "FIN_CUARTO":

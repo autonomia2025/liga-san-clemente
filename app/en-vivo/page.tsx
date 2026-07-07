@@ -9,12 +9,14 @@ import {
   getLivePageData,
   type LiveBoxscoreRow,
   type LiveGameData,
+  type LivePlayerName,
   type LivePlayerStat,
   type LiveTeam,
   type PlayByPlayEntry,
 } from "@/lib/public/live-page-data";
 import { clubLogoPad } from "@/lib/public/display";
 import { LiveRefresher } from "@/components/site/live-refresher";
+import { LiveClock } from "@/components/site/live-clock";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +126,56 @@ function LeadersRow({ leaders }: { leaders: LivePlayerStat[] }) {
   );
 }
 
+function EnCanchaColumna({ team, jugadores }: { team: LiveTeam; jugadores: LivePlayerName[] }) {
+  return (
+    <div className="flex-1">
+      <div className="mb-2.5 flex items-center gap-2">
+        <span className="font-head text-sm uppercase leading-none tracking-tight text-text-primary">
+          {team.name}
+        </span>
+      </div>
+      {jugadores.length === 0 ? (
+        <p className="font-body text-xs text-text-secondary">Sin datos de cancha todavía.</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {jugadores.map((j) => (
+            <li key={j.id} className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-gold" aria-hidden="true" />
+              <span className="min-w-0 truncate font-body text-sm text-text-primary">{j.name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function EnCanchaSection({
+  homeTeam,
+  awayTeam,
+  local,
+  visitante,
+}: {
+  homeTeam: LiveTeam;
+  awayTeam: LiveTeam;
+  local: LivePlayerName[];
+  visitante: LivePlayerName[];
+}) {
+  if (local.length === 0 && visitante.length === 0) return null;
+  return (
+    <div className="mt-10">
+      <h2 className="mb-4 text-center font-head text-2xl uppercase leading-none tracking-tight text-text-primary">
+        En cancha
+      </h2>
+      <div className="flex flex-col gap-8 rounded-2xl border border-white/10 bg-bg-elevated p-5 sm:flex-row sm:gap-10 sm:p-6">
+        <EnCanchaColumna team={homeTeam} jugadores={local} />
+        <div className="hidden w-px bg-white/10 sm:block" aria-hidden="true" />
+        <EnCanchaColumna team={awayTeam} jugadores={visitante} />
+      </div>
+    </div>
+  );
+}
+
 function BoxscoreTeam({ team, rows }: { team: LiveTeam; rows: LiveBoxscoreRow[] }) {
   return (
     <div className="flex-1">
@@ -144,78 +196,120 @@ function BoxscoreTeam({ team, rows }: { team: LiveTeam; rows: LiveBoxscoreRow[] 
       {rows.length === 0 ? (
         <p className="font-body text-xs text-text-secondary">Sin jugadores registrados todavía.</p>
       ) : (
-        <>
-          {/* Desktop: tabla mini */}
-          <table className="hidden w-full border-collapse sm:table">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="px-2 py-2 text-left font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
-                  Jugador
-                </th>
-                <th className="px-2 py-2 text-right font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
-                  PTS
-                </th>
-                <th className="px-2 py-2 text-right font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
-                  F
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id ?? r.playerName} className="border-b border-white/[0.06] last:border-b-0">
-                  <td className="px-2 py-2 font-body text-sm text-text-primary">
-                    {r.number != null && <span className="mr-1.5 text-text-secondary">#{r.number}</span>}
-                    {r.playerName}
-                  </td>
-                  <td className="px-2 py-2 text-right font-mono text-sm tabular-nums text-text-primary">{r.points}</td>
-                  <td className="px-2 py-2 text-right font-mono text-sm tabular-nums text-text-secondary">
-                    {r.fouls ?? 0}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        (() => {
+          const tieneMinutos = rows.some((r) => r.minutosLabel != null);
+          return (
+            <>
+              {/* Desktop: tabla mini — el nombre es el foco, el dorsal no se
+                  muestra acá (ya no aporta tanto como en Mesa: el público
+                  reconoce por nombre). */}
+              <table className="hidden w-full border-collapse sm:table">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="px-2 py-2 text-left font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
+                      Jugador
+                    </th>
+                    <th className="px-2 py-2 text-right font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
+                      PTS
+                    </th>
+                    <th className="px-2 py-2 text-right font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
+                      F
+                    </th>
+                    {tieneMinutos && (
+                      <th className="px-2 py-2 text-right font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
+                        MIN
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id ?? r.playerName} className="border-b border-white/[0.06] last:border-b-0">
+                      <td className="px-2 py-2 font-body text-sm text-text-primary">
+                        <span className="flex items-center gap-2">
+                          {r.enCancha && (
+                            <span
+                              className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-gold"
+                              aria-label="En cancha"
+                              title="En cancha"
+                            />
+                          )}
+                          <span className="min-w-0 truncate">{r.playerName}</span>
+                        </span>
+                      </td>
+                      <td className="px-2 py-2 text-right font-mono text-sm tabular-nums text-text-primary">{r.points}</td>
+                      <td className="px-2 py-2 text-right font-mono text-sm tabular-nums text-text-secondary">
+                        {r.fouls ?? 0}
+                      </td>
+                      {tieneMinutos && (
+                        <td className="px-2 py-2 text-right font-mono text-xs tabular-nums text-text-secondary">
+                          {r.minutosLabel ?? "—"}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-          {/* Mobile: lista compacta, sin scroll horizontal */}
-          <ul className="flex flex-col divide-y divide-white/[0.06] sm:hidden">
-            {rows.map((r) => (
-              <li key={r.id ?? r.playerName} className="flex items-center justify-between gap-3 py-2">
-                <span className="min-w-0 truncate font-body text-sm text-text-primary">
-                  {r.number != null && <span className="mr-1.5 text-text-secondary">#{r.number}</span>}
-                  {r.playerName}
-                </span>
-                <span className="shrink-0 font-mono text-sm tabular-nums text-text-secondary">
-                  {r.points} PTS · {r.fouls ?? 0} F
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
+              {/* Mobile: lista compacta, sin scroll horizontal */}
+              <ul className="flex flex-col divide-y divide-white/[0.06] sm:hidden">
+                {rows.map((r) => (
+                  <li key={r.id ?? r.playerName} className="flex items-center justify-between gap-3 py-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      {r.enCancha && (
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-gold" aria-hidden="true" />
+                      )}
+                      <span className="min-w-0 truncate font-body text-sm text-text-primary">{r.playerName}</span>
+                    </span>
+                    <span className="shrink-0 font-mono text-xs tabular-nums text-text-secondary">
+                      {r.points} PTS · {r.fouls ?? 0} F{r.minutosLabel ? ` · ${r.minutosLabel}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          );
+        })()
       )}
     </div>
   );
 }
 
+// Tipo "cancha": local a la izquierda, visitante a la derecha, eventos
+// neutrales (inicio/fin de cuarto, fin de partido) centrados de lado a lado.
+// La lista sigue siendo un único flujo cronológico (más reciente primero) —
+// solo cambia la alineación/color por fila, nunca el orden.
 function PlayByPlayRow({ entry }: { entry: PlayByPlayEntry }) {
+  if (entry.side === "neutral") {
+    return (
+      <li className="flex justify-center py-2.5">
+        <span className="rounded-full bg-white/5 px-3 py-1 font-body text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+          Q{entry.cuarto} · {entry.descripcion}
+        </span>
+      </li>
+    );
+  }
+
+  const esLocal = entry.side === "local";
   return (
-    <li className="flex items-center gap-3 border-b border-white/[0.06] py-3 last:border-b-0">
-      <div className="flex w-16 shrink-0 flex-col items-start">
-        <span className="font-head text-xs uppercase leading-none tracking-tight text-accent-gold">
-          Q{entry.cuarto}
-        </span>
-        <span className="mt-0.5 font-mono text-[11px] tabular-nums text-text-secondary">
-          {entry.clockLabel ?? "sin reloj"}
-        </span>
+    <li className={`flex py-2.5 ${esLocal ? "justify-start" : "justify-end"}`}>
+      <div
+        className={`w-full max-w-[22rem] rounded-xl border-l-2 px-3 py-2 sm:w-1/2 ${
+          esLocal ? "border-accent-purple/50 bg-white/[0.02]" : "border-accent-orange/50 bg-white/[0.02] sm:border-l-0 sm:border-r-2 sm:text-right"
+        }`}
+      >
+        <div
+          className={`flex items-center gap-2 text-[11px] text-text-secondary ${esLocal ? "" : "sm:flex-row-reverse"}`}
+        >
+          <span className="font-head uppercase tracking-tight text-accent-gold">Q{entry.cuarto}</span>
+          <span className="font-mono tabular-nums">{entry.clockLabel ?? "sin reloj"}</span>
+          {entry.equipoAbbr && <span className="uppercase">{entry.equipoAbbr}</span>}
+        </div>
+        <p className="mt-0.5 font-body text-sm text-text-primary">
+          {entry.descripcion}
+          {entry.valor != null && <span className="ml-1.5 font-head text-accent-blue">+{entry.valor}</span>}
+        </p>
       </div>
-      {entry.equipoAbbr && (
-        <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 font-head text-[10px] uppercase leading-none text-text-secondary">
-          {entry.equipoAbbr}
-        </span>
-      )}
-      <span className="min-w-0 flex-1 truncate font-body text-sm text-text-primary">{entry.descripcion}</span>
-      {entry.valor != null && (
-        <span className="shrink-0 font-head text-sm leading-none text-accent-blue">+{entry.valor}</span>
-      )}
     </li>
   );
 }
@@ -229,7 +323,7 @@ function PlayByPlay({ entries }: { entries: PlayByPlayEntry[] }) {
       {entries.length === 0 ? (
         <p className="font-body text-sm text-text-secondary">Aún no hay acciones registradas.</p>
       ) : (
-        <ul className="rounded-2xl border border-white/10 bg-bg-elevated px-5 sm:px-6">
+        <ul className="flex flex-col divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-bg-elevated px-4 sm:px-6">
           {entries.map((e) => (
             <PlayByPlayRow key={e.id} entry={e} />
           ))}
@@ -250,7 +344,12 @@ function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> })
           <LiveBadge />
           <span className="font-body text-sm font-bold uppercase tracking-[0.2em] text-text-primary">
             {match.periodLabel ?? "EN CURSO"}
-            {match.gameClock ? ` · ${match.gameClock}` : ""}
+            {match.reloj && (
+              <>
+                {" · "}
+                <LiveClock estado={match.reloj.estado} remainingSeconds={match.reloj.remainingSeconds} />
+              </>
+            )}
           </span>
         </div>
 
@@ -277,14 +376,19 @@ function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> })
         )}
       </div>
 
+      <EnCanchaSection
+        homeTeam={match.homeTeam}
+        awayTeam={match.awayTeam}
+        local={match.jugadoresEnCanchaLocal ?? []}
+        visitante={match.jugadoresEnCanchaVisitante ?? []}
+      />
+
       <div className="mt-10">
         <h2 className="mb-4 text-center font-head text-2xl uppercase leading-none tracking-tight text-text-primary">
           Líderes del partido
         </h2>
         <LeadersRow leaders={match.leaders ?? []} />
       </div>
-
-      <PlayByPlay entries={match.playByPlay ?? []} />
 
       <div className="mt-10">
         <h2 className="mb-5 font-head text-2xl uppercase leading-none tracking-tight text-text-primary">Boxscore</h2>
@@ -300,6 +404,8 @@ function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> })
           </div>
         )}
       </div>
+
+      <PlayByPlay entries={match.playByPlay ?? []} />
     </div>
   );
 }

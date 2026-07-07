@@ -2,6 +2,9 @@ import { prisma } from "@/lib/db";
 import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
 import { describirEvento, extraerClock } from "@/lib/mesa/describir-evento";
+import { calcularRelojActual, type EstadoRelojCalculado } from "@/lib/mesa/reloj";
+import { leerReloj } from "@/lib/mesa/reloj-db";
+import { calcularMinutosJugados, formatMinutosJugados } from "@/lib/mesa/minutos-jugados";
 
 // Datos para la página pública /en-vivo. Reutiliza buildLiveMatchState (capa
 // de dominio ya usada por getHeroData para Home) para calcular marcador,
@@ -37,11 +40,22 @@ export type LiveBoxscoreRow = {
   number?: string | number | null;
   points: number;
   fouls?: number | null;
+  enCancha: boolean;
+  // null = no se pudo calcular con certeza (falta clockLabel en alguna
+  // sustitución histórica) — nunca se inventa, la UI oculta la columna MIN.
+  minutosLabel: string | null;
+};
+
+export type LivePlayerName = {
+  id: string;
+  name: string;
+  initials: string;
 };
 
 // Una fila del Play by Play público. clockLabel es null para eventos
 // anteriores a esta PR (no tenían reloj registrado) — nunca se inventa, la UI
-// simplemente muestra el evento sin hora en ese caso.
+// simplemente muestra el evento sin hora en ese caso. side: de qué lado de la
+// cancha va (local/visitante) — neutral para inicio/fin de cuarto y partido.
 export type PlayByPlayEntry = {
   id: string;
   cuarto: number;
@@ -49,6 +63,7 @@ export type PlayByPlayEntry = {
   equipoAbbr: string | null;
   descripcion: string;
   valor: number | null;
+  side: "local" | "visitante" | "neutral";
 };
 
 export type LiveGameData = {
@@ -68,6 +83,9 @@ export type LiveGameData = {
     homeBoxscore?: LiveBoxscoreRow[];
     awayBoxscore?: LiveBoxscoreRow[];
     playByPlay?: PlayByPlayEntry[];
+    reloj?: EstadoRelojCalculado;
+    jugadoresEnCanchaLocal?: LivePlayerName[];
+    jugadoresEnCanchaVisitante?: LivePlayerName[];
   };
 };
 
@@ -108,6 +126,7 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
       cancha: true,
       clubLocalId: true,
       clubVisitanteId: true,
+      duracionCuartoMinutos: true,
       clubLocal: { select: { nombre: true, escudoUrl: true } },
       clubVisitante: { select: { nombre: true, escudoUrl: true } },
       eventos: {
@@ -133,24 +152,63 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
     clubVisitanteId: partido.clubVisitanteId,
   });
 
-  // Roster presente en el partido (fuente real de quién juega) para nombres y
-  // dorsal del boxscore; puntos/faltas vienen de los Maps ya calculados.
+  // Reloj real persistido (Partido.relojEstado/relojRestanteSegundos/
+  // relojUltimoInicio) — misma fuente de verdad que usa Mesa. SQL crudo vía
+  // leerReloj porque el cliente Prisma generado en desarrollo todavía no
+  // conoce estos 3 campos (ver nota en lib/mesa/reloj.ts); no afecta a
+  // producción, donde Vercel sí corre `prisma generate`.
+  const relojDb = await leerReloj(partido.id);
+  const reloj = relojDb ? calcularRelojActual(relojDb, new Date()) : undefined;
+
+  // Roster presente en el partido (fuente real de quién juega) para nombres,
+  // dorsal y quién está en cancha ahora mismo; puntos/faltas vienen de los
+  // Maps ya calculados.
   const roster = await prisma.partidoJugador.findMany({
     where: { partidoId: partido.id, presente: true },
-    select: { clubId: true, jugador: { select: { id: true, nombre: true, numeroCamiseta: true } } },
+    select: {
+      clubId: true,
+      enCancha: true,
+      jugador: { select: { id: true, nombre: true, numeroCamiseta: true } },
+    },
   });
 
-  const toRow = (jugador: { id: string; nombre: string; numeroCamiseta: number | null }): LiveBoxscoreRow => ({
-    id: jugador.id,
-    playerName: jugador.nombre,
-    initials: initials(jugador.nombre),
-    number: jugador.numeroCamiseta,
-    points: liveState.puntosPorJugador.get(jugador.id) ?? 0,
-    fouls: liveState.faltasPorJugador.get(jugador.id) ?? 0,
+  const enCanchaIds = new Set(roster.filter((r) => r.enCancha).map((r) => r.jugador.id));
+  const minutosPorJugador = calcularMinutosJugados({
+    enCanchaActualIds: enCanchaIds,
+    eventos: partido.eventos,
+    duracionCuartoMinutos: partido.duracionCuartoMinutos,
+    cuartoActivo: liveState.cuartoActivo,
+    remainingSecondsActual: reloj?.remainingSeconds ?? null,
   });
 
-  const homeBoxscore = roster.filter((r) => r.clubId === partido.clubLocalId).map((r) => toRow(r.jugador));
-  const awayBoxscore = roster.filter((r) => r.clubId === partido.clubVisitanteId).map((r) => toRow(r.jugador));
+  const toRow = (r: { clubId: string; enCancha: boolean; jugador: { id: string; nombre: string; numeroCamiseta: number | null } }): LiveBoxscoreRow => {
+    const segundos = minutosPorJugador?.get(r.jugador.id);
+    return {
+      id: r.jugador.id,
+      playerName: r.jugador.nombre,
+      initials: initials(r.jugador.nombre),
+      number: r.jugador.numeroCamiseta,
+      points: liveState.puntosPorJugador.get(r.jugador.id) ?? 0,
+      fouls: liveState.faltasPorJugador.get(r.jugador.id) ?? 0,
+      enCancha: r.enCancha,
+      minutosLabel: segundos != null ? formatMinutosJugados(segundos) : null,
+    };
+  };
+
+  const homeBoxscore = roster.filter((r) => r.clubId === partido.clubLocalId).map(toRow);
+  const awayBoxscore = roster.filter((r) => r.clubId === partido.clubVisitanteId).map(toRow);
+
+  const toPlayerName = (r: { jugador: { id: string; nombre: string } }): LivePlayerName => ({
+    id: r.jugador.id,
+    name: r.jugador.nombre,
+    initials: initials(r.jugador.nombre),
+  });
+  const jugadoresEnCanchaLocal = roster
+    .filter((r) => r.clubId === partido.clubLocalId && r.enCancha)
+    .map(toPlayerName);
+  const jugadoresEnCanchaVisitante = roster
+    .filter((r) => r.clubId === partido.clubVisitanteId && r.enCancha)
+    .map(toPlayerName);
 
   // Líderes: jugadores con puntos reales anotados en el partido, sin importar
   // equipo, top 4. Si nadie anotó todavía, queda vacío (no se inventa).
@@ -197,6 +255,8 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
         e.tipo === "PUNTO" && e.detalle && typeof e.detalle === "object" && !Array.isArray(e.detalle) && "valor" in e.detalle
           ? (e.detalle as { valor: unknown }).valor
           : null;
+      const side: PlayByPlayEntry["side"] =
+        e.clubId === partido.clubLocalId ? "local" : e.clubId === partido.clubVisitanteId ? "visitante" : "neutral";
       return {
         id: e.id,
         cuarto: e.cuarto,
@@ -204,6 +264,7 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
         equipoAbbr,
         descripcion: describirEvento(e, describirContext),
         valor: typeof valor === "number" ? valor : null,
+        side,
       };
     });
 
@@ -221,6 +282,9 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
     homeBoxscore,
     awayBoxscore,
     playByPlay,
+    reloj,
+    jugadoresEnCanchaLocal,
+    jugadoresEnCanchaVisitante,
   };
 }
 
