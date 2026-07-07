@@ -40,8 +40,9 @@ export default async function JugadoresPage({
 
       <div className="flex flex-wrap gap-2">
         {clubes.map((c) => (
-          <div
+          <Link
             key={c.id}
+            href={`/admin/clubes/${c.id}/jugadores`}
             className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs transition-colors hover:border-accent-blue/40"
           >
             <span className="text-foreground">{c.nombre}</span>
@@ -49,7 +50,7 @@ export default async function JugadoresPage({
             {(sinDorsalMap.get(c.id) ?? 0) > 0 && (
               <Badge tone="accent-orange">{sinDorsalMap.get(c.id)} sin dorsal</Badge>
             )}
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -116,6 +117,7 @@ export default async function JugadoresPage({
                 <span className="text-xs text-muted">{j.club.nombre}</span>
               </div>
               <div className="flex items-center gap-2">
+                {!j.activo && <Badge tone="neutral">Inactivo</Badge>}
                 <Badge tone={j.numeroCamiseta !== null ? "accent-blue" : "accent-orange"}>
                   {j.numeroCamiseta !== null ? `#${j.numeroCamiseta}` : "Sin dorsal"}
                 </Badge>

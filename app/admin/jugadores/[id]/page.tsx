@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isValidRutFormat, maskRut } from "@/lib/rut";
+import { Badge } from "@/components/ui/badge";
+import { DeleteJugadorButton } from "@/components/admin/delete-jugador-button";
+import { toggleActivoJugador, deleteJugadorSiSePuede } from "@/lib/actions/jugadores";
 import { updateJugador } from "./actions";
 
 export default async function JugadorDetallePage({
@@ -33,12 +36,37 @@ export default async function JugadorDetallePage({
         ← Jugadores
       </Link>
 
-      <h1 className="text-xl font-semibold text-foreground">{jugador.nombre}</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-xl font-semibold text-foreground">{jugador.nombre}</h1>
+        <Badge tone={jugador.activo ? "success" : "neutral"}>{jugador.activo ? "Activo" : "Inactivo"}</Badge>
+      </div>
 
       <div className="max-w-md rounded-lg border border-dashed border-border p-4 text-sm text-muted">
         {rutStatus}
         <br />
         RUT no editable desde acá — se corrige en el Excel origen y se vuelve a importar.
+      </div>
+
+      <div className="flex max-w-md flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-4">
+        <form action={toggleActivoJugador}>
+          <input type="hidden" name="jugadorId" value={jugador.id} />
+          <input type="hidden" name="returnTo" value={`/admin/jugadores/${jugador.id}`} />
+          <button
+            type="submit"
+            className="rounded-md border border-border px-3 py-1.5 text-xs text-muted hover:bg-surface-hover hover:text-foreground active:scale-95"
+          >
+            {jugador.activo ? "Desactivar" : "Reactivar"}
+          </button>
+        </form>
+        <form action={deleteJugadorSiSePuede}>
+          <input type="hidden" name="jugadorId" value={jugador.id} />
+          <input type="hidden" name="returnTo" value="/admin/jugadores" />
+          <DeleteJugadorButton nombre={jugador.nombre} />
+        </form>
+        <p className="w-full text-xs text-muted">
+          Desactivar es reversible: el jugador deja de aparecer en nóminas futuras pero conserva sus estadísticas.
+          Eliminar es definitivo y solo funciona si nunca participó en un partido.
+        </p>
       </div>
 
       <form

@@ -19,8 +19,8 @@ export async function updateJugador(formData: FormData) {
   let numeroCamiseta: number | null = null;
   if (numeroCamisetaRaw.length > 0) {
     const n = Number(numeroCamisetaRaw);
-    if (!Number.isInteger(n) || n < 0) {
-      fail("El número de camiseta debe ser un entero mayor o igual a 0.");
+    if (!Number.isInteger(n) || n < 0 || n > 99) {
+      fail("El número de camiseta debe ser un entero entre 0 y 99.");
     }
     numeroCamiseta = n;
   }
