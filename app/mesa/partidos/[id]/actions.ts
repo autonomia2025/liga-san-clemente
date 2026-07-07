@@ -4,7 +4,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
 import { TipoEvento, TipoFalta, OrigenStat } from "@/generated/prisma/client";
-import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
+import {
+  buildLiveMatchState,
+  duracionPeriodoSegundos,
+  limiteTimeoutsParaPeriodo,
+  timeoutsUsadosEnPeriodo,
+  TOTAL_CUARTOS_REGULAR,
+} from "@/lib/mesa/live-match-state";
 import { calcularRelojActual } from "@/lib/mesa/reloj";
 import { leerReloj, escribirReloj } from "@/lib/mesa/reloj-db";
 import { parseClockLabel } from "@/lib/mesa/describir-evento";
@@ -70,10 +76,9 @@ async function getEstadoVigente(partidoId: string, clubLocalId: string, clubVisi
 
 const MAX_CONVOCADOS = 12;
 
-// Reglamento: 5 timeouts por equipo en tiempo regular. Overtime (1 timeout
-// extra por prórroga) queda fuera de esta PR — el modelo todavía no tiene
-// noción de overtime (TOTAL_CUARTOS=4 fijo en live-match-state.ts).
-const TIMEOUTS_TIEMPO_REGULAR = 5;
+// Límite de timeouts por período (5 en tiempo regular, 1 por overtime) — ver
+// limiteTimeoutsParaPeriodo/timeoutsUsadosEnPeriodo en live-match-state.ts,
+// que es la fuente de verdad real usada en registrarTimeout más abajo.
 
 export async function guardarConvocados(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
@@ -269,11 +274,16 @@ export async function controlarCuarto(formData: FormData) {
   }
 
   // Tanto al iniciar un cuarto nuevo como al finalizar el actual, el reloj
-  // vuelve a la duración completa y pausado — ninguno de los dos casos debe
-  // heredar el tiempo que quedó corriendo del cuarto anterior.
+  // vuelve a la duración completa del PRÓXIMO período (Q1-Q4 usan
+  // duracionCuartoMinutos, overtime siempre 5:00) y pausado — ninguno de los
+  // dos casos debe heredar el tiempo que quedó corriendo del cuarto anterior.
+  // Al iniciar, "cuarto" ya es el nuevo período; al finalizar, el próximo
+  // período todavía no se decidió (puede ser el siguiente cuarto/OT o el fin
+  // del partido), así que se resetea a la duración del cuarto que se acaba
+  // de cerrar — de todos modos se vuelve a resetear al iniciar el siguiente.
   await escribirReloj(partidoId, {
     relojEstado: "PAUSADO",
-    relojRestanteSegundos: partido.duracionCuartoMinutos * 60,
+    relojRestanteSegundos: duracionPeriodoSegundos(cuarto, partido.duracionCuartoMinutos),
     relojUltimoInicio: null,
   });
 
@@ -364,9 +374,15 @@ export async function resetearReloj(formData: FormData) {
   }
   const { partido } = check;
 
+  // Reset debe volver a la duración del período ACTUAL (Q1-Q4 vs overtime),
+  // no siempre a duracionCuartoMinutos — si no, resetear el reloj durante un
+  // overtime lo mandaría de vuelta a 10:00 en vez de 05:00.
+  const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
+  const cuartoParaReset = estado.cuartoActivo ?? partido.cuartoActual;
+
   await escribirReloj(partidoId, {
     relojEstado: "PAUSADO",
-    relojRestanteSegundos: partido.duracionCuartoMinutos * 60,
+    relojRestanteSegundos: duracionPeriodoSegundos(cuartoParaReset, partido.duracionCuartoMinutos),
     relojUltimoInicio: null,
   });
 
@@ -611,15 +627,22 @@ export async function registrarTimeout(formData: FormData) {
   const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
   // Se permite pedir timeout aunque no haya cuarto activo (entre cuartos, con
-  // el reloj pausado) — solo se limita por el reglamento (5 en tiempo
-  // regular), no por el estado del cuarto/reloj.
-  const timeoutsDelClub = clubId === partido.clubLocalId ? estado.timeoutsLocal : estado.timeoutsVisitante;
-  if (timeoutsDelClub >= TIMEOUTS_TIEMPO_REGULAR) {
-    fail(`Ese equipo ya usó sus ${TIMEOUTS_TIEMPO_REGULAR} timeouts del tiempo regular.`);
+  // el reloj pausado) — solo se limita por el reglamento, no por el estado
+  // del cuarto/reloj. El límite depende del período: 5 acumulados en tiempo
+  // regular (Q1-Q4), 1 por cada overtime (se resetea en cada uno).
+  const cuartoParaEvento = estado.cuartoActivo ?? partido.cuartoActual;
+  const porCuartoDelClub =
+    clubId === partido.clubLocalId ? estado.timeoutsLocalPorCuarto : estado.timeoutsVisitantePorCuarto;
+  const usados = timeoutsUsadosEnPeriodo(porCuartoDelClub, cuartoParaEvento);
+  const limite = limiteTimeoutsParaPeriodo(cuartoParaEvento);
+  if (usados >= limite) {
+    fail(
+      cuartoParaEvento > TOTAL_CUARTOS_REGULAR
+        ? "Ese equipo ya usó su timeout de este overtime."
+        : `Ese equipo ya usó sus ${limite} timeouts del tiempo regular.`,
+    );
     return;
   }
-
-  const cuartoParaEvento = estado.cuartoActivo ?? partido.cuartoActual;
 
   await prisma.matchEvent.create({
     data: {
@@ -982,8 +1005,17 @@ export async function finalizarPartido(formData: FormData) {
 
   const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
+  // estadoCuartos solo es CUARTOS_COMPLETADOS cuando terminó tiempo regular
+  // (o un overtime) Y el marcador no está empatado — ver calcularEstadoCuartos.
+  // Este chequeo ya alcanza para bloquear el empate, pero se agrega un
+  // mensaje específico para no confundir a la Mesa con "debe terminar Q4"
+  // cuando en realidad lo que falta es desempatar en overtime.
   if (estado.estadoCuartos !== "CUARTOS_COMPLETADOS") {
-    fail("Para finalizar el partido, primero debe terminar Q4.");
+    if (estado.empatado && estado.ultimoCuartoFinalizado !== null && estado.ultimoCuartoFinalizado >= TOTAL_CUARTOS_REGULAR) {
+      fail("El partido está empatado — hay que iniciar un overtime antes de finalizar.");
+      return;
+    }
+    fail("Para finalizar el partido, primero debe terminar el período actual.");
     return;
   }
 

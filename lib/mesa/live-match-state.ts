@@ -13,7 +13,53 @@
 // vivo sigue viniendo de PartidoJugador.enCancha (PR 2.4/2.5), no de eventos.
 import type { MatchEvent, PartidoJugador, TipoFalta } from "@/generated/prisma/client";
 
-const TOTAL_CUARTOS = 4;
+// Cuartos regulares fijos en 4 (reglamento estándar); overtime se numera
+// correlativamente arriba de eso — OT1 = cuarto 5, OT2 = cuarto 6, etc. Sin
+// límite de overtimes: se repiten tantos como haga falta hasta desempatar
+// (ver calcularEstadoCuartos). Exportado porque actions.ts (reloj/timeouts) y
+// la UI de Mesa/en-vivo necesitan el mismo corte para saber "tiempo regular
+// vs overtime" sin duplicar el número mágico en cada archivo.
+export const TOTAL_CUARTOS_REGULAR = 4;
+
+// Duración de cada overtime — reglamento FIBA simplificado para esta PR (no
+// se implementa la regla avanzada de "posesión de flecha" ni nada más).
+const DURACION_OT_MINUTOS = 5;
+
+// Label de un período: Q1-Q4 en tiempo regular, OT1/OT2/OT3... arriba de eso.
+// Única fuente de verdad — la usan Mesa, /en-vivo, Play by Play y
+// describir-evento.ts, así nunca queda un "Q5" hardcodeado en algún rincón
+// de la UI cuando el partido entra en overtime.
+export function labelPeriodo(cuarto: number): string {
+  return cuarto <= TOTAL_CUARTOS_REGULAR ? `Q${cuarto}` : `OT${cuarto - TOTAL_CUARTOS_REGULAR}`;
+}
+
+// Duración de un período en segundos — tiempo regular usa la duración
+// configurada del partido (duracionCuartoMinutos), overtime siempre son
+// 5:00 fijos sin importar la duración configurada de los cuartos regulares.
+export function duracionPeriodoSegundos(cuarto: number, duracionCuartoMinutos: number): number {
+  return cuarto <= TOTAL_CUARTOS_REGULAR ? duracionCuartoMinutos * 60 : DURACION_OT_MINUTOS * 60;
+}
+
+// Reglamento: 5 timeouts por equipo en tiempo regular (acumulado Q1-Q4), 1
+// timeout por equipo POR CADA overtime (se resetea en cada OT, no se
+// acumula con tiempo regular ni entre overtimes distintos).
+export function limiteTimeoutsParaPeriodo(cuarto: number): number {
+  return cuarto <= TOTAL_CUARTOS_REGULAR ? 5 : 1;
+}
+
+// timeoutsLocalPorCuarto/timeoutsVisitantePorCuarto (calculados en
+// calcularTimeouts) traen el desglose por cuarto — acá se decide cómo
+// sumarlo según el período: en tiempo regular se acumula Q1-Q4 completo (el
+// límite es sobre el total acumulado del partido), en overtime se cuenta
+// solo ESE overtime puntual (el límite se resetea en cada uno).
+export function timeoutsUsadosEnPeriodo(porCuarto: Map<number, number>, cuarto: number): number {
+  if (cuarto > TOTAL_CUARTOS_REGULAR) return porCuarto.get(cuarto) ?? 0;
+  let total = 0;
+  for (const [c, n] of porCuarto) {
+    if (c <= TOTAL_CUARTOS_REGULAR) total += n;
+  }
+  return total;
+}
 
 // "OFENSIVA" vive solo como string dentro de MatchEvent.detalle (Json) — no
 // es parte del enum Postgres TipoFalta (que no está atado a ninguna columna
@@ -40,6 +86,9 @@ export type LiveMatchState = {
   mensajeCuartos: string;
   marcadorLocal: number;
   marcadorVisitante: number;
+  // Empate al momento actual — determina si calcularEstadoCuartos ofrece
+  // "finalizar" o el próximo overtime al terminar tiempo regular (o un OT).
+  empatado: boolean;
   puntosPorJugador: Map<string, number>;
   faltasPorJugador: Map<string, number>;
   faltasEquipoLocal: number;
@@ -68,6 +117,7 @@ export type LiveMatchContext = {
 
 function calcularEstadoCuartos(
   vigentes: MatchEventLite[],
+  empatado: boolean,
 ): Pick<
   LiveMatchState,
   "estadoCuartos" | "cuartoActivo" | "ultimoCuartoFinalizado" | "proximaAccionCuarto" | "mensajeCuartos"
@@ -88,7 +138,7 @@ function calcularEstadoCuartos(
       cuartoActivo,
       ultimoCuartoFinalizado,
       proximaAccionCuarto: { tipo: "finalizar", cuarto: cuartoActivo },
-      mensajeCuartos: `Q${cuartoActivo} en curso`,
+      mensajeCuartos: `${labelPeriodo(cuartoActivo)} en curso`,
     };
   }
 
@@ -102,13 +152,18 @@ function calcularEstadoCuartos(
     };
   }
 
-  if (ultimoCuartoFinalizado >= TOTAL_CUARTOS) {
+  // Tiempo regular (o cualquier overtime previo) recién terminado: si el
+  // marcador sigue empatado NO se ofrece "finalizar" — se ofrece iniciar el
+  // siguiente overtime (OT1, OT2, OT3... tantos como hagan falta hasta
+  // desempatar). Si no está empatado, el partido queda listo para finalizar.
+  const regularOTerminado = ultimoCuartoFinalizado >= TOTAL_CUARTOS_REGULAR;
+  if (regularOTerminado && !empatado) {
     return {
       estadoCuartos: "CUARTOS_COMPLETADOS",
       cuartoActivo: null,
       ultimoCuartoFinalizado,
       proximaAccionCuarto: null,
-      mensajeCuartos: `Q${TOTAL_CUARTOS} finalizado`,
+      mensajeCuartos: `${labelPeriodo(ultimoCuartoFinalizado)} finalizado`,
     };
   }
 
@@ -118,7 +173,9 @@ function calcularEstadoCuartos(
     cuartoActivo: null,
     ultimoCuartoFinalizado,
     proximaAccionCuarto: { tipo: "iniciar", cuarto: siguienteCuarto },
-    mensajeCuartos: `Entre Q${ultimoCuartoFinalizado} y Q${siguienteCuarto}`,
+    mensajeCuartos: regularOTerminado
+      ? `Empate — ${labelPeriodo(siguienteCuarto)} disponible`
+      : `Entre ${labelPeriodo(ultimoCuartoFinalizado)} y ${labelPeriodo(siguienteCuarto)}`,
   };
 }
 
@@ -277,11 +334,17 @@ export function buildLiveMatchState(
   _partidoJugadores: Pick<PartidoJugador, "id">[] = [],
 ): LiveMatchState {
   const vigentes = events.filter((e) => !e.anulado);
-  const estadoCuartos = calcularEstadoCuartos(vigentes);
+  // El marcador se calcula ANTES que el estado de cuartos porque
+  // calcularEstadoCuartos necesita saber si está empatado para decidir si
+  // ofrece "finalizar" o el próximo overtime.
+  const marcador = calcularMarcadorYPuntos(vigentes, context);
+  const empatado = marcador.marcadorLocal === marcador.marcadorVisitante;
+  const estadoCuartos = calcularEstadoCuartos(vigentes, empatado);
 
   return {
     ...estadoCuartos,
-    ...calcularMarcadorYPuntos(vigentes, context),
+    ...marcador,
+    empatado,
     ...calcularFaltas(vigentes, context, estadoCuartos.cuartoActivo),
     ...calcularTimeouts(vigentes, context),
     ...calcularPosesion(vigentes, context),

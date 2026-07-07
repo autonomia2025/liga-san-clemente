@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
-import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
+import { buildLiveMatchState, TOTAL_CUARTOS_REGULAR } from "@/lib/mesa/live-match-state";
 import { describirEvento, extraerClock } from "@/lib/mesa/describir-evento";
 import { calcularRelojActual, type EstadoRelojCalculado } from "@/lib/mesa/reloj";
 import { leerReloj } from "@/lib/mesa/reloj-db";
@@ -107,10 +107,13 @@ function initials(nombre: string): string {
 
 // Sin reloj real en el schema (MatchEvent no guarda tiempo transcurrido) —
 // nunca se inventa. Solo se deriva el cuarto activo real desde los eventos.
+// Overtime (cuarto > TOTAL_CUARTOS_REGULAR) se muestra "OT1"/"OT2"/... nunca
+// "Q5" — mismo corte que usa Mesa (ver labelPeriodo en live-match-state.ts).
 function periodLabelFromCuarto(cuartoActivo: number | null): string {
+  if (cuartoActivo === null) return "EN CURSO";
+  if (cuartoActivo > TOTAL_CUARTOS_REGULAR) return `OT${cuartoActivo - TOTAL_CUARTOS_REGULAR}`;
   const ordinal: Record<number, string> = { 1: "1er cuarto", 2: "2do cuarto", 3: "3er cuarto", 4: "4to cuarto" };
-  if (cuartoActivo && ordinal[cuartoActivo]) return ordinal[cuartoActivo].toUpperCase();
-  return "EN CURSO";
+  return ordinal[cuartoActivo]?.toUpperCase() ?? "EN CURSO";
 }
 
 function sortValue(date: Date | null): number {

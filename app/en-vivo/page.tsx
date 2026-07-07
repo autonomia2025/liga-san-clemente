@@ -15,6 +15,7 @@ import {
   type PlayByPlayEntry,
 } from "@/lib/public/live-page-data";
 import { clubLogoPad } from "@/lib/public/display";
+import { labelPeriodo } from "@/lib/mesa/live-match-state";
 import { LiveRefresher } from "@/components/site/live-refresher";
 import { LiveClock } from "@/components/site/live-clock";
 
@@ -284,7 +285,7 @@ function PlayByPlayRow({ entry }: { entry: PlayByPlayEntry }) {
     return (
       <li className="flex justify-center py-2.5">
         <span className="rounded-full bg-white/5 px-3 py-1 font-body text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
-          Q{entry.cuarto} · {entry.descripcion}
+          {labelPeriodo(entry.cuarto)} · {entry.descripcion}
         </span>
       </li>
     );
@@ -301,7 +302,7 @@ function PlayByPlayRow({ entry }: { entry: PlayByPlayEntry }) {
         <div
           className={`flex items-center gap-2 text-[11px] text-text-secondary ${esLocal ? "" : "sm:flex-row-reverse"}`}
         >
-          <span className="font-head uppercase tracking-tight text-accent-gold">Q{entry.cuarto}</span>
+          <span className="font-head uppercase tracking-tight text-accent-gold">{labelPeriodo(entry.cuarto)}</span>
           <span className="font-mono tabular-nums">{entry.clockLabel ?? "sin reloj"}</span>
           {entry.equipoAbbr && <span className="uppercase">{entry.equipoAbbr}</span>}
         </div>

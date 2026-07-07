@@ -4,6 +4,7 @@
 // (lib/public/live-page-data.ts): mismo evento, misma descripción en Mesa y
 // en el sitio público, una sola fuente de verdad.
 import type { TipoFalta } from "@/generated/prisma/client";
+import { labelPeriodo } from "./live-match-state";
 
 // "OFENSIVA" no es parte del enum Postgres TipoFalta (no está atado a
 // ninguna columna real) — vive solo como string dentro de MatchEvent.detalle.
@@ -140,9 +141,9 @@ export function describirEvento(evento: EventoDescribible, context: DescribirCon
       return `Entra ${nombreJugadorDe(sub.entraId, context)} · Sale ${nombreJugadorDe(sub.saleId, context)}`;
     }
     case "INICIO_CUARTO":
-      return `Inicio Q${evento.cuarto}`;
+      return `Inicio ${labelPeriodo(evento.cuarto)}`;
     case "FIN_CUARTO":
-      return `Fin Q${evento.cuarto}`;
+      return `Fin ${labelPeriodo(evento.cuarto)}`;
     default:
       return "Evento";
   }

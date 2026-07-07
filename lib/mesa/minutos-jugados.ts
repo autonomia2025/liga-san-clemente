@@ -22,6 +22,7 @@
 // el cálculo completo se marca no confiable y se devuelve null — nunca se
 // inventa un tiempo parcial.
 import { extraerClock, extraerSustitucion } from "./describir-evento";
+import { duracionPeriodoSegundos } from "./live-match-state";
 
 export type EventoMinutos = {
   tipo: string;
@@ -37,7 +38,6 @@ export function calcularMinutosJugados(params: {
   remainingSecondsActual: number | null;
 }): Map<string, number> | null {
   const { eventos, duracionCuartoMinutos, cuartoActivo, remainingSecondsActual } = params;
-  const duracionTotal = duracionCuartoMinutos * 60;
 
   const sustituciones = eventos.filter((e) => e.tipo === "SUSTITUCION");
 
@@ -56,15 +56,21 @@ export function calcularMinutosJugados(params: {
   // Por jugador en cancha: segundos restantes del cuarto en el momento en que
   // empezó su turno actual (se fija en cada INICIO_CUARTO o al entrar por sustitución).
   const inicioTurno = new Map<string, number>();
+  // Duración del período que está corriendo — Q1-Q4 usan duracionCuartoMinutos,
+  // overtime siempre son 5:00 fijos (ver duracionPeriodoSegundos). Arranca en
+  // la duración regular como default razonable para jugadores que ya estaban
+  // en cancha antes del primer INICIO_CUARTO del array (los titulares de Q1).
+  let duracionPeriodoActual = duracionCuartoMinutos * 60;
 
   const acumular = (jugadorId: string, hasta: number) => {
-    const desde = inicioTurno.get(jugadorId) ?? duracionTotal;
+    const desde = inicioTurno.get(jugadorId) ?? duracionPeriodoActual;
     segundos.set(jugadorId, (segundos.get(jugadorId) ?? 0) + Math.max(0, desde - hasta));
   };
 
   for (const e of eventos) {
     if (e.tipo === "INICIO_CUARTO") {
-      for (const jugadorId of enCancha) inicioTurno.set(jugadorId, duracionTotal);
+      duracionPeriodoActual = duracionPeriodoSegundos(e.cuarto, duracionCuartoMinutos);
+      for (const jugadorId of enCancha) inicioTurno.set(jugadorId, duracionPeriodoActual);
       continue;
     }
 

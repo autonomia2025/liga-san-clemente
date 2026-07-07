@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 import type { LiveMatchState, TipoFaltaValor } from "@/lib/mesa/live-match-state";
+import {
+  labelPeriodo,
+  duracionPeriodoSegundos,
+  limiteTimeoutsParaPeriodo,
+  timeoutsUsadosEnPeriodo,
+  TOTAL_CUARTOS_REGULAR,
+} from "@/lib/mesa/live-match-state";
 import type { EstadoRelojCalculado } from "@/lib/mesa/reloj";
 import { describirEvento, extraerClock, type DescribirContext } from "@/lib/mesa/describir-evento";
 import { Badge } from "@/components/ui/badge";
@@ -250,25 +257,27 @@ function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
   );
 }
 
-// Reglamento: 5 timeouts por equipo en tiempo regular — mismo valor que
-// TIMEOUTS_TIEMPO_REGULAR en actions.ts (server-side, fuente de verdad del
-// bloqueo real). Este archivo es "use client" y no puede importar una const
-// desde un módulo "use server", así que se duplica solo para la UI (mostrar
-// "X/5" y deshabilitar el botón antes de que el usuario intente el 6º).
-const TIMEOUTS_TIEMPO_REGULAR = 5;
-
+// El límite real (5 en tiempo regular acumulado, 1 por cada overtime) viene
+// de limiteTimeoutsParaPeriodo/timeoutsUsadosEnPeriodo en live-match-state.ts
+// — mismas funciones que usa actions.ts server-side, sin duplicar el
+// reglamento acá (a diferencia de Mesa 3.0, ya no hace falta: viven en un
+// módulo plano compartido, no en un archivo "use server").
 function BotonTimeout({
   partidoId,
   clubId,
   label,
-  contador,
+  usados,
+  limite,
+  enOvertime,
 }: {
   partidoId: string;
   clubId: string;
   label: string;
-  contador: number;
+  usados: number;
+  limite: number;
+  enOvertime: boolean;
 }) {
-  const agotado = contador >= TIMEOUTS_TIEMPO_REGULAR;
+  const agotado = usados >= limite;
   return (
     <form action={registrarTimeout}>
       <input type="hidden" name="partidoId" value={partidoId} />
@@ -276,10 +285,10 @@ function BotonTimeout({
       <button
         type="submit"
         disabled={agotado}
-        title={agotado ? `Ya usó sus ${TIMEOUTS_TIEMPO_REGULAR} timeouts del tiempo regular` : undefined}
+        title={agotado ? (enOvertime ? "Ya usó su timeout de este overtime" : `Ya usó sus ${limite} timeouts del tiempo regular`) : undefined}
         className="rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {label} · TO {contador}/{TIMEOUTS_TIEMPO_REGULAR}
+        {label} · TO{enOvertime ? " OT" : ""} {usados}/{limite}
       </button>
     </form>
   );
@@ -617,6 +626,13 @@ function Cronometro({
     );
   }
 
+  // Q1-Q4 usan la duración configurada del partido, overtime siempre son
+  // 5:00 fijos — sin esto, "Iniciar" nunca aparecería en OT (la comparación
+  // contra duracionMinutos*60 jamás daría igual) y "Reset" volvería a la
+  // duración regular en vez de 05:00.
+  const duracionEfectivaSegundos = duracionPeriodoSegundos(cuartoActivo, duracionMinutos);
+  const duracionEfectivaMinutos = Math.floor(duracionEfectivaSegundos / 60);
+
   return (
     <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5">
       {editando ? (
@@ -674,7 +690,7 @@ function Cronometro({
             disabled={segundos === 0}
             className="rounded-full bg-accent-orange px-3 py-1 text-[11px] font-semibold text-white hover:opacity-90 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
           >
-            {segundos === duracionMinutos * 60 ? "Iniciar" : "Reanudar"}
+            {segundos === duracionEfectivaSegundos ? "Iniciar" : "Reanudar"}
           </button>
         </form>
       ) : (
@@ -693,7 +709,7 @@ function Cronometro({
         <button
           type="submit"
           onClick={(e) => {
-            if (!window.confirm(`¿Reiniciar el cronómetro a ${duracionMinutos}:00?`)) {
+            if (!window.confirm(`¿Reiniciar el cronómetro a ${duracionEfectivaMinutos}:00?`)) {
               e.preventDefault();
             }
           }}
@@ -771,8 +787,8 @@ function ControlCuarto({
             className="rounded-full bg-accent-orange px-4 py-1.5 text-[11px] font-semibold text-white hover:opacity-90 active:scale-95"
           >
             {liveState.proximaAccionCuarto.tipo === "iniciar"
-              ? `Iniciar Q${liveState.proximaAccionCuarto.cuarto}`
-              : `Finalizar Q${liveState.proximaAccionCuarto.cuarto}`}
+              ? `Iniciar ${labelPeriodo(liveState.proximaAccionCuarto.cuarto)}`
+              : `Finalizar ${labelPeriodo(liveState.proximaAccionCuarto.cuarto)}`}
           </button>
         </form>
       )}
@@ -788,9 +804,27 @@ function FinalizarPartido({
   liveState: LiveMatchState;
 }) {
   if (liveState.estadoCuartos !== "CUARTOS_COMPLETADOS") {
+    // estadoCuartos solo llega a CUARTOS_COMPLETADOS cuando terminó tiempo
+    // regular (o un overtime) y el marcador no está empatado — si llegamos
+    // acá empatados con el período regular/overtime ya cerrado, es porque
+    // corresponde iniciar el próximo overtime (el botón ya aparece arriba).
+    const empatadoTrasPeriodo =
+      liveState.empatado &&
+      liveState.cuartoActivo === null &&
+      liveState.ultimoCuartoFinalizado !== null &&
+      liveState.ultimoCuartoFinalizado >= TOTAL_CUARTOS_REGULAR;
+
+    if (empatadoTrasPeriodo) {
+      return (
+        <p className="text-center text-[11px] font-semibold text-accent-orange">
+          Partido empatado. Debe iniciarse overtime.
+        </p>
+      );
+    }
+
     return (
       <p className="text-center text-[11px] text-muted">
-        Para finalizar el partido, primero debe terminar Q4.
+        Para finalizar el partido, primero debe terminar el período actual.
       </p>
     );
   }
@@ -925,6 +959,17 @@ export function ConsolaPartido({
   const descripcionUltimoEvento = describirUltimoEvento(liveState.ultimoEventoVigente, describirContext);
   const segundosTimeout = useTimeoutCountdown(liveState.ultimoEventoVigente);
 
+  // Período de referencia para los botones de timeout: el cuarto activo, o
+  // si estamos entre períodos (ej. esperando que arranque el próximo
+  // overtime), el último cuarto finalizado — coincide siempre con
+  // partido.cuartoActual en ese momento (ver actions.ts). El límite y el
+  // contador dependen de si ese período es tiempo regular u overtime.
+  const cuartoParaTimeouts = liveState.cuartoActivo ?? liveState.ultimoCuartoFinalizado ?? 1;
+  const limiteTimeouts = limiteTimeoutsParaPeriodo(cuartoParaTimeouts);
+  const enOvertimeTimeouts = cuartoParaTimeouts > TOTAL_CUARTOS_REGULAR;
+  const timeoutsUsadosLocal = timeoutsUsadosEnPeriodo(liveState.timeoutsLocalPorCuarto, cuartoParaTimeouts);
+  const timeoutsUsadosVisitante = timeoutsUsadosEnPeriodo(liveState.timeoutsVisitantePorCuarto, cuartoParaTimeouts);
+
   // Combina ambos planteles con su club para el editor de jugadas recientes
   // — ahí se puede reasignar un evento al jugador/equipo correcto sin
   // restringirse a "quién está en cancha ahora" (la jugada pudo haber
@@ -987,13 +1032,17 @@ export function ConsolaPartido({
             partidoId={partidoId}
             clubId={clubLocalId}
             label="Timeout Local"
-            contador={liveState.timeoutsLocal}
+            usados={timeoutsUsadosLocal}
+            limite={limiteTimeouts}
+            enOvertime={enOvertimeTimeouts}
           />
           <BotonTimeout
             partidoId={partidoId}
             clubId={clubVisitanteId}
             label="Timeout Visita"
-            contador={liveState.timeoutsVisitante}
+            usados={timeoutsUsadosVisitante}
+            limite={limiteTimeouts}
+            enOvertime={enOvertimeTimeouts}
           />
         </div>
         <div className="flex flex-wrap items-center justify-center gap-1.5">
