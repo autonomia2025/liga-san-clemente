@@ -203,9 +203,9 @@ function PlayByPlayRow({ entry }: { entry: PlayByPlayEntry }) {
         <span className="font-head text-xs uppercase leading-none tracking-tight text-accent-gold">
           Q{entry.cuarto}
         </span>
-        {entry.clockLabel && (
-          <span className="mt-0.5 font-mono text-[11px] tabular-nums text-text-secondary">{entry.clockLabel}</span>
-        )}
+        <span className="mt-0.5 font-mono text-[11px] tabular-nums text-text-secondary">
+          {entry.clockLabel ?? "sin reloj"}
+        </span>
       </div>
       {entry.equipoAbbr && (
         <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 font-head text-[10px] uppercase leading-none text-text-secondary">

@@ -6,6 +6,8 @@ import { TitularesForm } from "./titulares-form";
 import { NumerosCamisetaForm } from "./numeros-camiseta-form";
 import { ConsolaPartido } from "./consola-partido";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
+import { calcularRelojActual } from "@/lib/mesa/reloj";
+import { leerReloj } from "@/lib/mesa/reloj-db";
 import { Badge } from "@/components/ui/badge";
 import { generarActa } from "./actions";
 
@@ -83,6 +85,14 @@ export default async function MesaPartidoPage({
     clubLocalId: partido!.clubLocalId,
     clubVisitanteId: partido!.clubVisitanteId,
   });
+
+  // Reloj: se recalcula server-side en CADA carga de la página (post-redirect
+  // de cualquier acción incluido) — nunca se confía en un estado de cliente
+  // que sobreviva entre requests. Ver lib/mesa/reloj.ts.
+  const relojDb = partidoFinalizado ? null : await leerReloj(partido!.id);
+  const relojInicial = relojDb
+    ? calcularRelojActual(relojDb, new Date())
+    : { estado: "PAUSADO" as const, remainingSeconds: partido!.duracionCuartoMinutos * 60, clockLabel: "10:00" };
 
   const seleccionadosLocalInicial = convocadosActuales
     .filter((c) => c.clubId === partido!.clubLocalId)
@@ -281,6 +291,7 @@ export default async function MesaPartidoPage({
           liveState={liveState}
           nombresJugadores={nombresJugadores}
           duracionCuartoMinutos={partido!.duracionCuartoMinutos}
+          relojInicial={relojInicial}
         />
       )}
 

@@ -135,6 +135,11 @@ enum EstadoPartido {
   FINALIZADO
 }
 
+enum EstadoReloj {
+  PAUSADO
+  CORRIENDO
+}
+
 model Partido {
   id                    String        @id @default(cuid())
   jornadaId             String
@@ -147,6 +152,16 @@ model Partido {
   estado                EstadoPartido @default(PROGRAMADO)
   cuartoActual          Int           @default(0)
   duracionCuartoMinutos Int           @default(10)
+  // Cronómetro del partido — la DB es la fuente de verdad (no el cliente).
+  // relojRestanteSegundos = segundos que quedaban al último pause/reset/
+  // cambio de cuarto. relojUltimoInicio = hora real del servidor cuando se
+  // apretó Iniciar/Reanudar (solo tiene sentido si relojEstado=CORRIENDO).
+  // El tiempo actual siempre se recalcula server-side: relojRestanteSegundos
+  // - (ahora - relojUltimoInicio). Ver lib/mesa/reloj.ts. null en
+  // relojRestanteSegundos = duracionCuartoMinutos*60 (no hace falta backfill).
+  relojEstado           EstadoReloj   @default(PAUSADO)
+  relojRestanteSegundos Int?
+  relojUltimoInicio     DateTime?
   mesaOperadorId        String?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt

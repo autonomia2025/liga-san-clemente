@@ -5,17 +5,27 @@ import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
 import { TipoEvento, TipoFalta, OrigenStat } from "@/generated/prisma/client";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
+import { calcularRelojActual } from "@/lib/mesa/reloj";
+import { leerReloj, escribirReloj } from "@/lib/mesa/reloj-db";
 import { parseClockLabel } from "@/lib/mesa/describir-evento";
 
-// El cronómetro de Mesa es 100% cliente (no persiste su propio estado, ver
-// consola-partido.tsx) — cada form manda "tiempoRestante" (MM:SS) como
-// snapshot del reloj al momento del click. Si el formato no es válido (o no
-// vino, ej. un form viejo en caché), el evento igual se guarda, solo que sin
-// tiempo — nunca se bloquea el registro de una jugada por un dato opcional.
-function clockDetalle(tiempoRestanteRaw: unknown): { minuto?: number; segundo?: number; clockLabel?: string } {
-  const raw = String(tiempoRestanteRaw ?? "");
-  const clock = parseClockLabel(raw);
-  return clock ? { minuto: clock.minuto, segundo: clock.segundo, clockLabel: clock.clockLabel } : {};
+// El reloj persiste en DB (Partido.relojEstado/relojRestanteSegundos/
+// relojUltimoInicio) — nunca se confía en lo que manda el cliente. Cada
+// acción que registra un evento recalcula el tiempo actual server-side, en
+// el momento exacto de guardar, leyendo el estado real del reloj desde la
+// base. Esto es lo que sobrevive refresh/redirect/cambio de pestaña: no
+// importa cuándo se registre la jugada, el tiempo que queda siempre se
+// recalcula desde relojUltimoInicio (hora real del servidor).
+async function clockDetalleServer(partidoId: string): Promise<{ minuto: number; segundo: number; clockLabel: string; remainingSeconds: number }> {
+  const reloj = await leerReloj(partidoId);
+  if (!reloj) return { minuto: 0, segundo: 0, clockLabel: "00:00", remainingSeconds: 0 };
+  const r = calcularRelojActual(reloj, new Date());
+  return {
+    minuto: Math.floor(r.remainingSeconds / 60),
+    segundo: r.remainingSeconds % 60,
+    clockLabel: r.clockLabel,
+    remainingSeconds: r.remainingSeconds,
+  };
 }
 
 // Valida sesión Mesa + operador correcto + partido EN_CURSO — el chequeo que
@@ -253,7 +263,140 @@ export async function controlarCuarto(formData: FormData) {
     });
   }
 
+  // Tanto al iniciar un cuarto nuevo como al finalizar el actual, el reloj
+  // vuelve a la duración completa y pausado — ninguno de los dos casos debe
+  // heredar el tiempo que quedó corriendo del cuarto anterior.
+  await escribirReloj(partidoId, {
+    relojEstado: "PAUSADO",
+    relojRestanteSegundos: partido.duracionCuartoMinutos * 60,
+    relojUltimoInicio: null,
+  });
+
   redirect(`/mesa/partidos/${partidoId}?ok=cuarto`);
+}
+
+// --- Reloj del partido -----------------------------------------------------
+// La DB es la fuente de verdad (ver lib/mesa/reloj.ts). Estas 4 acciones son
+// las únicas que escriben Partido.relojEstado/relojRestanteSegundos/
+// relojUltimoInicio — todo lo demás solo LEE el reloj (clockDetalleServer)
+// para saber qué hora mostrar en un evento nuevo.
+
+export async function iniciarOReanudarReloj(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const check = await requireOperadorEnCurso(partidoId, "No podés controlar el reloj de este partido.");
+  if ("error" in check) {
+    fail(check.error);
+    return;
+  }
+
+  const reloj = await leerReloj(partidoId);
+  if (!reloj) {
+    fail("No se pudo leer el reloj de este partido.");
+    return;
+  }
+
+  // Sirve tanto para "Iniciar" (relojRestanteSegundos todavía en la duración
+  // completa, sin tocar desde que empezó el cuarto) como para "Reanudar"
+  // (relojRestanteSegundos quedó en lo que faltaba al pausar) — misma
+  // operación en ambos casos: fijar el instante de arranque en el servidor.
+  const actual = calcularRelojActual(reloj, new Date());
+  if (actual.remainingSeconds === 0) {
+    fail("El cuarto ya llegó a 00:00 — terminá el cuarto en vez de reanudar.");
+    return;
+  }
+
+  await escribirReloj(partidoId, {
+    relojEstado: "CORRIENDO",
+    relojRestanteSegundos: actual.remainingSeconds,
+    relojUltimoInicio: new Date(),
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=reloj`);
+}
+
+export async function pausarReloj(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const check = await requireOperadorEnCurso(partidoId, "No podés controlar el reloj de este partido.");
+  if ("error" in check) {
+    fail(check.error);
+    return;
+  }
+
+  const reloj = await leerReloj(partidoId);
+  if (!reloj) {
+    fail("No se pudo leer el reloj de este partido.");
+    return;
+  }
+
+  const actual = calcularRelojActual(reloj, new Date());
+  await escribirReloj(partidoId, {
+    relojEstado: "PAUSADO",
+    relojRestanteSegundos: actual.remainingSeconds,
+    relojUltimoInicio: null,
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=reloj`);
+}
+
+export async function resetearReloj(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const check = await requireOperadorEnCurso(partidoId, "No podés controlar el reloj de este partido.");
+  if ("error" in check) {
+    fail(check.error);
+    return;
+  }
+  const { partido } = check;
+
+  await escribirReloj(partidoId, {
+    relojEstado: "PAUSADO",
+    relojRestanteSegundos: partido.duracionCuartoMinutos * 60,
+    relojUltimoInicio: null,
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=reloj`);
+}
+
+// Ajuste manual (ej. desincronizado con el reloj oficial de cancha). Siempre
+// pausa al ajustar — evita el caso raro de "arrancar corriendo" con un valor
+// recién tipeado por el operador.
+export async function ajustarReloj(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const valor = String(formData.get("valor") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const check = await requireOperadorEnCurso(partidoId, "No podés controlar el reloj de este partido.");
+  if ("error" in check) {
+    fail(check.error);
+    return;
+  }
+
+  const clock = parseClockLabel(valor);
+  if (!clock) {
+    fail("Formato de reloj inválido — usá MM:SS.");
+    return;
+  }
+
+  await escribirReloj(partidoId, {
+    relojEstado: "PAUSADO",
+    relojRestanteSegundos: clock.minuto * 60 + clock.segundo,
+    relojUltimoInicio: null,
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=reloj`);
 }
 
 const VALORES_PUNTO_VALIDOS = [1, 2, 3];
@@ -262,7 +405,6 @@ export async function registrarPunto(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const jugadorId = String(formData.get("jugadorId") ?? "");
   const valor = Number(formData.get("valor") ?? "");
-  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -303,7 +445,7 @@ export async function registrarPunto(formData: FormData) {
       tipo: TipoEvento.PUNTO,
       jugadorId,
       clubId: partidoJugador.clubId,
-      detalle: { valor, ...clockDetalle(tiempoRestante) },
+      detalle: { valor, ...(await clockDetalleServer(partidoId)) },
     },
   });
 
@@ -316,7 +458,6 @@ export async function registrarFalta(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const jugadorId = String(formData.get("jugadorId") ?? "");
   const tipoFalta = String(formData.get("tipoFalta") ?? "");
-  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -358,7 +499,7 @@ export async function registrarFalta(formData: FormData) {
       tipo: TipoEvento.FALTA,
       jugadorId,
       clubId: partidoJugador.clubId,
-      detalle: { tipoFalta, ...clockDetalle(tiempoRestante) },
+      detalle: { tipoFalta, ...(await clockDetalleServer(partidoId)) },
     },
   });
 
@@ -369,7 +510,6 @@ export async function registrarSustitucion(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const jugadorSaleId = String(formData.get("jugadorSaleId") ?? "");
   const jugadorEntraId = String(formData.get("jugadorEntraId") ?? "");
-  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -431,7 +571,7 @@ export async function registrarSustitucion(formData: FormData) {
         tipo: TipoEvento.SUSTITUCION,
         jugadorId: jugadorEntraId,
         clubId: partidoJugadorSale.clubId,
-        detalle: { jugadorEntraId, jugadorSaleId, ...clockDetalle(tiempoRestante) },
+        detalle: { jugadorEntraId, jugadorSaleId, ...(await clockDetalleServer(partidoId)) },
       },
     }),
   ]);
@@ -442,7 +582,6 @@ export async function registrarSustitucion(formData: FormData) {
 export async function registrarTimeout(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const clubId = String(formData.get("clubId") ?? "");
-  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -472,7 +611,7 @@ export async function registrarTimeout(formData: FormData) {
       cuarto: estado.cuartoActivo,
       tipo: TipoEvento.TIMEOUT,
       clubId,
-      detalle: clockDetalle(tiempoRestante),
+      detalle: await clockDetalleServer(partidoId),
     },
   });
 
@@ -482,7 +621,6 @@ export async function registrarTimeout(formData: FormData) {
 export async function registrarPosesion(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const clubId = String(formData.get("clubId") ?? "");
-  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -512,7 +650,7 @@ export async function registrarPosesion(formData: FormData) {
       cuarto: estado.cuartoActivo,
       tipo: TipoEvento.POSESION,
       clubId,
-      detalle: clockDetalle(tiempoRestante),
+      detalle: await clockDetalleServer(partidoId),
     },
   });
 

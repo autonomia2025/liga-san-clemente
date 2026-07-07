@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { TipoFalta } from "@/generated/prisma/client";
 import type { LiveMatchState } from "@/lib/mesa/live-match-state";
+import type { EstadoRelojCalculado } from "@/lib/mesa/reloj";
 import { describirEvento } from "@/lib/mesa/describir-evento";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +15,10 @@ import {
   registrarPosesion,
   deshacerUltimoEvento,
   finalizarPartido,
+  iniciarOReanudarReloj,
+  pausarReloj,
+  resetearReloj,
+  ajustarReloj,
 } from "./actions";
 
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
@@ -73,7 +78,6 @@ function JugadorCanchaCard({
   tiposFalta,
   puedeAnotar,
   banca,
-  clockLabel,
 }: {
   jugador: JugadorSlot;
   partidoId: string;
@@ -82,7 +86,6 @@ function JugadorCanchaCard({
   tiposFalta: TipoFalta[];
   puedeAnotar: boolean;
   banca: JugadorSlot[];
-  clockLabel: string;
 }) {
   const badge = badgeFalta(tiposFalta);
 
@@ -115,7 +118,6 @@ function JugadorCanchaCard({
                 <input type="hidden" name="partidoId" value={partidoId} />
                 <input type="hidden" name="jugadorId" value={jugador.id} />
                 <input type="hidden" name="valor" value={valor} />
-                <input type="hidden" name="tiempoRestante" value={clockLabel} />
                 <button
                   type="submit"
                   className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95"
@@ -135,7 +137,6 @@ function JugadorCanchaCard({
                   <input type="hidden" name="partidoId" value={partidoId} />
                   <input type="hidden" name="jugadorId" value={jugador.id} />
                   <input type="hidden" name="tipoFalta" value={t.valor} />
-                  <input type="hidden" name="tiempoRestante" value={clockLabel} />
                   <button
                     type="submit"
                     className="rounded-md border border-border px-1.5 py-0.5 text-[9px] font-semibold text-muted hover:bg-accent-orange hover:text-white active:scale-95"
@@ -154,7 +155,6 @@ function JugadorCanchaCard({
               <form action={registrarSustitucion} className="mt-1 flex flex-col items-center gap-1">
                 <input type="hidden" name="partidoId" value={partidoId} />
                 <input type="hidden" name="jugadorSaleId" value={jugador.id} />
-                <input type="hidden" name="tiempoRestante" value={clockLabel} />
                 <select
                   name="jugadorEntraId"
                   aria-label={`Jugador que entra por ${jugador.nombre}`}
@@ -199,20 +199,17 @@ function BotonTimeout({
   label,
   contador,
   disabled,
-  clockLabel,
 }: {
   partidoId: string;
   clubId: string;
   label: string;
   contador: number;
   disabled: boolean;
-  clockLabel: string;
 }) {
   return (
     <form action={registrarTimeout}>
       <input type="hidden" name="partidoId" value={partidoId} />
       <input type="hidden" name="clubId" value={clubId} />
-      <input type="hidden" name="tiempoRestante" value={clockLabel} />
       <button
         type="submit"
         disabled={disabled}
@@ -230,20 +227,17 @@ function BotonPosesion({
   label,
   activa,
   disabled,
-  clockLabel,
 }: {
   partidoId: string;
   clubId: string;
   label: string;
   activa: boolean;
   disabled: boolean;
-  clockLabel: string;
 }) {
   return (
     <form action={registrarPosesion}>
       <input type="hidden" name="partidoId" value={partidoId} />
       <input type="hidden" name="clubId" value={clubId} />
-      <input type="hidden" name="tiempoRestante" value={clockLabel} />
       <button
         type="submit"
         disabled={disabled}
@@ -285,60 +279,50 @@ function BotonDeshacer({
   );
 }
 
-// Cronómetro por cuarto — 100% cliente, no persiste en DB todavía (no hay
-// campos para eso en el schema y no se migra sin aprobación). Cada evento
-// igual guarda el tiempo que marcaba al momento de registrarse (va en
-// detalle.clockLabel del MatchEvent, ver actions.ts) — eso sí es dato
-// permanente. Si se recarga la página el cronómetro vuelve a foja cero y
-// puede necesitar el ajuste manual (input de abajo) — limitación conocida y
-// aceptada mientras no se persista el reloj del partido.
-function useCronometro(duracionMinutos: number, cuartoActivo: number | null) {
-  const totalInicial = duracionMinutos * 60;
-  const [segundos, setSegundos] = useState(totalInicial);
-  const [corriendo, setCorriendo] = useState(false);
-  const cuartoAnterior = useRef<number | null>(null);
-  const primeraCarga = useRef(true);
+// Cronómetro por cuarto — persistido en DB (Partido.relojEstado/
+// relojRestanteSegundos/relojUltimoInicio, ver lib/mesa/reloj.ts). El
+// servidor recalcula el tiempo real en cada carga de página (post-acción
+// incluida) y lo manda como prop `relojInicial` — esto es lo único confiable
+// entre renders. El ticking de acá es 100% visual/cosmético: cuenta hacia
+// abajo en el navegador para que se vea fluido, pero se resincroniza con el
+// valor del servidor cada vez que `relojInicial` cambia (o sea, en cada
+// redirect de cualquier acción de Mesa). Iniciar/Pausar/Reanudar/Reset/
+// Ajustar son Server Actions reales — no hay estado de cliente que sobreviva
+// por sí solo, la DB manda siempre.
+function useCronometroVisual(relojInicial: EstadoRelojCalculado) {
+  const [segundos, setSegundos] = useState(relojInicial.remainingSeconds);
+  const [corriendoVisual, setCorriendoVisual] = useState(relojInicial.estado === "CORRIENDO");
 
   useEffect(() => {
-    if (primeraCarga.current) {
-      primeraCarga.current = false;
-      cuartoAnterior.current = cuartoActivo;
-      return;
-    }
-    if (cuartoActivo !== cuartoAnterior.current) {
-      setSegundos(totalInicial);
-      setCorriendo(false);
-      cuartoAnterior.current = cuartoActivo;
-    }
-  }, [cuartoActivo, totalInicial]);
+    setSegundos(relojInicial.remainingSeconds);
+    setCorriendoVisual(relojInicial.estado === "CORRIENDO");
+  }, [relojInicial.remainingSeconds, relojInicial.estado]);
 
   useEffect(() => {
-    if (!corriendo) return;
+    if (!corriendoVisual) return;
     const id = setInterval(() => {
       setSegundos((s) => (s > 0 ? s - 1 : 0));
     }, 1000);
     return () => clearInterval(id);
-  }, [corriendo]);
-
-  useEffect(() => {
-    if (segundos === 0) setCorriendo(false);
-  }, [segundos]);
+  }, [corriendoVisual]);
 
   const label = `${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}`;
 
-  return { segundos, setSegundos, corriendo, setCorriendo, label, totalInicial };
+  return { segundos, corriendoVisual, label };
 }
 
 function Cronometro({
+  partidoId,
   duracionMinutos,
   cuartoActivo,
-  clock,
+  relojInicial,
 }: {
+  partidoId: string;
   duracionMinutos: number;
   cuartoActivo: number | null;
-  clock: ReturnType<typeof useCronometro>;
+  relojInicial: EstadoRelojCalculado;
 }) {
-  const { segundos, setSegundos, corriendo, setCorriendo, label, totalInicial } = clock;
+  const { segundos, corriendoVisual, label } = useCronometroVisual(relojInicial);
   const [editando, setEditando] = useState(false);
   const [valorEdit, setValorEdit] = useState(label);
 
@@ -351,26 +335,24 @@ function Cronometro({
     );
   }
 
-  function aplicarEdicion() {
-    const m = /^(\d{1,2}):([0-5]\d)$/.exec(valorEdit.trim());
-    if (!m) return;
-    setSegundos(Number(m[1]) * 60 + Number(m[2]));
-    setEditando(false);
-  }
-
   return (
     <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5">
       {editando ? (
-        <div className="flex items-center gap-1">
+        <form
+          action={ajustarReloj}
+          className="flex items-center gap-1"
+          onSubmit={() => setEditando(false)}
+        >
+          <input type="hidden" name="partidoId" value={partidoId} />
           <input
+            name="valor"
             value={valorEdit}
             onChange={(e) => setValorEdit(e.target.value)}
             placeholder="MM:SS"
             className="w-16 rounded-md border border-border bg-background px-1.5 py-1 text-center font-mono text-sm text-foreground"
           />
           <button
-            type="button"
-            onClick={aplicarEdicion}
+            type="submit"
             className="rounded-md border border-border px-2 py-1 text-[10px] text-muted hover:bg-surface-hover active:scale-95"
           >
             Ajustar
@@ -382,51 +364,62 @@ function Cronometro({
           >
             Cancelar
           </button>
-        </div>
+        </form>
       ) : (
-        <button
-          type="button"
-          onClick={() => {
-            setValorEdit(label);
-            setEditando(true);
-          }}
-          title="Tocar para ajustar el reloj manualmente"
-          className="font-mono text-2xl font-bold tabular-nums text-foreground hover:text-accent-orange"
-        >
-          {label}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setValorEdit(label);
+              setEditando(true);
+            }}
+            title="Tocar para ajustar el reloj manualmente"
+            className="font-mono text-2xl font-bold tabular-nums text-foreground hover:text-accent-orange"
+          >
+            {label}
+          </button>
+          <Badge tone={corriendoVisual ? "success" : "neutral"}>
+            {corriendoVisual ? "CORRIENDO" : "PAUSADO"}
+          </Badge>
+        </div>
       )}
 
-      {!corriendo ? (
-        <button
-          type="button"
-          onClick={() => segundos > 0 && setCorriendo(true)}
-          disabled={segundos === 0}
-          className="rounded-full bg-accent-orange px-3 py-1 text-[11px] font-semibold text-white hover:opacity-90 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
-        >
-          {segundos === totalInicial ? "Iniciar" : "Reanudar"}
-        </button>
+      {!corriendoVisual ? (
+        <form action={iniciarOReanudarReloj}>
+          <input type="hidden" name="partidoId" value={partidoId} />
+          <button
+            type="submit"
+            disabled={segundos === 0}
+            className="rounded-full bg-accent-orange px-3 py-1 text-[11px] font-semibold text-white hover:opacity-90 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+          >
+            {segundos === duracionMinutos * 60 ? "Iniciar" : "Reanudar"}
+          </button>
+        </form>
       ) : (
-        <button
-          type="button"
-          onClick={() => setCorriendo(false)}
-          className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-muted hover:bg-surface-hover active:scale-95"
-        >
-          Pausar
-        </button>
+        <form action={pausarReloj}>
+          <input type="hidden" name="partidoId" value={partidoId} />
+          <button
+            type="submit"
+            className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-muted hover:bg-surface-hover active:scale-95"
+          >
+            Pausar
+          </button>
+        </form>
       )}
-      <button
-        type="button"
-        onClick={() => {
-          if (window.confirm(`¿Reiniciar el cronómetro a ${duracionMinutos}:00?`)) {
-            setSegundos(totalInicial);
-            setCorriendo(false);
-          }
-        }}
-        className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-muted hover:border-danger/60 hover:bg-danger/10 hover:text-danger active:scale-95"
-      >
-        Reset
-      </button>
+      <form action={resetearReloj}>
+        <input type="hidden" name="partidoId" value={partidoId} />
+        <button
+          type="submit"
+          onClick={(e) => {
+            if (!window.confirm(`¿Reiniciar el cronómetro a ${duracionMinutos}:00?`)) {
+              e.preventDefault();
+            }
+          }}
+          className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-muted hover:border-danger/60 hover:bg-danger/10 hover:text-danger active:scale-95"
+        >
+          Reset
+        </button>
+      </form>
     </div>
   );
 }
@@ -570,6 +563,7 @@ export function ConsolaPartido({
   liveState,
   nombresJugadores,
   duracionCuartoMinutos,
+  relojInicial,
 }: {
   partidoId: string;
   clubLocalId: string;
@@ -583,6 +577,7 @@ export function ConsolaPartido({
   liveState: LiveMatchState;
   nombresJugadores: Map<string, string>;
   duracionCuartoMinutos: number;
+  relojInicial: EstadoRelojCalculado;
 }) {
   const descripcionUltimoEvento = describirUltimoEvento(liveState.ultimoEventoVigente, {
     clubLocalId,
@@ -592,15 +587,18 @@ export function ConsolaPartido({
     nombresJugadores,
   });
 
-  const clock = useCronometro(duracionCuartoMinutos, liveState.cuartoActivo);
-
   return (
     <div className="flex flex-col gap-3">
       {/* Scoreboard: protagonista de la pantalla, sticky para no perderla al scrollear. */}
       <div className="sticky top-0 z-10 flex flex-col gap-3 rounded-xl border border-border bg-surface/95 p-4 shadow-lg backdrop-blur">
         <div className="flex flex-wrap items-center justify-center gap-2">
           <ControlCuarto partidoId={partidoId} liveState={liveState} />
-          <Cronometro duracionMinutos={duracionCuartoMinutos} cuartoActivo={liveState.cuartoActivo} clock={clock} />
+          <Cronometro
+            partidoId={partidoId}
+            duracionMinutos={duracionCuartoMinutos}
+            cuartoActivo={liveState.cuartoActivo}
+            relojInicial={relojInicial}
+          />
         </div>
 
         <div className="flex items-center justify-between gap-3">
@@ -642,7 +640,6 @@ export function ConsolaPartido({
             label="Timeout Local"
             contador={liveState.timeoutsLocal}
             disabled={liveState.cuartoActivo === null}
-            clockLabel={clock.label}
           />
           <BotonTimeout
             partidoId={partidoId}
@@ -650,7 +647,6 @@ export function ConsolaPartido({
             label="Timeout Visita"
             contador={liveState.timeoutsVisitante}
             disabled={liveState.cuartoActivo === null}
-            clockLabel={clock.label}
           />
         </div>
         <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -660,7 +656,6 @@ export function ConsolaPartido({
             label="Posesión Local"
             activa={liveState.posesionEquipo === "LOCAL"}
             disabled={liveState.cuartoActivo === null}
-            clockLabel={clock.label}
           />
           <BotonPosesion
             partidoId={partidoId}
@@ -668,7 +663,6 @@ export function ConsolaPartido({
             label="Posesión Visita"
             activa={liveState.posesionEquipo === "VISITANTE"}
             disabled={liveState.cuartoActivo === null}
-            clockLabel={clock.label}
           />
         </div>
 
@@ -694,7 +688,6 @@ export function ConsolaPartido({
                 tiposFalta={liveState.tiposFaltaPorJugador.get(j.id) ?? []}
                 puedeAnotar={liveState.cuartoActivo !== null}
                 banca={bancaLocal}
-                clockLabel={clock.label}
               />
             ))}
           </div>
@@ -717,7 +710,6 @@ export function ConsolaPartido({
                 tiposFalta={liveState.tiposFaltaPorJugador.get(j.id) ?? []}
                 puedeAnotar={liveState.cuartoActivo !== null}
                 banca={bancaVisitante}
-                clockLabel={clock.label}
               />
             ))}
           </div>
