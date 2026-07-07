@@ -769,6 +769,204 @@ export async function deshacerUltimoEvento(formData: FormData) {
   redirect(`/mesa/partidos/${partidoId}?ok=deshacer`);
 }
 
+// --- Corrección de jugadas recientes (Mesa 3.2) -----------------------------
+// Complementa a "Deshacer último evento" (arriba): ese solo puede revertir el
+// evento más reciente porque SUSTITUCION/INICIO_CUARTO tienen estado derivado
+// (PartidoJugador.enCancha / Partido.cuartoActual) que solo es seguro revertir
+// si es lo último que pasó — anular uno de esos en cualquier otra posición
+// podría desincronizar ese cache. PUNTO/FALTA/TIMEOUT/POSESION no tienen ese
+// problema: marcador, faltas, bonus y timeouts siempre se recalculan desde
+// cero sumando los eventos vigentes (ver buildLiveMatchState), así que
+// anular o editar uno de ellos en cualquier posición reciente es siempre
+// seguro. Por eso el editor de "jugadas recientes" solo ofrece estos 4 tipos;
+// SUSTITUCION/INICIO_CUARTO/FIN_CUARTO se quedan exclusivamente en el flujo
+// de "Deshacer último evento" ya existente.
+const TIPOS_ANULABLES_DESDE_LISTA: TipoEvento[] = [
+  TipoEvento.PUNTO,
+  TipoEvento.FALTA,
+  TipoEvento.TIMEOUT,
+  TipoEvento.POSESION,
+];
+
+async function buscarEventoDelPartido(partidoId: string, eventoId: string) {
+  const evento = await prisma.matchEvent.findUnique({ where: { id: eventoId } });
+  if (!evento || evento.partidoId !== partidoId) return null;
+  return evento;
+}
+
+// Editar punto/falta preserva cuarto, clockLabel y createdAt del evento
+// original (no se tocan) — solo cambia jugadorId/clubId/el valor corregido
+// dentro de detalle. El club se deriva del club real del jugador elegido
+// (PartidoJugador.clubId) en vez de aceptarlo como campo independiente del
+// formulario, así nunca queda un evento con jugador de un equipo y clubId de
+// otro por un desajuste en la UI.
+export async function editarPunto(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const eventoId = String(formData.get("eventoId") ?? "");
+  const jugadorId = String(formData.get("jugadorId") ?? "");
+  const valor = Number(formData.get("valor") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const check = await requireOperadorEnCurso(partidoId, "No podés corregir jugadas de este partido.");
+  if ("error" in check) {
+    fail(check.error);
+    return;
+  }
+
+  if (!VALORES_PUNTO_VALIDOS.includes(valor)) {
+    fail("Valor de punto inválido.");
+    return;
+  }
+
+  const evento = await buscarEventoDelPartido(partidoId, eventoId);
+  if (!evento) {
+    fail("Evento no encontrado.");
+    return;
+  }
+  if (evento.tipo !== TipoEvento.PUNTO) {
+    fail("Este evento no es un punto.");
+    return;
+  }
+  if (evento.anulado) {
+    fail("Este evento ya está anulado — no se puede editar.");
+    return;
+  }
+
+  const partidoJugador = await prisma.partidoJugador.findUnique({
+    where: { partidoId_jugadorId: { partidoId, jugadorId } },
+  });
+  if (!partidoJugador || !partidoJugador.presente) {
+    fail("El jugador debe estar convocado a este partido.");
+    return;
+  }
+
+  const detalleActual =
+    evento.detalle && typeof evento.detalle === "object" && !Array.isArray(evento.detalle)
+      ? (evento.detalle as Record<string, number | string>)
+      : {};
+  await prisma.matchEvent.update({
+    where: { id: eventoId },
+    data: {
+      jugadorId,
+      clubId: partidoJugador.clubId,
+      detalle: { ...detalleActual, valor },
+    },
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=punto_editado`);
+}
+
+export async function editarFalta(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const eventoId = String(formData.get("eventoId") ?? "");
+  const jugadorId = String(formData.get("jugadorId") ?? "");
+  const tipoFalta = String(formData.get("tipoFalta") ?? "");
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const check = await requireOperadorEnCurso(partidoId, "No podés corregir jugadas de este partido.");
+  if ("error" in check) {
+    fail(check.error);
+    return;
+  }
+
+  if (!TIPOS_FALTA_VALIDOS.includes(tipoFalta)) {
+    fail("Tipo de falta inválido.");
+    return;
+  }
+
+  const evento = await buscarEventoDelPartido(partidoId, eventoId);
+  if (!evento) {
+    fail("Evento no encontrado.");
+    return;
+  }
+  if (evento.tipo !== TipoEvento.FALTA) {
+    fail("Este evento no es una falta.");
+    return;
+  }
+  if (evento.anulado) {
+    fail("Este evento ya está anulado — no se puede editar.");
+    return;
+  }
+
+  const partidoJugador = await prisma.partidoJugador.findUnique({
+    where: { partidoId_jugadorId: { partidoId, jugadorId } },
+  });
+  if (!partidoJugador || !partidoJugador.presente) {
+    fail("El jugador debe estar convocado a este partido.");
+    return;
+  }
+
+  const detalleActual =
+    evento.detalle && typeof evento.detalle === "object" && !Array.isArray(evento.detalle)
+      ? (evento.detalle as Record<string, number | string>)
+      : {};
+  await prisma.matchEvent.update({
+    where: { id: eventoId },
+    data: {
+      jugadorId,
+      clubId: partidoJugador.clubId,
+      detalle: { ...detalleActual, tipoFalta },
+    },
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=falta_editada`);
+}
+
+// Anulación lógica — reutiliza exactamente el mismo patrón que ya usa
+// deshacerUltimoEvento (columnas reales anulado/anuladoPorId/anuladoAt, no se
+// borra nada). motivoAnulacion es opcional y se guarda dentro de detalle
+// porque no existe una columna dedicada para eso — no rompe ningún cálculo
+// existente, ni extraerValorPunto ni extraerTipoFalta leen esa clave.
+export async function anularEvento(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const eventoId = String(formData.get("eventoId") ?? "");
+  const motivo = String(formData.get("motivo") ?? "").trim();
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const check = await requireOperadorEnCurso(partidoId, "No podés anular jugadas de este partido.");
+  if ("error" in check) {
+    fail(check.error);
+    return;
+  }
+  const { usuario } = check;
+
+  const evento = await buscarEventoDelPartido(partidoId, eventoId);
+  if (!evento) {
+    fail("Evento no encontrado.");
+    return;
+  }
+  if (evento.anulado) {
+    fail("Este evento ya está anulado.");
+    return;
+  }
+  if (!TIPOS_ANULABLES_DESDE_LISTA.includes(evento.tipo)) {
+    fail("Este tipo de evento solo se puede deshacer si es la última jugada — usá 'Deshacer último evento'.");
+    return;
+  }
+
+  const detalleActual =
+    evento.detalle && typeof evento.detalle === "object" && !Array.isArray(evento.detalle)
+      ? (evento.detalle as Record<string, number | string>)
+      : {};
+  await prisma.matchEvent.update({
+    where: { id: eventoId },
+    data: {
+      anulado: true,
+      anuladoPorId: usuario.id,
+      anuladoAt: new Date(),
+      detalle: motivo ? { ...detalleActual, motivoAnulacion: motivo } : detalleActual,
+    },
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=anulado`);
+}
+
 export async function finalizarPartido(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
 

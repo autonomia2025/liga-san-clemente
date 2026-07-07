@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { LiveMatchState, TipoFaltaValor } from "@/lib/mesa/live-match-state";
 import type { EstadoRelojCalculado } from "@/lib/mesa/reloj";
-import { describirEvento } from "@/lib/mesa/describir-evento";
+import { describirEvento, extraerClock, type DescribirContext } from "@/lib/mesa/describir-evento";
 import { Badge } from "@/components/ui/badge";
 import {
   controlarCuarto,
@@ -13,6 +13,9 @@ import {
   registrarTimeout,
   registrarPosesion,
   deshacerUltimoEvento,
+  editarPunto,
+  editarFalta,
+  anularEvento,
   finalizarPartido,
   iniciarOReanudarReloj,
   pausarReloj,
@@ -21,6 +24,19 @@ import {
 } from "./actions";
 
 type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null };
+
+// Fila mínima que necesita el editor de "jugadas recientes" (Mesa 3.2) — un
+// subconjunto de MatchEvent con id incluido (a diferencia de MatchEventLite
+// de live-match-state.ts, que no lo necesita porque solo agrega/calcula, no
+// apunta a filas individuales para editar/anular).
+type EventoRecienteRow = {
+  id: string;
+  tipo: string;
+  cuarto: number;
+  jugadorId: string | null;
+  clubId: string | null;
+  detalle: unknown;
+};
 
 const VALORES_PUNTO = [1, 2, 3] as const;
 
@@ -325,6 +341,223 @@ function BotonDeshacer({
         </button>
       </form>
     </div>
+  );
+}
+
+// Editor de "jugadas recientes" (Mesa 3.2) — corrige PUNTO/FALTA en
+// cualquier posición reciente del historial (no solo el último evento, a
+// diferencia de BotonDeshacer). Solo estos 4 tipos son seguros de tocar en
+// cualquier posición: PUNTO/FALTA/TIMEOUT/POSESION no tienen estado derivado
+// (a diferencia de SUSTITUCION/INICIO_CUARTO, que sí lo tienen — esos se
+// quedan exclusivos de "Deshacer último evento"). Ver actions.ts.
+const TIPOS_EDITABLES = new Set(["PUNTO", "FALTA"]);
+const TIPOS_ANULABLES = new Set(["PUNTO", "FALTA", "TIMEOUT", "POSESION"]);
+
+type ConvocadoConClub = JugadorSlot & { clubAbrev: string };
+
+function FilaEventoReciente({
+  partidoId,
+  evento,
+  descripcion,
+  clockLabel,
+  clubAbrev,
+  convocados,
+}: {
+  partidoId: string;
+  evento: EventoRecienteRow;
+  descripcion: string;
+  clockLabel: string | null;
+  clubAbrev: string | null;
+  convocados: ConvocadoConClub[];
+}) {
+  const [editando, setEditando] = useState(false);
+  const editable = TIPOS_EDITABLES.has(evento.tipo);
+  const anulable = TIPOS_ANULABLES.has(evento.tipo);
+
+  const detalle =
+    evento.detalle && typeof evento.detalle === "object" && !Array.isArray(evento.detalle)
+      ? (evento.detalle as Record<string, unknown>)
+      : {};
+  const valorActual = typeof detalle.valor === "number" ? detalle.valor : 2;
+  const tipoFaltaActual = typeof detalle.tipoFalta === "string" ? detalle.tipoFalta : "PERSONAL";
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-muted">
+          Q{evento.cuarto}
+          {clockLabel ? ` · ${clockLabel}` : ""}
+          {clubAbrev ? ` · ${clubAbrev}` : ""}
+        </span>
+        <span className="font-medium text-foreground">{descripcion}</span>
+        {(editable || anulable) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {editable && (
+              <button
+                type="button"
+                onClick={() => setEditando((v) => !v)}
+                className="rounded-md border border-border px-2 py-0.5 text-[10px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95"
+              >
+                {editando ? "Cancelar" : "Editar"}
+              </button>
+            )}
+            {anulable && !editando && (
+              <form
+                action={anularEvento}
+                onSubmit={(e) => {
+                  if (!window.confirm("¿Anular esta jugada? Queda registrada como anulada, no se borra.")) {
+                    e.preventDefault();
+                  }
+                }}
+                className="flex items-center gap-1"
+              >
+                <input type="hidden" name="partidoId" value={partidoId} />
+                <input type="hidden" name="eventoId" value={evento.id} />
+                <input
+                  name="motivo"
+                  placeholder="Motivo (opcional)"
+                  className="w-24 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] text-foreground"
+                />
+                <button
+                  type="submit"
+                  className="rounded-md border border-border px-2 py-0.5 text-[10px] font-semibold text-muted hover:border-danger/60 hover:bg-danger/10 hover:text-danger active:scale-95"
+                >
+                  Anular
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+      </div>
+
+      {editando && evento.tipo === "PUNTO" && (
+        <form
+          action={editarPunto}
+          onSubmit={() => setEditando(false)}
+          className="flex flex-wrap items-center gap-1.5 border-t border-dashed border-border pt-1.5"
+        >
+          <input type="hidden" name="partidoId" value={partidoId} />
+          <input type="hidden" name="eventoId" value={evento.id} />
+          <select
+            name="jugadorId"
+            defaultValue={evento.jugadorId ?? ""}
+            aria-label="Jugador"
+            className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] text-foreground"
+          >
+            {convocados.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.clubAbrev} {j.numeroCamiseta !== null ? `#${j.numeroCamiseta} ` : ""}
+                {j.nombre}
+              </option>
+            ))}
+          </select>
+          <select
+            name="valor"
+            defaultValue={valorActual}
+            aria-label="Valor"
+            className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] text-foreground"
+          >
+            {VALORES_PUNTO.map((v) => (
+              <option key={v} value={v}>
+                +{v}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="rounded-md border border-border px-2 py-0.5 text-[10px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95"
+          >
+            Guardar corrección
+          </button>
+        </form>
+      )}
+
+      {editando && evento.tipo === "FALTA" && (
+        <form
+          action={editarFalta}
+          onSubmit={() => setEditando(false)}
+          className="flex flex-wrap items-center gap-1.5 border-t border-dashed border-border pt-1.5"
+        >
+          <input type="hidden" name="partidoId" value={partidoId} />
+          <input type="hidden" name="eventoId" value={evento.id} />
+          <select
+            name="jugadorId"
+            defaultValue={evento.jugadorId ?? ""}
+            aria-label="Jugador"
+            className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] text-foreground"
+          >
+            {convocados.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.clubAbrev} {j.numeroCamiseta !== null ? `#${j.numeroCamiseta} ` : ""}
+                {j.nombre}
+              </option>
+            ))}
+          </select>
+          <select
+            name="tipoFalta"
+            defaultValue={tipoFaltaActual}
+            aria-label="Tipo de falta"
+            className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] text-foreground"
+          >
+            {TIPOS_FALTA.map((t) => (
+              <option key={t.valor} value={t.valor}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="rounded-md border border-border px-2 py-0.5 text-[10px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95"
+          >
+            Guardar corrección
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function CorregirJugadasRecientes({
+  partidoId,
+  eventos,
+  describirContext,
+  convocados,
+}: {
+  partidoId: string;
+  eventos: EventoRecienteRow[];
+  describirContext: DescribirContext;
+  convocados: ConvocadoConClub[];
+}) {
+  if (eventos.length === 0) return null;
+
+  return (
+    <details className="rounded-lg border border-border bg-surface">
+      <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+        Corregir jugadas recientes
+      </summary>
+      <div className="flex flex-col gap-1.5 px-3 pb-3">
+        {eventos.map((e) => {
+          const clock = extraerClock(e.detalle);
+          const clubAbrev =
+            e.clubId === describirContext.clubLocalId
+              ? abrevClub(describirContext.clubLocalNombre)
+              : e.clubId === describirContext.clubVisitanteId
+                ? abrevClub(describirContext.clubVisitanteNombre)
+                : null;
+          return (
+            <FilaEventoReciente
+              key={e.id}
+              partidoId={partidoId}
+              evento={e}
+              descripcion={describirEvento(e, describirContext)}
+              clockLabel={clock?.clockLabel ?? null}
+              clubAbrev={clubAbrev}
+              convocados={convocados}
+            />
+          );
+        })}
+      </div>
+    </details>
   );
 }
 
@@ -657,10 +890,13 @@ export function ConsolaPartido({
   canchaVisitante,
   bancaLocal,
   bancaVisitante,
+  convocadosLocal,
+  convocadosVisitante,
   liveState,
   nombresJugadores,
   duracionCuartoMinutos,
   relojInicial,
+  eventosRecientes,
 }: {
   partidoId: string;
   clubLocalId: string;
@@ -671,19 +907,32 @@ export function ConsolaPartido({
   canchaVisitante: JugadorSlot[];
   bancaLocal: JugadorSlot[];
   bancaVisitante: JugadorSlot[];
+  convocadosLocal: JugadorSlot[];
+  convocadosVisitante: JugadorSlot[];
   liveState: LiveMatchState;
   nombresJugadores: Map<string, string>;
   duracionCuartoMinutos: number;
   relojInicial: EstadoRelojCalculado;
+  eventosRecientes: EventoRecienteRow[];
 }) {
-  const descripcionUltimoEvento = describirUltimoEvento(liveState.ultimoEventoVigente, {
+  const describirContext: DescribirContext = {
     clubLocalId,
     clubVisitanteId,
     clubLocalNombre,
     clubVisitanteNombre,
     nombresJugadores,
-  });
+  };
+  const descripcionUltimoEvento = describirUltimoEvento(liveState.ultimoEventoVigente, describirContext);
   const segundosTimeout = useTimeoutCountdown(liveState.ultimoEventoVigente);
+
+  // Combina ambos planteles con su club para el editor de jugadas recientes
+  // — ahí se puede reasignar un evento al jugador/equipo correcto sin
+  // restringirse a "quién está en cancha ahora" (la jugada pudo haber
+  // ocurrido con otro lineup).
+  const convocadosParaEditor: ConvocadoConClub[] = [
+    ...convocadosLocal.map((j) => ({ ...j, clubAbrev: abrevClub(clubLocalNombre) })),
+    ...convocadosVisitante.map((j) => ({ ...j, clubAbrev: abrevClub(clubVisitanteNombre) })),
+  ];
 
   return (
     <div className="flex flex-col gap-3">
@@ -764,6 +1013,13 @@ export function ConsolaPartido({
 
         <BotonDeshacer partidoId={partidoId} descripcion={descripcionUltimoEvento} />
       </div>
+
+      <CorregirJugadasRecientes
+        partidoId={partidoId}
+        eventos={eventosRecientes}
+        describirContext={describirContext}
+        convocados={convocadosParaEditor}
+      />
 
       {/* Cancha: 1 columna en portrait (celular/tablet), lado a lado desde
           lg — evita que las cards de jugador queden diminutas en pantallas

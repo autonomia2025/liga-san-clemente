@@ -77,7 +77,7 @@ export default async function MesaPartidoPage({
     prisma.matchEvent.findMany({
       where: { partidoId: partido!.id, anulado: false },
       orderBy: { createdAt: "asc" },
-      select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
+      select: { id: true, tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
     }),
   ]);
 
@@ -141,6 +141,11 @@ export default async function MesaPartidoPage({
     .filter((c) => c.clubId === partido!.clubVisitanteId && !c.enCancha)
     .map((c) => c.jugador);
 
+  // Editor "Corregir jugadas recientes" (Mesa 3.2): últimas 8 jugadas
+  // vigentes, más reciente primero. eventos ya viene filtrado anulado:false
+  // desde la query, así que no hace falta re-filtrar acá.
+  const eventosRecientes = [...eventos].slice(-8).reverse();
+
   const sinConvocados = convocadosLocal.length === 0 && convocadosVisitante.length === 0;
   const faltanTitulares =
     !sinConvocados &&
@@ -178,6 +183,9 @@ export default async function MesaPartidoPage({
       {ok === "timeout" && <p className="text-sm text-success">Timeout registrado.</p>}
       {ok === "posesion" && <p className="text-sm text-success">Posesión actualizada.</p>}
       {ok === "deshacer" && <p className="text-sm text-success">Último evento deshecho.</p>}
+      {ok === "punto_editado" && <p className="text-sm text-success">Punto corregido.</p>}
+      {ok === "falta_editada" && <p className="text-sm text-success">Falta corregida.</p>}
+      {ok === "anulado" && <p className="text-sm text-success">Jugada anulada.</p>}
       {ok === "finalizado" && (
         <p className="text-sm text-success">Partido finalizado. Listo para generar Acta.</p>
       )}
@@ -298,10 +306,13 @@ export default async function MesaPartidoPage({
           canchaVisitante={canchaVisitante}
           bancaLocal={bancaLocal}
           bancaVisitante={bancaVisitante}
+          convocadosLocal={convocadosLocal}
+          convocadosVisitante={convocadosVisitante}
           liveState={liveState}
           nombresJugadores={nombresJugadores}
           duracionCuartoMinutos={partido!.duracionCuartoMinutos}
           relojInicial={relojInicial}
+          eventosRecientes={eventosRecientes}
         />
       )}
 
