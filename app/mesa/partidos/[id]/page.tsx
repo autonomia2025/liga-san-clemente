@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
 import { ConvocadosForm } from "./convocados-form";
 import { TitularesForm } from "./titulares-form";
+import { NumerosCamisetaForm } from "./numeros-camiseta-form";
 import { ConsolaPartido } from "./consola-partido";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
 import { Badge } from "@/components/ui/badge";
@@ -147,6 +148,7 @@ export default async function MesaPartidoPage({
       )}
 
       {error && <p className="text-sm text-danger">{error}</p>}
+      {ok === "numero" && <p className="text-sm text-success">Número de camiseta actualizado.</p>}
       {ok === "convocados" && <p className="text-sm text-success">Convocados guardados.</p>}
       {ok === "titulares" && <p className="text-sm text-success">Titulares guardados.</p>}
       {ok === "cuarto" && <p className="text-sm text-success">Cuarto actualizado.</p>}
@@ -278,11 +280,27 @@ export default async function MesaPartidoPage({
           bancaVisitante={bancaVisitante}
           liveState={liveState}
           nombresJugadores={nombresJugadores}
+          duracionCuartoMinutos={partido!.duracionCuartoMinutos}
         />
       )}
 
       {!partidoFinalizado && (
         <>
+          <details className="rounded-lg border border-border bg-surface">
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
+              Editar números de camiseta
+            </summary>
+            <div className="px-4 pb-4">
+              <NumerosCamisetaForm
+                partidoId={partido!.id}
+                clubLocalNombre={partido!.clubLocal.nombre}
+                clubVisitanteNombre={partido!.clubVisitante.nombre}
+                jugadoresLocal={jugadoresLocal}
+                jugadoresVisitante={jugadoresVisitante}
+              />
+            </div>
+          </details>
+
           <details className="rounded-lg border border-border bg-surface" open={!consolaLista}>
             <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
               Editar convocados (máximo 12 por equipo)

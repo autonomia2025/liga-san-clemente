@@ -1,14 +1,18 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 
 // Acciones de Jugador reutilizadas desde /admin/clubes/[id]/jugadores (nómina
-// por club) y desde /admin/jugadores/[id] (edición completa) — por eso todas
-// reciben un "returnTo" del formulario en vez de tener una redirección fija.
+// por club), /admin/jugadores/[id] (edición completa) y ahora también desde
+// /mesa/partidos/[id] (corrección rápida de dorsal antes/durante el partido)
+// — por eso todas reciben un "returnTo" del formulario en vez de tener una
+// redirección fija. Solo se permiten rutas internas conocidas (nunca un host
+// externo) para evitar un open-redirect si alguien manipula el form.
 function safeReturnTo(raw: FormDataEntryValue | null, fallback: string): string {
   const s = String(raw ?? "");
-  return s.startsWith("/admin/") ? s : fallback;
+  return s.startsWith("/admin/") || s.startsWith("/mesa/") ? s : fallback;
 }
 
 function isDuplicateNumero(error: unknown): boolean {
@@ -80,6 +84,42 @@ export async function updateNumeroCamiseta(formData: FormData) {
   }
 
   redirect(`${returnTo}?ok=numero`);
+}
+
+// Variante para /mesa/partidos/[id]: la fila de convocados vive dentro de un
+// <form> grande (checkboxes de convocados, un solo submit para toda la
+// nómina) — no se puede anidar OTRO <form> por número sin romper HTML. Esta
+// versión no usa <form>/redirect: se llama directo desde un botón "use
+// client" y devuelve un resultado en vez de navegar, así el operador no
+// pierde los checkboxes que ya venía marcando pero todavía no guardó.
+export async function updateNumeroCamisetaInline(
+  jugadorId: string,
+  numeroCamisetaRaw: string,
+  partidoId: string,
+): Promise<{ ok: true; numeroCamiseta: number | null } | { ok: false; error: string }> {
+  const raw = numeroCamisetaRaw.trim();
+  let numeroCamiseta: number | null = null;
+  if (raw.length > 0) {
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 0 || n > 99) {
+      return { ok: false, error: "El número debe ser un entero entre 0 y 99." };
+    }
+    numeroCamiseta = n;
+  }
+
+  try {
+    await prisma.jugador.update({ where: { id: jugadorId }, data: { numeroCamiseta } });
+  } catch (error) {
+    return {
+      ok: false,
+      error: isDuplicateNumero(error)
+        ? `Ya existe un jugador con el número ${numeroCamiseta} en ese club.`
+        : "No se pudo actualizar el número.",
+    };
+  }
+
+  revalidatePath(`/mesa/partidos/${partidoId}`);
+  return { ok: true, numeroCamiseta };
 }
 
 export async function toggleActivoJugador(formData: FormData) {

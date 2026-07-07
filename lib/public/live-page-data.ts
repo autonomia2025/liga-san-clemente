@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
+import { describirEvento, extraerClock } from "@/lib/mesa/describir-evento";
 
 // Datos para la página pública /en-vivo. Reutiliza buildLiveMatchState (capa
 // de dominio ya usada por getHeroData para Home) para calcular marcador,
@@ -38,6 +39,18 @@ export type LiveBoxscoreRow = {
   fouls?: number | null;
 };
 
+// Una fila del Play by Play público. clockLabel es null para eventos
+// anteriores a esta PR (no tenían reloj registrado) — nunca se inventa, la UI
+// simplemente muestra el evento sin hora en ese caso.
+export type PlayByPlayEntry = {
+  id: string;
+  cuarto: number;
+  clockLabel: string | null;
+  equipoAbbr: string | null;
+  descripcion: string;
+  valor: number | null;
+};
+
 export type LiveGameData = {
   state: "live" | "upcoming" | "none";
   match?: {
@@ -54,6 +67,7 @@ export type LiveGameData = {
     leaders?: LivePlayerStat[];
     homeBoxscore?: LiveBoxscoreRow[];
     awayBoxscore?: LiveBoxscoreRow[];
+    playByPlay?: PlayByPlayEntry[];
   };
 };
 
@@ -99,7 +113,16 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
       eventos: {
         where: { anulado: false },
         orderBy: { createdAt: "asc" },
-        select: { tipo: true, cuarto: true, anulado: true, jugadorId: true, clubId: true, detalle: true },
+        select: {
+          id: true,
+          tipo: true,
+          cuarto: true,
+          anulado: true,
+          jugadorId: true,
+          clubId: true,
+          detalle: true,
+          createdAt: true,
+        },
       },
     },
   });
@@ -148,6 +171,42 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
       };
     });
 
+  // Play by Play: mismo describirEvento que usa la consola de Mesa para
+  // "último evento" — una sola fuente de descripciones para Mesa y público.
+  // Más reciente primero (eventos ya vienen asc por createdAt, se invierte).
+  const nombresJugadores = new Map(roster.map((r) => [r.jugador.id, r.jugador.nombre]));
+  const describirContext = {
+    clubLocalId: partido.clubLocalId,
+    clubVisitanteId: partido.clubVisitanteId,
+    clubLocalNombre: clubNombreCorto(partido.clubLocal.nombre),
+    clubVisitanteNombre: clubNombreCorto(partido.clubVisitante.nombre),
+    nombresJugadores,
+  };
+
+  const playByPlay: PlayByPlayEntry[] = [...partido.eventos]
+    .reverse()
+    .map((e) => {
+      const clock = extraerClock(e.detalle);
+      const equipoAbbr =
+        e.clubId === partido.clubLocalId
+          ? clubAbrev(partido.clubLocal.nombre)
+          : e.clubId === partido.clubVisitanteId
+            ? clubAbrev(partido.clubVisitante.nombre)
+            : null;
+      const valor =
+        e.tipo === "PUNTO" && e.detalle && typeof e.detalle === "object" && !Array.isArray(e.detalle) && "valor" in e.detalle
+          ? (e.detalle as { valor: unknown }).valor
+          : null;
+      return {
+        id: e.id,
+        cuarto: e.cuarto,
+        clockLabel: clock?.clockLabel ?? null,
+        equipoAbbr,
+        descripcion: describirEvento(e, describirContext),
+        valor: typeof valor === "number" ? valor : null,
+      };
+    });
+
   return {
     id: partido.id,
     status: "live",
@@ -161,6 +220,7 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
     leaders,
     homeBoxscore,
     awayBoxscore,
+    playByPlay,
   };
 }
 

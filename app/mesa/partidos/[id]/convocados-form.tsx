@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
+import { updateNumeroCamisetaInline } from "@/lib/actions/jugadores";
 import { guardarConvocados } from "./actions";
 
 const MAX_CONVOCADOS = 12;
@@ -12,18 +13,72 @@ type JugadorOption = {
   numeroCamiseta: number | null;
 };
 
+// Edición del dorsal en el momento de armar convocados. No puede ser un
+// <form> propio: la fila vive dentro del <form action={guardarConvocados}>
+// grande de toda la nómina, y HTML no permite <form> anidado. Se llama a la
+// server action directo desde el botón (sin form/redirect) — así el
+// operador no pierde los checkboxes que ya marcó pero todavía no guardó.
+function NumeroInline({
+  jugadorId,
+  numeroInicial,
+  partidoId,
+}: {
+  jugadorId: string;
+  numeroInicial: number | null;
+  partidoId: string;
+}) {
+  const [valor, setValor] = useState(numeroInicial !== null ? String(numeroInicial) : "");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function guardar() {
+    setError(null);
+    startTransition(async () => {
+      const res = await updateNumeroCamisetaInline(jugadorId, valor, partidoId);
+      if (!res.ok) setError(res.error);
+    });
+  }
+
+  return (
+    <span className="flex shrink-0 items-center gap-1">
+      <span className="text-xs text-muted">#</span>
+      <input
+        type="number"
+        min={0}
+        max={99}
+        value={valor}
+        onChange={(e) => setValor(e.target.value)}
+        placeholder="—"
+        aria-label="Número de camiseta"
+        className="w-12 rounded-md border border-border bg-background px-1 py-1 text-xs text-foreground"
+      />
+      <button
+        type="button"
+        onClick={guardar}
+        disabled={pending}
+        className="rounded-md border border-border px-1.5 py-1 text-[10px] font-semibold text-muted hover:bg-surface-hover active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+      >
+        {pending ? "..." : "OK"}
+      </button>
+      {error && <span className="max-w-[7rem] text-[10px] text-danger">{error}</span>}
+    </span>
+  );
+}
+
 function ConvocadosColumna({
   titulo,
   fieldName,
   jugadores,
   seleccionados,
   onToggle,
+  partidoId,
 }: {
   titulo: string;
   fieldName: string;
   jugadores: JugadorOption[];
   seleccionados: Set<string>;
   onToggle: (id: string) => void;
+  partidoId: string;
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
@@ -39,25 +94,27 @@ function ConvocadosColumna({
           const checked = seleccionados.has(j.id);
           const disabled = !checked && seleccionados.size >= MAX_CONVOCADOS;
           return (
-            <label
+            <div
               key={j.id}
               className={`flex items-center gap-2 rounded-md px-2 py-2 text-sm ${
-                disabled ? "opacity-40" : "cursor-pointer hover:bg-surface-hover"
+                disabled ? "opacity-40" : "hover:bg-surface-hover"
               }`}
             >
-              <input
-                type="checkbox"
-                name={fieldName}
-                value={j.id}
-                checked={checked}
-                disabled={disabled}
-                onChange={() => onToggle(j.id)}
-              />
-              <span className="text-foreground">{j.nombre}</span>
-              <Badge tone={j.numeroCamiseta !== null ? "accent-blue" : "accent-orange"} className="ml-auto">
-                {j.numeroCamiseta !== null ? `#${j.numeroCamiseta}` : "Sin dorsal"}
-              </Badge>
-            </label>
+              <label
+                className={`flex min-w-0 flex-1 items-center gap-2 ${disabled ? "" : "cursor-pointer"}`}
+              >
+                <input
+                  type="checkbox"
+                  name={fieldName}
+                  value={j.id}
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={() => onToggle(j.id)}
+                />
+                <span className="truncate text-foreground">{j.nombre}</span>
+              </label>
+              <NumeroInline jugadorId={j.id} numeroInicial={j.numeroCamiseta} partidoId={partidoId} />
+            </div>
           );
         })}
         {jugadores.length === 0 && (
@@ -117,6 +174,7 @@ export function ConvocadosForm({
           jugadores={jugadoresLocal}
           seleccionados={local}
           onToggle={toggleLocal}
+          partidoId={partidoId}
         />
         <ConvocadosColumna
           titulo={clubVisitanteNombre}
@@ -124,6 +182,7 @@ export function ConvocadosForm({
           jugadores={jugadoresVisitante}
           seleccionados={visitante}
           onToggle={toggleVisitante}
+          partidoId={partidoId}
         />
       </div>
 

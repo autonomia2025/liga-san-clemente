@@ -11,8 +11,10 @@ import {
   type LiveGameData,
   type LivePlayerStat,
   type LiveTeam,
+  type PlayByPlayEntry,
 } from "@/lib/public/live-page-data";
 import { clubLogoPad } from "@/lib/public/display";
+import { LiveRefresher } from "@/components/site/live-refresher";
 
 export const dynamic = "force-dynamic";
 
@@ -194,6 +196,49 @@ function BoxscoreTeam({ team, rows }: { team: LiveTeam; rows: LiveBoxscoreRow[] 
   );
 }
 
+function PlayByPlayRow({ entry }: { entry: PlayByPlayEntry }) {
+  return (
+    <li className="flex items-center gap-3 border-b border-white/[0.06] py-3 last:border-b-0">
+      <div className="flex w-16 shrink-0 flex-col items-start">
+        <span className="font-head text-xs uppercase leading-none tracking-tight text-accent-gold">
+          Q{entry.cuarto}
+        </span>
+        {entry.clockLabel && (
+          <span className="mt-0.5 font-mono text-[11px] tabular-nums text-text-secondary">{entry.clockLabel}</span>
+        )}
+      </div>
+      {entry.equipoAbbr && (
+        <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 font-head text-[10px] uppercase leading-none text-text-secondary">
+          {entry.equipoAbbr}
+        </span>
+      )}
+      <span className="min-w-0 flex-1 truncate font-body text-sm text-text-primary">{entry.descripcion}</span>
+      {entry.valor != null && (
+        <span className="shrink-0 font-head text-sm leading-none text-accent-blue">+{entry.valor}</span>
+      )}
+    </li>
+  );
+}
+
+function PlayByPlay({ entries }: { entries: PlayByPlayEntry[] }) {
+  return (
+    <div className="mt-10">
+      <h2 className="mb-5 font-head text-2xl uppercase leading-none tracking-tight text-text-primary">
+        Play by Play
+      </h2>
+      {entries.length === 0 ? (
+        <p className="font-body text-sm text-text-secondary">Aún no hay acciones registradas.</p>
+      ) : (
+        <ul className="rounded-2xl border border-white/10 bg-bg-elevated px-5 sm:px-6">
+          {entries.map((e) => (
+            <PlayByPlayRow key={e.id} entry={e} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /* ---- estados de la página ---------------------------------------------------- */
 
 function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> }) {
@@ -238,6 +283,8 @@ function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> })
         </h2>
         <LeadersRow leaders={match.leaders ?? []} />
       </div>
+
+      <PlayByPlay entries={match.playByPlay ?? []} />
 
       <div className="mt-10">
         <h2 className="mb-5 font-head text-2xl uppercase leading-none tracking-tight text-text-primary">Boxscore</h2>
@@ -381,6 +428,7 @@ export default async function EnVivoPage() {
 
   return (
     <div className="min-h-screen bg-bg-base font-body text-text-primary">
+      <LiveRefresher />
       <Navbar isLiveNow={isLiveNow} />
 
       <main className="pt-[var(--navbar-height)]">

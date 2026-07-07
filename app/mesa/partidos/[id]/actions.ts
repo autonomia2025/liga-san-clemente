@@ -5,6 +5,18 @@ import { prisma } from "@/lib/db";
 import { getCurrentUsuario } from "@/lib/auth";
 import { TipoEvento, TipoFalta, OrigenStat } from "@/generated/prisma/client";
 import { buildLiveMatchState } from "@/lib/mesa/live-match-state";
+import { parseClockLabel } from "@/lib/mesa/describir-evento";
+
+// El cronómetro de Mesa es 100% cliente (no persiste su propio estado, ver
+// consola-partido.tsx) — cada form manda "tiempoRestante" (MM:SS) como
+// snapshot del reloj al momento del click. Si el formato no es válido (o no
+// vino, ej. un form viejo en caché), el evento igual se guarda, solo que sin
+// tiempo — nunca se bloquea el registro de una jugada por un dato opcional.
+function clockDetalle(tiempoRestanteRaw: unknown): { minuto?: number; segundo?: number; clockLabel?: string } {
+  const raw = String(tiempoRestanteRaw ?? "");
+  const clock = parseClockLabel(raw);
+  return clock ? { minuto: clock.minuto, segundo: clock.segundo, clockLabel: clock.clockLabel } : {};
+}
 
 // Valida sesión Mesa + operador correcto + partido EN_CURSO — el chequeo que
 // repite cada Server Action de esta consola antes de escribir nada. Devuelve
@@ -250,6 +262,7 @@ export async function registrarPunto(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const jugadorId = String(formData.get("jugadorId") ?? "");
   const valor = Number(formData.get("valor") ?? "");
+  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -290,7 +303,7 @@ export async function registrarPunto(formData: FormData) {
       tipo: TipoEvento.PUNTO,
       jugadorId,
       clubId: partidoJugador.clubId,
-      detalle: { valor },
+      detalle: { valor, ...clockDetalle(tiempoRestante) },
     },
   });
 
@@ -303,6 +316,7 @@ export async function registrarFalta(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const jugadorId = String(formData.get("jugadorId") ?? "");
   const tipoFalta = String(formData.get("tipoFalta") ?? "");
+  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -344,7 +358,7 @@ export async function registrarFalta(formData: FormData) {
       tipo: TipoEvento.FALTA,
       jugadorId,
       clubId: partidoJugador.clubId,
-      detalle: { tipoFalta },
+      detalle: { tipoFalta, ...clockDetalle(tiempoRestante) },
     },
   });
 
@@ -355,6 +369,7 @@ export async function registrarSustitucion(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const jugadorSaleId = String(formData.get("jugadorSaleId") ?? "");
   const jugadorEntraId = String(formData.get("jugadorEntraId") ?? "");
+  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -416,7 +431,7 @@ export async function registrarSustitucion(formData: FormData) {
         tipo: TipoEvento.SUSTITUCION,
         jugadorId: jugadorEntraId,
         clubId: partidoJugadorSale.clubId,
-        detalle: { jugadorEntraId, jugadorSaleId },
+        detalle: { jugadorEntraId, jugadorSaleId, ...clockDetalle(tiempoRestante) },
       },
     }),
   ]);
@@ -427,6 +442,7 @@ export async function registrarSustitucion(formData: FormData) {
 export async function registrarTimeout(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const clubId = String(formData.get("clubId") ?? "");
+  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -456,6 +472,7 @@ export async function registrarTimeout(formData: FormData) {
       cuarto: estado.cuartoActivo,
       tipo: TipoEvento.TIMEOUT,
       clubId,
+      detalle: clockDetalle(tiempoRestante),
     },
   });
 
@@ -465,6 +482,7 @@ export async function registrarTimeout(formData: FormData) {
 export async function registrarPosesion(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const clubId = String(formData.get("clubId") ?? "");
+  const tiempoRestante = formData.get("tiempoRestante");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
@@ -494,6 +512,7 @@ export async function registrarPosesion(formData: FormData) {
       cuarto: estado.cuartoActivo,
       tipo: TipoEvento.POSESION,
       clubId,
+      detalle: clockDetalle(tiempoRestante),
     },
   });
 
