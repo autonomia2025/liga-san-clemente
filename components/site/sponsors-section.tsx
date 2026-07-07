@@ -6,7 +6,10 @@ import { useEffect, useState } from "react";
 // ahora mocks desde app/page.tsx (NO conectada a DB). Apoya, no protagoniza:
 // tono sobrio, sin grid de cards blancas ni bloque publicitario invasivo.
 
-export type SponsorTier = "main" | "support";
+// "destacado": auspiciadores que aportan más y deben resaltar un poco más
+// (logo/nombre más grande, tarjeta propia) — puede haber varios, no solo uno.
+// "support": el resto, tratamiento chico igual que siempre.
+export type SponsorTier = "destacado" | "support";
 
 export type Sponsor = {
   name: string;
@@ -61,8 +64,8 @@ function SponsorMark({ sponsor }: { sponsor: Sponsor }) {
 
 export function SponsorsSection({ sponsors }: SponsorsSectionProps) {
   const reduce = usePrefersReducedMotion();
-  const main = sponsors.find((s) => s.tier === "main");
-  const support = sponsors.filter((s) => s.tier !== "main");
+  const destacados = sponsors.filter((s) => s.tier === "destacado");
+  const support = sponsors.filter((s) => s.tier !== "destacado");
 
   return (
     <section id="auspiciadores" className="lbsc-container lbsc-section-tight">
@@ -75,22 +78,42 @@ export function SponsorsSection({ sponsors }: SponsorsSectionProps) {
         </h2>
       </div>
 
-      {/* Auspiciador principal destacado */}
-      {main && (
-        <div className="mb-10 flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-bg-elevated px-6 py-10 text-center">
-          <span className="font-body text-[11px] font-bold uppercase tracking-[0.24em] text-accent-gold">
-            {main.label ?? "Auspiciador oficial"}
-          </span>
-          {main.logoUrl ? (
-            <span
-              className="block h-14 w-52"
-              role="img"
-              aria-label={main.name}
-              style={{ backgroundImage: `url(${main.logoUrl})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
-            />
-          ) : (
-            <span className="font-head text-4xl uppercase tracking-wide text-text-primary sm:text-5xl">{main.name}</span>
-          )}
+      {/* Auspiciadores destacados: aportan más, resaltan un poco más que el
+          resto (tarjeta propia, logo/nombre más grande) — sin ser un bloque
+          publicitario invasivo, mismo tono sobrio que el resto de la sección. */}
+      {destacados.length > 0 && (
+        <div className="mb-10 flex flex-wrap items-stretch justify-center gap-4">
+          {destacados.map((s, i) => {
+            const card = (
+              <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-bg-elevated px-8 py-8 text-center transition-colors hover:border-accent-gold/30">
+                <span className="font-body text-[11px] font-bold uppercase tracking-[0.24em] text-accent-gold">
+                  {s.label ?? "Auspiciador destacado"}
+                </span>
+                {s.logoUrl ? (
+                  <span
+                    className="block h-12 w-40"
+                    role="img"
+                    aria-label={s.name}
+                    style={{ backgroundImage: `url(${s.logoUrl})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
+                  />
+                ) : (
+                  <span className="font-head text-3xl uppercase tracking-wide text-text-primary sm:text-4xl">{s.name}</span>
+                )}
+              </div>
+            );
+            return s.href ? (
+              <a
+                key={`${s.name}-${i}`}
+                href={s.href}
+                aria-label={s.name}
+                className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+              >
+                {card}
+              </a>
+            ) : (
+              <div key={`${s.name}-${i}`}>{card}</div>
+            );
+          })}
         </div>
       )}
 

@@ -40,12 +40,18 @@ export const metadata: Metadata = {
 // Historia, auspiciadores y footer siguen con constantes/placeholders por ahora
 // (no son dinámicos en este PR). El resto de la Home usa datos reales de DB vía
 // getHomePageData(), con estado de error por módulo si una query falla.
+// Spalding, Meneagro y MV Nutrition aportan más a la temporada y resaltan un
+// poco más (tarjeta propia en SponsorsSection). Depore, CCF, Jiko Barber y
+// Lever and Murphy Co. quedan con el tratamiento chico de siempre. Logos
+// reales en public/auspiciadores/.
 const MOCK_SPONSORS: Sponsor[] = [
-  { name: "Spalding", tier: "main", label: "Auspiciador Oficial" },
-  { name: "Depore", tier: "support" },
-  { name: "CCF", tier: "support" },
-  { name: "Meneagro", tier: "support" },
-  { name: "MV Nutrition", tier: "support" },
+  { name: "Spalding", tier: "destacado", label: "Auspiciador Oficial", logoUrl: "/auspiciadores/spalding.png" },
+  { name: "Meneagro", tier: "destacado", logoUrl: "/auspiciadores/meneagro.png" },
+  { name: "MV Nutrition", tier: "destacado", logoUrl: "/auspiciadores/mv-nutrition.png" },
+  { name: "Depore", tier: "support", logoUrl: "/auspiciadores/depore.png" },
+  { name: "CCF", tier: "support", logoUrl: "/auspiciadores/ccf.png" },
+  { name: "Jiko Barber", tier: "support", logoUrl: "/auspiciadores/jiko-barber.png" },
+  { name: "Lever and Murphy Co.", tier: "support", logoUrl: "/auspiciadores/lever-murphy.png" },
 ];
 
 const FOOTER_NAV_LINKS: FooterLink[] = [
