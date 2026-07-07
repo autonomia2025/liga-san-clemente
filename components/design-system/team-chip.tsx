@@ -15,11 +15,12 @@ export function TeamChip({
   color?: string;
   className?: string;
 }) {
-  // Si hay logo se usa como fondo; si no, el color (o un púrpura por defecto)
-  // detrás de la abreviatura. Se evita <img> a propósito (nada de assets reales
-  // todavía y así no dependemos de next/image en esta fundación).
+  // Si hay logo se usa como fondo (contain, nunca cover, para no cortar el
+  // escudo) sobre un lavado blanco tenue que le da contraste en fondo oscuro;
+  // si no hay logo, el color de club (o un púrpura por defecto) detrás de la
+  // abreviatura.
   const badgeStyle = logoUrl
-    ? { background: `center/cover no-repeat url(${logoUrl})` }
+    ? { background: `rgba(255,255,255,0.05) center/contain no-repeat url(${logoUrl})` }
     : { background: color ?? "linear-gradient(155deg, #7c3aed, #4c1d95)" };
 
   return (

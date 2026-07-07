@@ -63,12 +63,19 @@ function TeamBlock({ team, align }: { team: LiveTeam; align: "left" | "right" })
   return (
     <div className={`flex min-w-0 flex-1 flex-col items-center gap-3 text-center ${align === "left" ? "sm:items-end sm:text-right" : "sm:items-start sm:text-left"}`}>
       <span
-        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl font-head text-lg uppercase leading-none text-white ring-1 ring-white/10 sm:h-20 sm:w-20"
-        style={{
-          background: team.logoUrl
-            ? `center/cover no-repeat url(${team.logoUrl})`
-            : `linear-gradient(155deg, ${team.color ?? "#7c3aed"}, #0a0e1a 82%)`,
-        }}
+        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl p-2 font-head text-lg uppercase leading-none text-white ring-1 ring-white/10 sm:h-20 sm:w-20"
+        style={
+          team.logoUrl
+            ? {
+                backgroundColor: "rgba(255,255,255,0.05)",
+                backgroundImage: `url(${team.logoUrl})`,
+                backgroundSize: "contain",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                backgroundOrigin: "content-box",
+              }
+            : { background: `linear-gradient(155deg, ${team.color ?? "#7c3aed"}, #0a0e1a 82%)` }
+        }
         aria-hidden={team.logoUrl ? true : undefined}
       >
         {team.logoUrl ? "" : team.abbr}
@@ -121,7 +128,7 @@ function BoxscoreTeam({ team, rows }: { team: LiveTeam; rows: LiveBoxscoreRow[] 
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md font-head text-[10px] uppercase leading-none text-white ring-1 ring-white/10"
           style={{
             background: team.logoUrl
-              ? `center/cover no-repeat url(${team.logoUrl})`
+              ? `rgba(255,255,255,0.05) center/contain no-repeat url(${team.logoUrl})`
               : `linear-gradient(155deg, ${team.color ?? "#7c3aed"}, #0a0e1a 82%)`,
           }}
         >

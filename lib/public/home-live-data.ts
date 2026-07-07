@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { clubAbrev, clubColor, clubNombreCorto } from "@/lib/public/display";
+import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
 import { getStandings } from "@/lib/public/standings";
 import { getTopScorers } from "@/lib/public/rankings";
 import { getEquipos, getHeroData } from "@/lib/public/home-data";
@@ -76,7 +76,7 @@ function teamRef(club: { nombre: string; escudoUrl: string | null }) {
   return {
     name: clubNombreCorto(club.nombre),
     abbr: clubAbrev(club.nombre),
-    logoUrl: club.escudoUrl ?? undefined,
+    logoUrl: clubLogoUrl(club.nombre) ?? club.escudoUrl ?? undefined,
     color: clubColor(club.nombre),
   };
 }
@@ -188,7 +188,7 @@ async function loadStandings(): Promise<StandingPreviewTeam[]> {
     team: {
       name: clubNombreCorto(r.clubNombre),
       abbr: clubAbrev(r.clubNombre),
-      logoUrl: escudo.get(r.clubId) ?? undefined,
+      logoUrl: clubLogoUrl(r.clubNombre) ?? escudo.get(r.clubId) ?? undefined,
       color: clubColor(r.clubNombre),
     },
     played: r.pj,
@@ -282,7 +282,7 @@ async function loadTeams(): Promise<TeamGridItem[]> {
     name: clubNombreCorto(e.nombre),
     slug: slugify(e.nombre),
     abbr: clubAbrev(e.nombre),
-    logoUrl: e.escudoUrl ?? undefined,
+    logoUrl: clubLogoUrl(e.nombre) ?? e.escudoUrl ?? undefined,
     accentColor: clubColor(e.nombre),
     currentPosition: posPorClub.get(e.id)?.pos ?? null,
     tablePoints: posPorClub.get(e.id)?.pts ?? null,

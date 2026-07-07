@@ -83,15 +83,22 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 /* ---- piezas ------------------------------------------------------------------ */
 
 function TeamCrest({ team, size = "lg" }: { team: TeamPageData["team"]; size?: "lg" | "sm" }) {
-  const dims = size === "lg" ? "h-24 w-24 text-2xl sm:h-28 sm:w-28 sm:text-3xl" : "h-9 w-9 text-[11px]";
+  const dims = size === "lg" ? "h-24 w-24 p-2.5 text-2xl sm:h-28 sm:w-28 sm:text-3xl" : "h-9 w-9 text-[11px]";
   return (
     <span
       className={`flex ${dims} shrink-0 items-center justify-center rounded-2xl font-head uppercase leading-none text-white ring-1 ring-white/10`}
-      style={{
-        background: team.logoUrl
-          ? `center/cover no-repeat url(${team.logoUrl})`
-          : `linear-gradient(155deg, ${team.color}, #0a0e1a 82%)`,
-      }}
+      style={
+        team.logoUrl
+          ? {
+              backgroundColor: "rgba(255,255,255,0.05)",
+              backgroundImage: `url(${team.logoUrl})`,
+              backgroundSize: "contain",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              backgroundOrigin: "content-box",
+            }
+          : { background: `linear-gradient(155deg, ${team.color}, #0a0e1a 82%)` }
+      }
       role="img"
       aria-label={team.logoUrl ? team.name : `Escudo de ${team.name}`}
     >

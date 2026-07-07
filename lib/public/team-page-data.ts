@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { clubAbrev, clubColor, clubNombreCorto } from "@/lib/public/display";
+import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
 import { getStandings } from "@/lib/public/standings";
 import { getTopScorers } from "@/lib/public/rankings";
 
@@ -113,7 +113,7 @@ function teamRef(club: { nombre: string; escudoUrl: string | null }): MatchTeamR
   return {
     name: clubNombreCorto(club.nombre),
     abbr: clubAbrev(club.nombre),
-    logoUrl: club.escudoUrl ?? undefined,
+    logoUrl: clubLogoUrl(club.nombre) ?? club.escudoUrl ?? undefined,
     color: clubColor(club.nombre),
   };
 }
@@ -266,7 +266,7 @@ export async function getTeamPageData(slug: string): Promise<TeamPageData | null
       name: shortName,
       shortName,
       abbr: clubAbrev(club.nombre),
-      logoUrl: club.escudoUrl,
+      logoUrl: clubLogoUrl(club.nombre) ?? club.escudoUrl ?? undefined,
       color: clubColor(club.nombre),
     },
     standing,

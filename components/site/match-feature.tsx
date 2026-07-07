@@ -70,8 +70,19 @@ function TeamColumn({ team, className = "" }: { team: TeamInfo; className?: stri
   return (
     <div className={`flex flex-col items-center gap-2 text-center ${className}`}>
       <span
-        className="flex h-14 w-14 items-center justify-center rounded-2xl font-head text-base uppercase leading-none text-white ring-1 ring-white/10"
-        style={{ background: team.logoUrl ? `center/cover no-repeat url(${team.logoUrl})` : team.color ?? "linear-gradient(155deg,#7c3aed,#4c1d95)" }}
+        className="flex h-14 w-14 items-center justify-center rounded-2xl p-1.5 font-head text-base uppercase leading-none text-white ring-1 ring-white/10"
+        style={
+          team.logoUrl
+            ? {
+                backgroundColor: "rgba(255,255,255,0.05)",
+                backgroundImage: `url(${team.logoUrl})`,
+                backgroundSize: "contain",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                backgroundOrigin: "content-box",
+              }
+            : { background: team.color ?? "linear-gradient(155deg,#7c3aed,#4c1d95)" }
+        }
       >
         {team.logoUrl ? "" : team.abbr}
       </span>

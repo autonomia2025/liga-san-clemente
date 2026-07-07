@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { clubAbrev, clubColor, clubNombreCorto } from "@/lib/public/display";
+import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
 
 export type CalendarTeam = {
   name: string;
@@ -49,7 +49,7 @@ function teamRef(club: { nombre: string; escudoUrl: string | null }): CalendarTe
   return {
     name: clubNombreCorto(club.nombre),
     abbr: clubAbrev(club.nombre),
-    logoUrl: club.escudoUrl ?? undefined,
+    logoUrl: clubLogoUrl(club.nombre) ?? club.escudoUrl ?? undefined,
     color: clubColor(club.nombre),
   };
 }

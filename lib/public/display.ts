@@ -47,6 +47,26 @@ export function clubAbrev(nombreOficial: string): string {
   return CLUB_DISPLAY[nombreOficial]?.abrev ?? abrevFallback(nombreOficial);
 }
 
+// Logos oficiales (PNG transparente) servidos como estáticos desde
+// public/equipos/logos/ — no viven en DB (Club.escudoUrl sigue null salvo que
+// alguien lo cargue a mano desde Admin). Si un club no está en este mapa o el
+// archivo todavía no existe en el repo, undefined hace que cada componente
+// caiga en su badge de color + abreviatura ya existente — nunca rompe la página.
+const CLUB_LOGO: Record<string, string> = {
+  "C.D. PARK": "/equipos/logos/cd-park.png",
+  "CSDC JORGE MENESES MATURANA": "/equipos/logos/jmm-adulto.png",
+  "LAS AMERICAS": "/equipos/logos/las-americas.png",
+  PUMAS: "/equipos/logos/pumas.png",
+  "CLUB DEPORTIVO BASKETBALL DUAO": "/equipos/logos/duao-basketball.png",
+  "CLUB UNIVERSIDAD CATÓLICA DEL MAULE": "/equipos/logos/ucm.png",
+  "CLUB DE BASQUETBOL ALAMEDA LINARES": "/equipos/logos/alameda-linares.png",
+  "JMM U19": "/equipos/logos/jmm-u19.png",
+};
+
+export function clubLogoUrl(nombreOficial: string): string | undefined {
+  return CLUB_LOGO[nombreOficial];
+}
+
 // Color de identidad por club — curado a mano para los 8 clubes reales, así
 // cada equipo tiene su acento propio y distintivo (avatares, badges,
 // gradientes) igual que en una liga profesional. No se guarda en DB, es puro

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getStandings } from "@/lib/public/standings";
+import { clubLogoUrl } from "@/lib/public/display";
 
 // Adapter para la página /tabla completa. Reutiliza getStandings() (fuente de
 // verdad: Partido FINALIZADO + Acta, nunca datos inventados) y solo agrega el
@@ -30,7 +31,7 @@ export async function getStandingsPageData(): Promise<StandingsPageRow[]> {
     position: i + 1,
     clubId: r.clubId,
     clubNombre: r.clubNombre,
-    escudoUrl: escudoPorClub.get(r.clubId) ?? undefined,
+    escudoUrl: clubLogoUrl(r.clubNombre) ?? escudoPorClub.get(r.clubId) ?? undefined,
     pj: r.pj,
     pg: r.pg,
     pp: r.pp,
