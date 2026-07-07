@@ -5,8 +5,14 @@
 // en el sitio público, una sola fuente de verdad.
 import type { TipoFalta } from "@/generated/prisma/client";
 
-const TIPOS_FALTA_LABEL: Record<TipoFalta, string> = {
+// "OFENSIVA" no es parte del enum Postgres TipoFalta (no está atado a
+// ninguna columna real) — vive solo como string dentro de MatchEvent.detalle.
+// Ver PR Mesa 3.1 y el mismo tipo en lib/mesa/live-match-state.ts.
+type TipoFaltaValor = TipoFalta | "OFENSIVA";
+
+const TIPOS_FALTA_LABEL: Record<TipoFaltaValor, string> = {
   PERSONAL: "Personal",
+  OFENSIVA: "Ofensiva",
   TECNICA: "Técnica",
   ANTIDEPORTIVA: "Antideportiva",
   DESCALIFICANTE: "Descalificante",
@@ -41,11 +47,14 @@ export function nombreJugadorDe(jugadorId: string | null, context: DescribirCont
   return (jugadorId && context.nombresJugadores.get(jugadorId)) || "jugador";
 }
 
-function labelFalta(tipoFalta: unknown): string {
+// null = evento antiguo sin tipoFalta guardado, o un valor no reconocido —
+// nunca se inventa un tipo (ej. no se asume "Personal" por defecto). El
+// llamador decide cómo mostrarlo (ver describirEvento, caso "FALTA").
+function labelFalta(tipoFalta: unknown): string | null {
   if (typeof tipoFalta === "string" && tipoFalta in TIPOS_FALTA_LABEL) {
-    return TIPOS_FALTA_LABEL[tipoFalta as TipoFalta];
+    return TIPOS_FALTA_LABEL[tipoFalta as TipoFaltaValor];
   }
-  return "Falta";
+  return null;
 }
 
 export function extraerValorPunto(detalle: unknown): number | null {
@@ -118,7 +127,8 @@ export function describirEvento(evento: EventoDescribible, context: DescribirCon
         evento.detalle && typeof evento.detalle === "object" && !Array.isArray(evento.detalle) && "tipoFalta" in evento.detalle
           ? (evento.detalle as { tipoFalta: unknown }).tipoFalta
           : null;
-      return `Falta ${labelFalta(tipoFalta)} — ${nombreJugadorDe(evento.jugadorId, context)}`;
+      const label = labelFalta(tipoFalta);
+      return `Falta${label ? ` ${label}` : ""} — ${nombreJugadorDe(evento.jugadorId, context)}`;
     }
     case "TIMEOUT":
       return `Timeout ${nombreClubDe(evento.clubId, context)}`;

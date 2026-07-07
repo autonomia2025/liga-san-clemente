@@ -15,6 +15,13 @@ import type { MatchEvent, PartidoJugador, TipoFalta } from "@/generated/prisma/c
 
 const TOTAL_CUARTOS = 4;
 
+// "OFENSIVA" vive solo como string dentro de MatchEvent.detalle (Json) — no
+// es parte del enum Postgres TipoFalta (que no está atado a ninguna columna
+// real, ver PR Mesa 3.1). Se modela como unión de tipos en vez de tocar el
+// enum de schema, así se evita una migración para agregar un valor que ya
+// puede vivir tranquilo dentro del JSON.
+export type TipoFaltaValor = TipoFalta | "OFENSIVA";
+
 export type EstadoCuartos =
   | "ESPERANDO_INICIO"
   | "CUARTO_ACTIVO"
@@ -39,7 +46,7 @@ export type LiveMatchState = {
   faltasEquipoVisitante: number;
   faltasEquipoLocalCuartoActual: number;
   faltasEquipoVisitanteCuartoActual: number;
-  tiposFaltaPorJugador: Map<string, TipoFalta[]>;
+  tiposFaltaPorJugador: Map<string, TipoFaltaValor[]>;
   timeoutsLocal: number;
   timeoutsVisitante: number;
   timeoutsLocalPorCuarto: Map<number, number>;
@@ -128,7 +135,7 @@ function extraerValorPunto(detalle: MatchEvent["detalle"]): number {
   return 0;
 }
 
-function extraerTipoFalta(detalle: MatchEvent["detalle"]): TipoFalta | null {
+function extraerTipoFalta(detalle: MatchEvent["detalle"]): TipoFaltaValor | null {
   if (
     detalle &&
     typeof detalle === "object" &&
@@ -136,7 +143,7 @@ function extraerTipoFalta(detalle: MatchEvent["detalle"]): TipoFalta | null {
     "tipoFalta" in detalle &&
     typeof (detalle as { tipoFalta: unknown }).tipoFalta === "string"
   ) {
-    return (detalle as { tipoFalta: TipoFalta }).tipoFalta;
+    return (detalle as { tipoFalta: TipoFaltaValor }).tipoFalta;
   }
   return null;
 }
@@ -155,7 +162,7 @@ function calcularFaltas(
   | "tiposFaltaPorJugador"
 > {
   const faltasPorJugador = new Map<string, number>();
-  const tiposFaltaPorJugador = new Map<string, TipoFalta[]>();
+  const tiposFaltaPorJugador = new Map<string, TipoFaltaValor[]>();
   let faltasEquipoLocal = 0;
   let faltasEquipoVisitante = 0;
   let faltasEquipoLocalCuartoActual = 0;

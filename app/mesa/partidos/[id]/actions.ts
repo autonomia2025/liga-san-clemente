@@ -457,7 +457,10 @@ export async function registrarPunto(formData: FormData) {
   redirect(`/mesa/partidos/${partidoId}?ok=punto`);
 }
 
-const TIPOS_FALTA_VALIDOS = Object.values(TipoFalta);
+// "OFENSIVA" no es parte del enum Postgres TipoFalta (no está atado a
+// ninguna columna real, MatchEvent.detalle es Json) — se agrega acá como
+// string suelto en vez de tocar el enum de schema/migrar. Ver PR Mesa 3.1.
+const TIPOS_FALTA_VALIDOS: readonly string[] = [...Object.values(TipoFalta), "OFENSIVA"];
 
 export async function registrarFalta(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
@@ -474,7 +477,7 @@ export async function registrarFalta(formData: FormData) {
   }
   const { partido } = check;
 
-  if (!TIPOS_FALTA_VALIDOS.includes(tipoFalta as TipoFalta)) {
+  if (!TIPOS_FALTA_VALIDOS.includes(tipoFalta)) {
     fail("Tipo de falta inválido.");
     return;
   }

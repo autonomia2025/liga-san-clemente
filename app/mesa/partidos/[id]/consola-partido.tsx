@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { TipoFalta } from "@/generated/prisma/client";
-import type { LiveMatchState } from "@/lib/mesa/live-match-state";
+import type { LiveMatchState, TipoFaltaValor } from "@/lib/mesa/live-match-state";
 import type { EstadoRelojCalculado } from "@/lib/mesa/reloj";
 import { describirEvento } from "@/lib/mesa/describir-evento";
 import { Badge } from "@/components/ui/badge";
@@ -25,24 +24,32 @@ type JugadorSlot = { id: string; nombre: string; numeroCamiseta: number | null }
 
 const VALORES_PUNTO = [1, 2, 3] as const;
 
-const TIPOS_FALTA: { valor: TipoFalta; label: string }[] = [
+// "Ofensiva" no es parte del enum Postgres TipoFalta (no está atado a
+// ninguna columna real) — vive como string suelto en MatchEvent.detalle. Se
+// prioriza arriba de Técnica/Antideportiva/etc porque es el tipo que pidió
+// el big boss (PR Mesa 3.1), justo después de Personal para acceso rápido.
+const TIPOS_FALTA: { valor: TipoFaltaValor; label: string }[] = [
   { valor: "PERSONAL", label: "Personal" },
+  { valor: "OFENSIVA", label: "Ofensiva" },
   { valor: "TECNICA", label: "Técnica" },
   { valor: "ANTIDEPORTIVA", label: "Antideportiva" },
   { valor: "DESCALIFICANTE", label: "Descalificante" },
   { valor: "EXPULSION_DIRECTA", label: "Expulsión" },
 ];
 
-// Badge visible solo para faltas graves — la personal es la esperable y no
-// necesita destacarse en la card, alcanza con el contador.
-const TIPOS_FALTA_BADGE = new Set<TipoFalta>([
+// Badge visible solo para faltas que conviene destacar en la card — la
+// personal es la esperable y no necesita destacarse, alcanza con el
+// contador. Ofensiva se destaca igual que las graves: es la que la Mesa
+// necesita distinguir rápido de un vistazo.
+const TIPOS_FALTA_BADGE = new Set<TipoFaltaValor>([
+  "OFENSIVA",
   "TECNICA",
   "ANTIDEPORTIVA",
   "DESCALIFICANTE",
   "EXPULSION_DIRECTA",
 ]);
 
-function badgeFalta(tipos: TipoFalta[]): string | null {
+function badgeFalta(tipos: TipoFaltaValor[]): string | null {
   const grave = tipos.find((t) => TIPOS_FALTA_BADGE.has(t));
   return grave ? TIPOS_FALTA.find((t) => t.valor === grave)?.label ?? null : null;
 }
@@ -102,7 +109,7 @@ function JugadorCanchaCard({
   partidoId: string;
   puntos: number;
   faltas: number;
-  tiposFalta: TipoFalta[];
+  tiposFalta: TipoFaltaValor[];
   puedeAnotar: boolean;
   banca: JugadorSlot[];
 }) {
