@@ -34,7 +34,7 @@ function usePrefersReducedMotion() {
 function SponsorMark({ sponsor }: { sponsor: Sponsor }) {
   const content = sponsor.logoUrl ? (
     <span
-      className="block h-8 w-28"
+      className="block h-14 w-44 sm:h-16 sm:w-52"
       role="img"
       aria-label={sponsor.name}
       style={{
@@ -91,7 +91,7 @@ export function SponsorsSection({ sponsors }: SponsorsSectionProps) {
                 </span>
                 {s.logoUrl ? (
                   <span
-                    className="block h-12 w-40"
+                    className="block h-20 w-64 sm:h-24 sm:w-72"
                     role="img"
                     aria-label={s.name}
                     style={{ backgroundImage: `url(${s.logoUrl})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
