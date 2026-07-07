@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LbscButton } from "@/components/design-system/lbsc-button";
 import { LiveBadge } from "@/components/design-system/live-badge";
 import { ScoreNumber } from "@/components/design-system/score-number";
+import { clubLogoPad } from "@/lib/public/display";
 
 // Módulo "Próximo Partido / En Vivo". Preparado para recibir datos por props;
 // por ahora se alimenta con mocks desde app/page.tsx (NO conectado a DB).
@@ -70,7 +71,7 @@ function TeamColumn({ team, className = "" }: { team: TeamInfo; className?: stri
   return (
     <div className={`flex flex-col items-center gap-2 text-center ${className}`}>
       <span
-        className="flex h-14 w-14 items-center justify-center rounded-2xl p-1.5 font-head text-base uppercase leading-none text-white ring-1 ring-white/10"
+        className="flex h-14 w-14 items-center justify-center rounded-2xl font-head text-base uppercase leading-none text-white ring-1 ring-white/10"
         style={
           team.logoUrl
             ? {
@@ -80,6 +81,7 @@ function TeamColumn({ team, className = "" }: { team: TeamInfo; className?: stri
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
                 backgroundOrigin: "content-box",
+                padding: `${clubLogoPad(team.abbr, 6)}px`,
               }
             : { background: team.color ?? "linear-gradient(155deg,#7c3aed,#4c1d95)" }
         }

@@ -67,6 +67,15 @@ export function clubLogoUrl(nombreOficial: string): string | undefined {
   return CLUB_LOGO[nombreOficial];
 }
 
+// El PNG de Alameda Linares ya se ve bien de tamaño con el padding por
+// defecto (menos aire interno que el resto de los logos reales). El resto se
+// agranda achicando el padding del contenedor a la mitad — a pedido tras
+// revisar el grid de equipos. Si algún día se reemplazan los PNG por unos más
+// parejos entre sí, este ajuste puede volver a sacarse.
+export function clubLogoPad(abbr: string, defaultPx: number): number {
+  return abbr === "ALAM" ? defaultPx : Math.round(defaultPx / 2);
+}
+
 // Color de identidad por club — curado a mano para los 8 clubes reales, así
 // cada equipo tiene su acento propio y distintivo (avatares, badges,
 // gradientes) igual que en una liga profesional. No se guarda en DB, es puro

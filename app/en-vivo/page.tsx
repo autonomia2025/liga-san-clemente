@@ -12,6 +12,7 @@ import {
   type LivePlayerStat,
   type LiveTeam,
 } from "@/lib/public/live-page-data";
+import { clubLogoPad } from "@/lib/public/display";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ function TeamBlock({ team, align }: { team: LiveTeam; align: "left" | "right" })
   return (
     <div className={`flex min-w-0 flex-1 flex-col items-center gap-3 text-center ${align === "left" ? "sm:items-end sm:text-right" : "sm:items-start sm:text-left"}`}>
       <span
-        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl p-2 font-head text-lg uppercase leading-none text-white ring-1 ring-white/10 sm:h-20 sm:w-20"
+        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl font-head text-lg uppercase leading-none text-white ring-1 ring-white/10 sm:h-20 sm:w-20"
         style={
           team.logoUrl
             ? {
@@ -73,6 +74,7 @@ function TeamBlock({ team, align }: { team: LiveTeam; align: "left" | "right" })
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
                 backgroundOrigin: "content-box",
+                padding: `${clubLogoPad(team.abbr, 8)}px`,
               }
             : { background: `linear-gradient(155deg, ${team.color ?? "#7c3aed"}, #0a0e1a 82%)` }
         }

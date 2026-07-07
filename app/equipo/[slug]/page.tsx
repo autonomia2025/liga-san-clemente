@@ -12,6 +12,7 @@ import {
   type TeamRosterPlayer,
   type TeamTopScorer,
 } from "@/lib/public/team-page-data";
+import { clubLogoPad } from "@/lib/public/display";
 
 export const dynamic = "force-dynamic";
 
@@ -83,7 +84,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 /* ---- piezas ------------------------------------------------------------------ */
 
 function TeamCrest({ team, size = "lg" }: { team: TeamPageData["team"]; size?: "lg" | "sm" }) {
-  const dims = size === "lg" ? "h-24 w-24 p-2.5 text-2xl sm:h-28 sm:w-28 sm:text-3xl" : "h-9 w-9 text-[11px]";
+  const dims = size === "lg" ? "h-24 w-24 text-2xl sm:h-28 sm:w-28 sm:text-3xl" : "h-9 w-9 text-[11px]";
   return (
     <span
       className={`flex ${dims} shrink-0 items-center justify-center rounded-2xl font-head uppercase leading-none text-white ring-1 ring-white/10`}
@@ -96,6 +97,7 @@ function TeamCrest({ team, size = "lg" }: { team: TeamPageData["team"]; size?: "
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
               backgroundOrigin: "content-box",
+              padding: size === "lg" ? `${clubLogoPad(team.abbr, 10)}px` : 0,
             }
           : { background: `linear-gradient(155deg, ${team.color}, #0a0e1a 82%)` }
       }

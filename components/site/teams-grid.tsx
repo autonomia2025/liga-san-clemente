@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { clubLogoPad } from "@/lib/public/display";
 
 // Grid de equipos de la Home: "pared de escudos" / mural deportivo, no un
 // catálogo de cards. Preparado para recibir datos por props; por ahora se
@@ -91,7 +92,7 @@ export function TeamsGrid({ teams }: TeamsGridProps) {
                 >
                   {t.logoUrl ? (
                     <span
-                      className="lbsc-tg-shield block aspect-square w-20 rounded-[30%] bg-bg-elevated p-2 ring-1 ring-white/10 sm:w-24 lg:w-28"
+                      className="lbsc-tg-shield block aspect-square w-20 rounded-[30%] bg-bg-elevated ring-1 ring-white/10 sm:w-24 lg:w-28"
                       role="img"
                       aria-label={t.name}
                       style={{
@@ -100,6 +101,7 @@ export function TeamsGrid({ teams }: TeamsGridProps) {
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat",
                         backgroundOrigin: "content-box",
+                        padding: `${clubLogoPad(t.abbr, 8)}px`,
                       }}
                     />
                   ) : (
