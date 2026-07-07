@@ -116,7 +116,17 @@ export default async function MesaPartidoPage({
 
   // La cancha sale de enCancha (estado operativo tras sustituciones), no de
   // titular — divergen apenas se registra la primera sustitución del partido.
-  const nombresJugadores = new Map(convocadosActuales.map((c) => [c.jugadorId, c.jugador.nombre]));
+  // Este mapa alimenta describirEvento() SOLO para el "último evento"/Deshacer
+  // de Mesa — el dorsal se antepone acá para que la Mesa vea "#7 Juan Pérez"
+  // en sustituciones y jugadas. lib/public/live-page-data.ts construye su
+  // PROPIO mapa (solo nombre) para /en-vivo, así que esto no afecta al sitio
+  // público — ahí el foco explícitamente debe quedar en el nombre.
+  const nombresJugadores = new Map(
+    convocadosActuales.map((c) => [
+      c.jugadorId,
+      c.jugador.numeroCamiseta !== null ? `#${c.jugador.numeroCamiseta} ${c.jugador.nombre}` : c.jugador.nombre,
+    ]),
+  );
 
   const canchaLocal = convocadosActuales
     .filter((c) => c.clubId === partido!.clubLocalId && c.enCancha)

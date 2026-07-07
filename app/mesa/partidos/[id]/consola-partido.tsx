@@ -47,6 +47,25 @@ function badgeFalta(tipos: TipoFalta[]): string | null {
   return grave ? TIPOS_FALTA.find((t) => t.valor === grave)?.label ?? null : null;
 }
 
+// FIBA: al 5º foul personal el jugador queda expulsado del partido — no tiene
+// sentido dibujar más de 5 marcas.
+const FALTAS_MAX_MARCAS = 5;
+
+function MarcasFalta({ faltas }: { faltas: number }) {
+  if (faltas === 0) return null;
+  const marcas = Math.min(faltas, FALTAS_MAX_MARCAS);
+  return (
+    <div className="flex items-center gap-0.5" aria-label={`${faltas} faltas`} title={`${faltas} faltas`}>
+      {Array.from({ length: marcas }).map((_, i) => (
+        <span
+          key={i}
+          className={`h-2.5 w-1 rounded-sm ${faltas >= FALTAS_MAX_MARCAS ? "bg-danger" : "bg-warning"}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 function describirUltimoEvento(
   evento: LiveMatchState["ultimoEventoVigente"],
   context: {
@@ -95,6 +114,9 @@ function JugadorCanchaCard({
         {jugador.numeroCamiseta !== null ? `#${jugador.numeroCamiseta}` : iniciales(jugador.nombre)}
       </span>
       <span className="line-clamp-1 text-center text-[11px] font-medium text-muted">
+        {jugador.numeroCamiseta !== null && (
+          <span className="font-bold text-foreground">#{jugador.numeroCamiseta} </span>
+        )}
         {jugador.nombre}
       </span>
       <div className="flex flex-wrap items-center justify-center gap-1">
@@ -110,6 +132,7 @@ function JugadorCanchaCard({
           </span>
         )}
       </div>
+      <MarcasFalta faltas={faltas} />
       {puedeAnotar && (
         <div className="mt-1 flex w-full flex-col items-center gap-1">
           <div className="flex gap-1">
@@ -147,35 +170,41 @@ function JugadorCanchaCard({
               ))}
             </div>
           </details>
-          {banca.length > 0 && (
-            <details className="w-full">
-              <summary className="cursor-pointer select-none rounded-md py-0.5 text-center text-[10px] font-semibold text-muted hover:text-accent-blue">
-                Sustituir
-              </summary>
-              <form action={registrarSustitucion} className="mt-1 flex flex-col items-center gap-1">
-                <input type="hidden" name="partidoId" value={partidoId} />
-                <input type="hidden" name="jugadorSaleId" value={jugador.id} />
-                <select
-                  name="jugadorEntraId"
-                  aria-label={`Jugador que entra por ${jugador.nombre}`}
-                  className="w-full rounded-md border border-border bg-surface px-1 py-0.5 text-[9px] text-foreground"
-                >
-                  {banca.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.numeroCamiseta !== null ? `#${b.numeroCamiseta} ` : ""}
-                      {b.nombre}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  className="rounded-md border border-border px-1.5 py-0.5 text-[9px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95"
-                >
-                  Confirmar entrada
-                </button>
-              </form>
-            </details>
-          )}
+        </div>
+      )}
+      {/* Sustituir vive fuera del gate `puedeAnotar`: la Mesa reportó que no
+          poder hacer cambios con el cuarto detenido/entre cuartos era un bug
+          bloqueante en el uso real — anotar sigue exigiendo cuarto activo,
+          pero cambiar lineup no. */}
+      {banca.length > 0 && (
+        <div className="mt-1 flex w-full flex-col items-center gap-1">
+          <details className="w-full">
+            <summary className="cursor-pointer select-none rounded-md py-0.5 text-center text-[10px] font-semibold text-muted hover:text-accent-blue">
+              Sustituir
+            </summary>
+            <form action={registrarSustitucion} className="mt-1 flex flex-col items-center gap-1">
+              <input type="hidden" name="partidoId" value={partidoId} />
+              <input type="hidden" name="jugadorSaleId" value={jugador.id} />
+              <select
+                name="jugadorEntraId"
+                aria-label={`Jugador que entra por ${jugador.nombre}`}
+                className="w-full rounded-md border border-border bg-surface px-1 py-0.5 text-[9px] text-foreground"
+              >
+                {banca.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.numeroCamiseta !== null ? `#${b.numeroCamiseta} ` : ""}
+                    {b.nombre}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="rounded-md border border-border px-1.5 py-0.5 text-[9px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95"
+              >
+                Confirmar entrada
+              </button>
+            </form>
+          </details>
         </div>
       )}
     </div>
@@ -188,51 +217,65 @@ function JugadorBancaChip({ jugador }: { jugador: JugadorSlot }) {
       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-hover text-[11px] font-semibold text-muted ring-1 ring-border">
         {jugador.numeroCamiseta !== null ? `#${jugador.numeroCamiseta}` : iniciales(jugador.nombre)}
       </span>
-      <span className="max-w-[9rem] truncate text-xs text-foreground">{jugador.nombre}</span>
+      <span className="max-w-[9rem] truncate text-xs text-foreground">
+        {jugador.numeroCamiseta !== null && (
+          <span className="font-bold">#{jugador.numeroCamiseta} </span>
+        )}
+        {jugador.nombre}
+      </span>
     </div>
   );
 }
+
+// Reglamento: 5 timeouts por equipo en tiempo regular — mismo valor que
+// TIMEOUTS_TIEMPO_REGULAR en actions.ts (server-side, fuente de verdad del
+// bloqueo real). Este archivo es "use client" y no puede importar una const
+// desde un módulo "use server", así que se duplica solo para la UI (mostrar
+// "X/5" y deshabilitar el botón antes de que el usuario intente el 6º).
+const TIMEOUTS_TIEMPO_REGULAR = 5;
 
 function BotonTimeout({
   partidoId,
   clubId,
   label,
   contador,
-  disabled,
 }: {
   partidoId: string;
   clubId: string;
   label: string;
   contador: number;
-  disabled: boolean;
 }) {
+  const agotado = contador >= TIMEOUTS_TIEMPO_REGULAR;
   return (
     <form action={registrarTimeout}>
       <input type="hidden" name="partidoId" value={partidoId} />
       <input type="hidden" name="clubId" value={clubId} />
       <button
         type="submit"
-        disabled={disabled}
+        disabled={agotado}
+        title={agotado ? `Ya usó sus ${TIMEOUTS_TIEMPO_REGULAR} timeouts del tiempo regular` : undefined}
         className="rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold text-muted hover:bg-accent-blue hover:text-white active:scale-95 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {label} · TO {contador}
+        {label} · TO {contador}/{TIMEOUTS_TIEMPO_REGULAR}
       </button>
     </form>
   );
 }
 
+// Las sustituciones/posesión/timeout se permiten con el cuarto detenido o
+// entre cuartos (ver actions.ts) — el único bloqueo real de Posesión es que
+// el partido esté EN_CURSO, y eso ya lo garantiza requireOperadorEnCurso
+// server-side (esta consola no se renderiza para partidos no EN_CURSO).
 function BotonPosesion({
   partidoId,
   clubId,
   label,
   activa,
-  disabled,
 }: {
   partidoId: string;
   clubId: string;
   label: string;
   activa: boolean;
-  disabled: boolean;
 }) {
   return (
     <form action={registrarPosesion}>
@@ -240,8 +283,7 @@ function BotonPosesion({
       <input type="hidden" name="clubId" value={clubId} />
       <button
         type="submit"
-        disabled={disabled}
-        className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold active:scale-95 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40 ${
+        className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold active:scale-95 ${
           activa
             ? "border-accent-orange bg-accent-orange text-white"
             : "border-border text-muted hover:bg-accent-orange hover:text-white"
@@ -424,6 +466,49 @@ function Cronometro({
   );
 }
 
+// Cronómetro visual de 1 minuto para timeouts — puramente informativo para
+// la Mesa (no oficial, no persistido). Explícitamente separado del
+// cronómetro del partido (Cronometro/useCronometroVisual arriba): no
+// comparte estado ni se resincroniza con la DB. Detecta un timeout "fresco"
+// comparando una key derivada del último evento vigente; MatchEventLite no
+// trae id/createdAt, así que la key usa club+cuarto+detalle (incluye el
+// clockLabel del reloj oficial en ese momento, que en la práctica difiere
+// entre timeouts distintos). Si se pierde la key (recarga de página a mitad
+// del minuto) el cronómetro simplemente no reaparece — aceptado como no
+// crítico según el brief.
+function useTimeoutCountdown(ultimoEvento: LiveMatchState["ultimoEventoVigente"]) {
+  const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
+  const [keyActiva, setKeyActiva] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ultimoEvento || ultimoEvento.tipo !== "TIMEOUT") return;
+    const key = `${ultimoEvento.clubId}-${ultimoEvento.cuarto}-${JSON.stringify(ultimoEvento.detalle)}`;
+    if (key === keyActiva) return;
+    setKeyActiva(key);
+    setSegundosRestantes(60);
+  }, [ultimoEvento, keyActiva]);
+
+  useEffect(() => {
+    if (segundosRestantes === null || segundosRestantes <= 0) return;
+    const id = setInterval(() => {
+      setSegundosRestantes((s) => (s !== null && s > 0 ? s - 1 : s));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [segundosRestantes]);
+
+  return segundosRestantes !== null && segundosRestantes > 0 ? segundosRestantes : null;
+}
+
+function TimeoutCountdown({ segundos }: { segundos: number }) {
+  const label = `${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}`;
+  return (
+    <div className="flex items-center justify-center gap-2 rounded-lg border border-accent-orange/40 bg-accent-orange/10 px-3 py-1.5">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-accent-orange">Timeout</span>
+      <span className="font-mono text-lg font-bold tabular-nums text-accent-orange">{label}</span>
+    </div>
+  );
+}
+
 function ControlCuarto({
   partidoId,
   liveState,
@@ -544,6 +629,11 @@ function EquipoScoreboard({
         <span className="rounded-full bg-warning/15 px-1.5 py-0.5 font-semibold text-warning">
           {faltasCuarto} f (Q) · {faltasTotal} total
         </span>
+        {/* Bonus FIBA: desde la 4ª falta de equipo en el cuarto, todo tiro
+            personal siguiente del rival se cobra con lanzamientos libres. */}
+        {faltasCuarto >= 4 && (
+          <span className="rounded-full bg-danger/20 px-1.5 py-0.5 font-bold text-danger">BONUS</span>
+        )}
         <span className="rounded-full bg-zinc-500/20 px-1.5 py-0.5 font-semibold">TO {timeouts}</span>
       </div>
     </div>
@@ -586,6 +676,7 @@ export function ConsolaPartido({
     clubVisitanteNombre,
     nombresJugadores,
   });
+  const segundosTimeout = useTimeoutCountdown(liveState.ultimoEventoVigente);
 
   return (
     <div className="flex flex-col gap-3">
@@ -633,20 +724,20 @@ export function ConsolaPartido({
 
         <FinalizarPartido partidoId={partidoId} liveState={liveState} />
 
+        {segundosTimeout !== null && <TimeoutCountdown segundos={segundosTimeout} />}
+
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           <BotonTimeout
             partidoId={partidoId}
             clubId={clubLocalId}
             label="Timeout Local"
             contador={liveState.timeoutsLocal}
-            disabled={liveState.cuartoActivo === null}
           />
           <BotonTimeout
             partidoId={partidoId}
             clubId={clubVisitanteId}
             label="Timeout Visita"
             contador={liveState.timeoutsVisitante}
-            disabled={liveState.cuartoActivo === null}
           />
         </div>
         <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -655,14 +746,12 @@ export function ConsolaPartido({
             clubId={clubLocalId}
             label="Posesión Local"
             activa={liveState.posesionEquipo === "LOCAL"}
-            disabled={liveState.cuartoActivo === null}
           />
           <BotonPosesion
             partidoId={partidoId}
             clubId={clubVisitanteId}
             label="Posesión Visita"
             activa={liveState.posesionEquipo === "VISITANTE"}
-            disabled={liveState.cuartoActivo === null}
           />
         </div>
 

@@ -70,6 +70,11 @@ async function getEstadoVigente(partidoId: string, clubLocalId: string, clubVisi
 
 const MAX_CONVOCADOS = 12;
 
+// Reglamento: 5 timeouts por equipo en tiempo regular. Overtime (1 timeout
+// extra por prórroga) queda fuera de esta PR — el modelo todavía no tiene
+// noción de overtime (TOTAL_CUARTOS=4 fijo en live-match-state.ts).
+const TIMEOUTS_TIEMPO_REGULAR = 5;
+
 export async function guardarConvocados(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
   const localIds = formData.getAll("convocadosLocal").map(String);
@@ -550,10 +555,12 @@ export async function registrarSustitucion(formData: FormData) {
 
   const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
-  if (estado.cuartoActivo === null) {
-    fail("No hay un cuarto activo — iniciá el cuarto antes de registrar sustituciones.");
-    return;
-  }
+  // Las sustituciones se permiten aunque no haya cuarto activo (entre
+  // cuartos, con el reloj pausado) — solo se bloquea registrar puntos/faltas
+  // sin cuarto corriendo, no cambios de lineup. Si no hay cuarto activo se
+  // usa cuartoActual (el último cuarto tocado) para no dejar el evento sin
+  // cuarto asignado.
+  const cuartoParaEvento = estado.cuartoActivo ?? partido.cuartoActual;
 
   await prisma.$transaction([
     prisma.partidoJugador.update({
@@ -567,7 +574,7 @@ export async function registrarSustitucion(formData: FormData) {
     prisma.matchEvent.create({
       data: {
         partidoId,
-        cuarto: estado.cuartoActivo,
+        cuarto: cuartoParaEvento,
         tipo: TipoEvento.SUSTITUCION,
         jugadorId: jugadorEntraId,
         clubId: partidoJugadorSale.clubId,
@@ -600,15 +607,21 @@ export async function registrarTimeout(formData: FormData) {
 
   const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
-  if (estado.cuartoActivo === null) {
-    fail("No hay un cuarto activo — iniciá el cuarto antes de registrar timeouts.");
+  // Se permite pedir timeout aunque no haya cuarto activo (entre cuartos, con
+  // el reloj pausado) — solo se limita por el reglamento (5 en tiempo
+  // regular), no por el estado del cuarto/reloj.
+  const timeoutsDelClub = clubId === partido.clubLocalId ? estado.timeoutsLocal : estado.timeoutsVisitante;
+  if (timeoutsDelClub >= TIMEOUTS_TIEMPO_REGULAR) {
+    fail(`Ese equipo ya usó sus ${TIMEOUTS_TIEMPO_REGULAR} timeouts del tiempo regular.`);
     return;
   }
+
+  const cuartoParaEvento = estado.cuartoActivo ?? partido.cuartoActual;
 
   await prisma.matchEvent.create({
     data: {
       partidoId,
-      cuarto: estado.cuartoActivo,
+      cuarto: cuartoParaEvento,
       tipo: TipoEvento.TIMEOUT,
       clubId,
       detalle: await clockDetalleServer(partidoId),
@@ -639,15 +652,14 @@ export async function registrarPosesion(formData: FormData) {
 
   const estado = await getEstadoVigente(partidoId, partido.clubLocalId, partido.clubVisitanteId);
 
-  if (estado.cuartoActivo === null) {
-    fail("No hay un cuarto activo — iniciá el cuarto antes de cambiar la posesión.");
-    return;
-  }
+  // Se permite marcar posesión entre cuartos también (ej. definir quién
+  // saca a jugar el próximo cuarto antes de que arranque el reloj).
+  const cuartoParaEvento = estado.cuartoActivo ?? partido.cuartoActual;
 
   await prisma.matchEvent.create({
     data: {
       partidoId,
-      cuarto: estado.cuartoActivo,
+      cuarto: cuartoParaEvento,
       tipo: TipoEvento.POSESION,
       clubId,
       detalle: await clockDetalleServer(partidoId),
