@@ -862,14 +862,18 @@ function EquipoScoreboard({
   posesionActiva,
   faltasCuarto,
   faltasTotal,
-  timeouts,
+  timeoutsUsados,
+  timeoutsLimite,
+  timeoutsEnOvertime,
 }: {
   nombre: string;
   align: "left" | "right";
   posesionActiva: boolean;
   faltasCuarto: number;
   faltasTotal: number;
-  timeouts: number;
+  timeoutsUsados: number;
+  timeoutsLimite: number;
+  timeoutsEnOvertime: boolean;
 }) {
   const filaNombre =
     align === "left" ? (
@@ -908,7 +912,9 @@ function EquipoScoreboard({
         {faltasCuarto >= 4 && (
           <span className="rounded-full bg-danger/20 px-1.5 py-0.5 font-bold text-danger">BONUS</span>
         )}
-        <span className="rounded-full bg-zinc-500/20 px-1.5 py-0.5 font-semibold">TO {timeouts}</span>
+        <span className="rounded-full bg-zinc-500/20 px-1.5 py-0.5 font-semibold">
+          TO{timeoutsEnOvertime ? " OT" : ""} {timeoutsUsados}/{timeoutsLimite}
+        </span>
       </div>
     </div>
   );
@@ -1000,7 +1006,9 @@ export function ConsolaPartido({
             posesionActiva={liveState.posesionEquipo === "LOCAL"}
             faltasCuarto={liveState.faltasEquipoLocalCuartoActual}
             faltasTotal={liveState.faltasEquipoLocal}
-            timeouts={liveState.timeoutsLocal}
+            timeoutsUsados={timeoutsUsadosLocal}
+            timeoutsLimite={limiteTimeouts}
+            timeoutsEnOvertime={enOvertimeTimeouts}
           />
           <span className="shrink-0 text-4xl font-extrabold tracking-tight text-foreground tabular-nums sm:text-5xl">
             {liveState.marcadorLocal}&nbsp;-&nbsp;{liveState.marcadorVisitante}
@@ -1011,7 +1019,9 @@ export function ConsolaPartido({
             posesionActiva={liveState.posesionEquipo === "VISITANTE"}
             faltasCuarto={liveState.faltasEquipoVisitanteCuartoActual}
             faltasTotal={liveState.faltasEquipoVisitante}
-            timeouts={liveState.timeoutsVisitante}
+            timeoutsUsados={timeoutsUsadosVisitante}
+            timeoutsLimite={limiteTimeouts}
+            timeoutsEnOvertime={enOvertimeTimeouts}
           />
         </div>
       </div>
