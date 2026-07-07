@@ -25,15 +25,17 @@ const LINKS = [
   { href: "/#equipos", label: "Equipos" },
 ];
 
-// Logo placeholder: círculo + montaña/águila abstracta. SVG inline, sin imagen
-// externa ni stock.
+// Logo oficial de la liga (insignia circular con el nombre ya integrado al
+// diseño, PNG transparente). Reemplaza el placeholder SVG anterior.
 function Logo() {
   return (
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <circle cx="16" cy="16" r="15" stroke="currentColor" strokeWidth="1.5" className="text-accent-purple" />
-      <path d="M7 22 L13 12 L17 18 L21 10 L25 22 Z" fill="currentColor" className="text-accent-orange" />
-      <circle cx="21" cy="9" r="2" fill="currentColor" className="text-accent-gold" />
-    </svg>
+    <img
+      src="/logo-liga.png"
+      alt="Liga de Básquetbol San Clemente"
+      width={1536}
+      height={1024}
+      className="h-9 w-auto sm:h-10"
+    />
   );
 }
 
@@ -113,8 +115,11 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
       {open && (
         <div className="fixed inset-0 z-50 flex flex-col bg-bg-base lg:hidden">
           <div className="lbsc-container flex h-[var(--navbar-height)] items-center justify-between">
-            <span className="font-head text-xl uppercase tracking-wide text-text-primary">
-              LBSC<span className="text-accent-purple">·</span>2026
+            <span className="flex items-center gap-2.5">
+              <Logo />
+              <span className="font-head text-xl uppercase tracking-wide text-text-primary">
+                LBSC<span className="text-accent-purple">·</span>2026
+              </span>
             </span>
             <button
               type="button"
