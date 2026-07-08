@@ -40,12 +40,14 @@ export const metadata: Metadata = {
 // Historia, auspiciadores y footer siguen con constantes/placeholders por ahora
 // (no son dinámicos en este PR). El resto de la Home usa datos reales de DB vía
 // getHomePageData(), con estado de error por módulo si una query falla.
-// Spalding, Meneagro y MV Nutrition aportan más a la temporada y resaltan un
-// poco más (tarjeta propia en SponsorsSection). Depore, CCF, Jiko Barber y
-// Lever and Murphy Co. van en el grid de mini-cards. Logos reales en
-// public/auspiciadores/. Lever and Murphy Co. usa lightLogo: true porque su
-// emblema es metálico/plateado — se lava sobre la caja blanca que usan los
-// demás, así que lleva caja oscura en su lugar (ver SponsorLogoBox).
+// Spalding, Meneagro y MV Nutrition aportan más a la temporada y van
+// primero en la franja (tier: "destacado" solo define orden, ver
+// sortSponsors en SponsorsSection). El resto (Depore, CCF, Jiko Barber,
+// Lever and Murphy Co., NextMove Kinesiología) va después, en el mismo
+// orden en que aparecen acá. Logos reales en public/auspiciadores/. Lever
+// and Murphy Co. usa lightLogo: true porque su emblema es metálico/plateado
+// — se lava sobre la caja clara que usan los demás, así que lleva caja
+// oscura en su lugar (ver SponsorLogoBox).
 const MOCK_SPONSORS: Sponsor[] = [
   { name: "Spalding", tier: "destacado", label: "Auspiciador Oficial", logoUrl: "/auspiciadores/spalding.png" },
   { name: "Meneagro", tier: "destacado", logoUrl: "/auspiciadores/meneagro.png" },
@@ -54,6 +56,7 @@ const MOCK_SPONSORS: Sponsor[] = [
   { name: "CCF", tier: "support", logoUrl: "/auspiciadores/ccf.png" },
   { name: "Jiko Barber", tier: "support", logoUrl: "/auspiciadores/jiko-barber.png" },
   { name: "Lever and Murphy Co.", tier: "support", logoUrl: "/auspiciadores/lever-murphy.png", lightLogo: true },
+  { name: "NextMove Kinesiología", tier: "support", logoUrl: "/auspiciadores/nextmove-kinesiologia.png" },
 ];
 
 const FOOTER_NAV_LINKS: FooterLink[] = [
