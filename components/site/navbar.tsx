@@ -68,100 +68,105 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
   }, [open]);
 
   return (
-    <header
-      className={`fixed inset-x-0 top-0 z-50 h-[var(--navbar-height)] transition-all duration-300 ${
-        scrolled ? "border-b border-white/10 bg-bg-elevated/90 backdrop-blur-xl" : "border-b border-transparent bg-transparent"
-      }`}
-    >
-      <div className="lbsc-container flex h-full items-center justify-between">
-        <a href="/" className="flex h-full items-center gap-2.5">
-          <Logo />
-          <span className="font-head text-xl uppercase tracking-wide text-text-primary">
-            LBSC<span className="text-accent-purple">·</span>2026
-          </span>
-        </a>
-
-        {/* Desktop */}
-        <nav className="hidden items-center gap-7 xl:gap-8 2xl:gap-10 lg:flex">
-          {LINKS.map((l) => (
-            <a
-              key={l.label}
-              href={l.href}
-              className="flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-2 font-body text-[13px] font-semibold uppercase tracking-wide text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary xl:px-3.5"
-            >
-              {l.label}
-              {l.label === "En Vivo" && isLiveNow && <LiveBadge />}
-            </a>
-          ))}
-        </nav>
-        <div className="hidden lg:flex">
-          {isLiveNow && <LbscButton size="sm">Ver en Vivo</LbscButton>}
-        </div>
-
-        {/* Mobile: hamburguesa */}
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Abrir menú"
-          aria-expanded={open}
-          className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-lg border border-white/10 lg:hidden"
-        >
-          <span className="h-0.5 w-5 rounded-full bg-text-primary" />
-          <span className="h-0.5 w-5 rounded-full bg-text-primary" />
-          <span className="h-0.5 w-5 rounded-full bg-text-primary" />
-        </button>
-      </div>
-
-      {/* Mobile: menú fullscreen. Fondo 100% sólido (sin alpha) — la versión
-          anterior usaba bg-bg-base/95 + backdrop-blur-xl, pero este panel es
-          hijo del <header>, que en estado scrolled aplica su propio
-          backdrop-blur, y esa combinación (backdrop-filter en un ancestro +
-          alpha compositing en un fixed anidado) es un área conocida de bugs
-          de compositing en Safari/iOS donde el fondo del hijo terminaba
-          dejando ver contenido de la página detrás. Un color sólido sin
-          alpha no depende de compositing de capas para pintarse opaco, así
-          que elimina la clase de bug completa (y por eso ya no lleva su
-          propio backdrop-blur: no hay nada detrás que desenfocar).
-          overflow-y-auto: si el contenido no cabe en pantallas muy bajas,
-          scrollea dentro del panel en vez de recortarse o pisarse.
-          z-[80], bien por encima del header (z-50), para no depender del
-          orden en el DOM si en el futuro algo más usa z-50 en la página. */}
-      {open && (
-        <div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto border-t border-white/10 bg-bg-base pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] lg:hidden">
-          <div className="lbsc-container flex h-[var(--navbar-height)] shrink-0 items-center justify-between">
-            <span className="flex items-center gap-2.5">
-              <Logo />
-              <span className="font-head text-xl uppercase tracking-wide text-text-primary">
-                LBSC<span className="text-accent-purple">·</span>2026
-              </span>
+    <>
+      <header
+        className={`fixed inset-x-0 top-0 z-50 h-[var(--navbar-height)] transition-all duration-300 ${
+          scrolled ? "border-b border-white/10 bg-bg-elevated/90 backdrop-blur-xl" : "border-b border-transparent bg-transparent"
+        }`}
+      >
+        <div className="lbsc-container flex h-full items-center justify-between">
+          <a href="/" className="flex h-full items-center gap-2.5">
+            <Logo />
+            <span className="font-head text-xl uppercase tracking-wide text-text-primary">
+              LBSC<span className="text-accent-purple">·</span>2026
             </span>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Cerrar menú"
-              className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path d="M5 5 L15 15 M15 5 L5 15" stroke="currentColor" strokeWidth="1.8" className="text-text-primary" strokeLinecap="round" />
-              </svg>
-            </button>
-          </div>
-          <nav className="lbsc-container flex flex-1 flex-col justify-center gap-5 py-8">
-            {LINKS.map((l, i) => (
+          </a>
+
+          {/* Desktop */}
+          <nav className="hidden items-center gap-7 xl:gap-8 2xl:gap-10 lg:flex">
+            {LINKS.map((l) => (
               <a
                 key={l.label}
                 href={l.href}
-                onClick={() => setOpen(false)}
-                className="lbsc-fade-up flex items-center gap-3 font-head text-4xl uppercase leading-none tracking-tight text-text-primary transition-colors active:text-accent-purple sm:text-5xl"
-                style={{ animationDelay: `${i * 40}ms` }}
+                className="flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-2 font-body text-[13px] font-semibold uppercase tracking-wide text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary xl:px-3.5"
               >
                 {l.label}
                 {l.label === "En Vivo" && isLiveNow && <LiveBadge />}
               </a>
             ))}
           </nav>
+          <div className="hidden lg:flex">
+            {isLiveNow && <LbscButton size="sm">Ver en Vivo</LbscButton>}
+          </div>
+
+          {/* Mobile: hamburguesa */}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Abrir menú"
+            aria-expanded={open}
+            className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-lg border border-white/10 lg:hidden"
+          >
+            <span className="h-0.5 w-5 rounded-full bg-text-primary" />
+            <span className="h-0.5 w-5 rounded-full bg-text-primary" />
+            <span className="h-0.5 w-5 rounded-full bg-text-primary" />
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile: menú fullscreen — hermano de <header>, NO su hijo. Causa raíz
+          del hotfix anterior ("no se ve nada"): el panel es `fixed inset-0`,
+          y `position: fixed` se posiciona respecto al viewport SALVO que un
+          ancestro tenga transform/filter/backdrop-filter/will-change, en
+          cuyo caso ese ancestro pasa a ser el "containing block" del fixed.
+          El <header>, en estado scrolled, aplica backdrop-blur-xl — así que
+          el panel (anidado adentro) quedaba confinado a la caja de 64-88px
+          del header en vez de cubrir el viewport completo: si abrías el
+          menú después de hacer scroll, todo el contenido (logo, links,
+          botón X) quedaba comprimido e invisible en esa franja. Sacarlo del
+          <header> como hermano elimina el bug de raíz, sin depender de que
+          el header nunca cambie sus estilos. Fondo 100% sólido (sin alpha,
+          sin backdrop-blur propio) + texto con color explícito en cada
+          elemento (no heredado) por robustez adicional. */}
+      {open && (
+        <div className="fixed inset-0 z-[80] bg-bg-base text-white lg:hidden">
+          <div className="relative z-10 flex min-h-dvh flex-col overflow-y-auto px-6 pt-[calc(env(safe-area-inset-top)+24px)] pb-[calc(env(safe-area-inset-bottom)+24px)]">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2.5">
+                <Logo />
+                <span className="font-head text-xl uppercase tracking-wide text-white">
+                  LBSC<span className="text-accent-purple">·</span>2026
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Cerrar menú"
+                className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M5 5 L15 15 M15 5 L5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+
+            <nav className="mt-12 flex flex-col gap-5">
+              {LINKS.map((l, i) => (
+                <a
+                  key={l.label}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className="lbsc-fade-up flex items-center gap-3 font-head text-3xl uppercase leading-none tracking-tight text-white transition-colors hover:text-accent-purple active:text-accent-purple sm:text-4xl"
+                  style={{ animationDelay: `${i * 40}ms` }}
+                >
+                  {l.label}
+                  {l.label === "En Vivo" && isLiveNow && <LiveBadge />}
+                </a>
+              ))}
+            </nav>
+          </div>
         </div>
       )}
-    </header>
+    </>
   );
 }
