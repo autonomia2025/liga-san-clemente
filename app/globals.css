@@ -507,6 +507,31 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
+   Auspiciadores: franja rotativa (marquee), 100% CSS. Track = lista real +
+   lista duplicada aria-hidden (loop sin salto, -50% = un ancho de lista).
+   Pausa en hover/focus. Reduced motion: sin animación, scroll horizontal
+   manual en vez de contenido cortado.
+--------------------------------------------------------------------------- */
+@keyframes lbsc-sponsor-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.lbsc-sponsor-marquee-track {
+  width: max-content;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lbsc-sponsor-marquee-track { animation: lbsc-sponsor-marquee 42s linear infinite; }
+  .lbsc-sponsor-marquee:hover .lbsc-sponsor-marquee-track,
+  .lbsc-sponsor-marquee:active .lbsc-sponsor-marquee-track,
+  .lbsc-sponsor-marquee:focus-within .lbsc-sponsor-marquee-track { animation-play-state: paused; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lbsc-sponsor-marquee-track { animation: none; }
+  .lbsc-sponsor-marquee { overflow-x: auto; }
+}
+
+/* ---------------------------------------------------------------------------
    Skeletons: bloque base (--bg-elevated) + shimmer CSS puro (translateX de un
    highlight, GPU-friendly). Bajo reduced-motion: bloque estático sin shimmer.
 --------------------------------------------------------------------------- */
