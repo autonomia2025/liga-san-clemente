@@ -112,18 +112,23 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
         </button>
       </div>
 
-      {/* Mobile: menú fullscreen. Fondo casi opaco (95%) + blur fuerte + borde
-          — no solo bg-bg-base sólido: este panel es hijo del <header>, que en
-          estado scrolled aplica su propio backdrop-blur, y esa combinación
-          (backdrop-filter en un ancestro + fixed anidado) es un área conocida
-          de bugs de compositing en Safari/iOS donde el fondo del hijo puede
-          no pintarse de forma confiable. La opacidad alta + blur propio del
-          panel lo hacen robusto sin depender de cómo componga el padre.
-          z-[60], por encima del header (z-50), para no depender del orden en
-          el DOM si en el futuro algo más usa z-50 en la página. */}
+      {/* Mobile: menú fullscreen. Fondo 100% sólido (sin alpha) — la versión
+          anterior usaba bg-bg-base/95 + backdrop-blur-xl, pero este panel es
+          hijo del <header>, que en estado scrolled aplica su propio
+          backdrop-blur, y esa combinación (backdrop-filter en un ancestro +
+          alpha compositing en un fixed anidado) es un área conocida de bugs
+          de compositing en Safari/iOS donde el fondo del hijo terminaba
+          dejando ver contenido de la página detrás. Un color sólido sin
+          alpha no depende de compositing de capas para pintarse opaco, así
+          que elimina la clase de bug completa (y por eso ya no lleva su
+          propio backdrop-blur: no hay nada detrás que desenfocar).
+          overflow-y-auto: si el contenido no cabe en pantallas muy bajas,
+          scrollea dentro del panel en vez de recortarse o pisarse.
+          z-[80], bien por encima del header (z-50), para no depender del
+          orden en el DOM si en el futuro algo más usa z-50 en la página. */}
       {open && (
-        <div className="fixed inset-0 z-[60] flex flex-col border-t border-white/10 bg-bg-base/95 backdrop-blur-xl lg:hidden">
-          <div className="lbsc-container flex h-[var(--navbar-height)] items-center justify-between">
+        <div className="fixed inset-0 z-[80] flex flex-col overflow-y-auto border-t border-white/10 bg-bg-base pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] lg:hidden">
+          <div className="lbsc-container flex h-[var(--navbar-height)] shrink-0 items-center justify-between">
             <span className="flex items-center gap-2.5">
               <Logo />
               <span className="font-head text-xl uppercase tracking-wide text-text-primary">
@@ -141,13 +146,13 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
               </svg>
             </button>
           </div>
-          <nav className="lbsc-container flex flex-1 flex-col justify-center gap-2">
+          <nav className="lbsc-container flex flex-1 flex-col justify-center gap-5 py-8">
             {LINKS.map((l, i) => (
               <a
                 key={l.label}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="lbsc-fade-up flex items-center gap-3 font-head text-5xl uppercase leading-tight tracking-tight text-text-primary transition-colors active:text-accent-purple"
+                className="lbsc-fade-up flex items-center gap-3 font-head text-4xl uppercase leading-none tracking-tight text-text-primary transition-colors active:text-accent-purple sm:text-5xl"
                 style={{ animationDelay: `${i * 40}ms` }}
               >
                 {l.label}
