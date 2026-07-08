@@ -21,6 +21,7 @@ const LINKS = [
   { href: "/", label: "Inicio" },
   { href: "/en-vivo", label: "En Vivo" },
   { href: "/tabla", label: "Tabla" },
+  { href: "/goleadores", label: "Goleadores" },
   { href: "/calendario", label: "Calendario" },
   { href: "/#equipos", label: "Equipos" },
 ];

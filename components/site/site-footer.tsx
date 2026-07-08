@@ -41,16 +41,6 @@ const DEFAULT_SOCIAL: SocialLink[] = [
 const CONTACT_EMAIL = "ligabasketballsanclemente@gmail.com";
 const CONTACT_PHONE_LABEL = "Inscripciones y consultas por WhatsApp";
 
-function FooterShield() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-      <circle cx="18" cy="18" r="16.5" stroke="currentColor" strokeWidth="1.5" className="text-accent-purple" />
-      <path d="M8 25 L15 13 L19 20 L23 11 L28 25 Z" fill="currentColor" className="text-accent-orange" />
-      <circle cx="23" cy="10" r="2.2" fill="currentColor" className="text-accent-gold" />
-    </svg>
-  );
-}
-
 function SocialIcon({ label }: { label: SocialLink["label"] }) {
   if (label === "Instagram") {
     return (
@@ -105,7 +95,13 @@ export function SiteFooter({
           {/* Identidad */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2.5">
-              <FooterShield />
+              <img
+                src="/logo-liga.png"
+                alt="Liga de Básquetbol San Clemente"
+                width={1536}
+                height={1024}
+                className="h-9 w-auto"
+              />
               <span className="font-head text-lg uppercase tracking-wide text-text-primary">
                 LBSC<span className="text-accent-purple">·</span>2026
               </span>
