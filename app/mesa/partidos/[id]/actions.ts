@@ -1034,27 +1034,40 @@ export async function finalizarPartido(formData: FormData) {
   redirect(`/mesa/partidos/${partidoId}?ok=finalizado`);
 }
 
+// Mismo patrón que requireOperadorEnCurso, pero para acciones que solo
+// aplican DESPUÉS de finalizar (generar Acta, guardar observaciones) — el
+// partido debe estar FINALIZADO en vez de EN_CURSO. Se extrae acá porque
+// Acta 2.0 agrega una segunda acción (guardarObservaciones) que necesita
+// exactamente el mismo chequeo que ya tenía generarActa.
+async function requireOperadorFinalizado(partidoId: string, mensajeError: string): Promise<OperadorCheck> {
+  const usuario = await getCurrentUsuario();
+  if (!usuario || usuario.rol !== "MESA") {
+    return { error: "Sesión inválida." };
+  }
+
+  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
+  if (!partido) {
+    return { error: "Partido no encontrado." };
+  }
+  if (partido.estado !== "FINALIZADO" || partido.mesaOperadorId !== usuario.id) {
+    return { error: mensajeError };
+  }
+
+  return { usuario, partido };
+}
+
 export async function generarActa(formData: FormData) {
   const partidoId = String(formData.get("partidoId") ?? "");
 
   const fail = (mensaje: string) =>
     redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
 
-  const usuario = await getCurrentUsuario();
-  if (!usuario || usuario.rol !== "MESA") {
-    fail("Sesión inválida.");
+  const check = await requireOperadorFinalizado(partidoId, "No podés generar el Acta de este partido.");
+  if ("error" in check) {
+    fail(check.error);
     return;
   }
-
-  const partido = await prisma.partido.findUnique({ where: { id: partidoId } });
-  if (!partido) {
-    fail("Partido no encontrado.");
-    return;
-  }
-  if (partido.estado !== "FINALIZADO" || partido.mesaOperadorId !== usuario.id) {
-    fail("No podés generar el Acta de este partido.");
-    return;
-  }
+  const { partido } = check;
 
   const [eventos, convocados] = await Promise.all([
     prisma.matchEvent.findMany({
@@ -1105,4 +1118,37 @@ export async function generarActa(formData: FormData) {
   ]);
 
   redirect(`/mesa/partidos/${partidoId}?ok=acta`);
+}
+
+// Observaciones del Acta oficial (PR Acta 2.0) — reutiliza Acta.observacionesMesa,
+// que ya existía en el schema desde antes de esta PR (no hizo falta migrar).
+// Solo se puede editar si el Acta ya fue generada (no tiene sentido antes).
+export async function guardarObservaciones(formData: FormData) {
+  const partidoId = String(formData.get("partidoId") ?? "");
+  const observaciones = String(formData.get("observaciones") ?? "").trim();
+
+  const fail = (mensaje: string) =>
+    redirect(`/mesa/partidos/${partidoId}?error=${encodeURIComponent(mensaje)}`);
+
+  const check = await requireOperadorFinalizado(
+    partidoId,
+    "No podés editar las observaciones de este partido.",
+  );
+  if ("error" in check) {
+    fail(check.error);
+    return;
+  }
+
+  const acta = await prisma.acta.findUnique({ where: { partidoId } });
+  if (!acta) {
+    fail("Primero generá el Acta antes de agregar observaciones.");
+    return;
+  }
+
+  await prisma.acta.update({
+    where: { partidoId },
+    data: { observacionesMesa: observaciones || null },
+  });
+
+  redirect(`/mesa/partidos/${partidoId}?ok=observaciones`);
 }

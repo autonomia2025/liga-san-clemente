@@ -256,6 +256,93 @@ function calcularFaltas(
   };
 }
 
+// --- Desgloses para el Acta oficial (PR Acta 2.0) ---------------------------
+// Solo los necesita la vista de Acta (app/mesa/partidos/[id]/page.tsx) —
+// nadie más los consume, así que quedan afuera de buildLiveMatchState/
+// LiveMatchState en vez de recalcularse en cada tick en vivo de Mesa/en-vivo.
+
+export type DesglosePuntos = { p1: number; p2: number; p3: number; total: number };
+
+// A diferencia de faltas, LiveMatchState no guarda el desglose de puntos por
+// valor (solo el total acumulado en puntosPorJugador) — acá sí hace falta un
+// recorrido propio de los eventos PUNTO. P1/P2/P3 son SUMA de puntos de ese
+// valor, no cantidad de conversiones (ej. 4 dobles convertidos = P2: 8, no
+// P2: 4) — así el desglose siempre suma exactamente el total, como pide el
+// acta oficial.
+export function calcularDesglosePuntosPorJugador(eventos: MatchEventLite[]): Map<string, DesglosePuntos> {
+  const resultado = new Map<string, DesglosePuntos>();
+  for (const e of eventos) {
+    if (e.anulado || e.tipo !== "PUNTO" || !e.jugadorId) continue;
+    const valor = extraerValorPunto(e.detalle);
+    const actual = resultado.get(e.jugadorId) ?? { p1: 0, p2: 0, p3: 0, total: 0 };
+    if (valor === 1) actual.p1 += 1;
+    else if (valor === 2) actual.p2 += 2;
+    else if (valor === 3) actual.p3 += 3;
+    actual.total += valor;
+    resultado.set(e.jugadorId, actual);
+  }
+  return resultado;
+}
+
+export type DesgloseFaltas = {
+  personal: number;
+  ofensiva: number;
+  tecnica: number;
+  antideportiva: number;
+  descalificante: number;
+  expulsion: number;
+  total: number;
+};
+
+// A diferencia de puntos, acá SÍ alcanza con reutilizar lo que ya calcula
+// calcularFaltas (tiposFaltaPorJugador/faltasPorJugador) — no hace falta
+// recorrer MatchEvent de nuevo, solo tabular por tipo lo que ya está
+// calculado. Eventos sin tipoFalta reconocido (antiguos, de antes de que
+// existiera este dato) no se inventan como "personal" — solo suman al total
+// vía faltasPorJugador, que ya cuenta cualquier FALTA sin importar el tipo.
+export function calcularDesgloseFaltasPorJugador(
+  tiposFaltaPorJugador: Map<string, TipoFaltaValor[]>,
+  faltasPorJugador: Map<string, number>,
+): Map<string, DesgloseFaltas> {
+  const resultado = new Map<string, DesgloseFaltas>();
+  for (const [jugadorId, total] of faltasPorJugador) {
+    const tipos = tiposFaltaPorJugador.get(jugadorId) ?? [];
+    const desglose: DesgloseFaltas = {
+      personal: 0,
+      ofensiva: 0,
+      tecnica: 0,
+      antideportiva: 0,
+      descalificante: 0,
+      expulsion: 0,
+      total,
+    };
+    for (const t of tipos) {
+      switch (t) {
+        case "PERSONAL":
+          desglose.personal += 1;
+          break;
+        case "OFENSIVA":
+          desglose.ofensiva += 1;
+          break;
+        case "TECNICA":
+          desglose.tecnica += 1;
+          break;
+        case "ANTIDEPORTIVA":
+          desglose.antideportiva += 1;
+          break;
+        case "DESCALIFICANTE":
+          desglose.descalificante += 1;
+          break;
+        case "EXPULSION_DIRECTA":
+          desglose.expulsion += 1;
+          break;
+      }
+    }
+    resultado.set(jugadorId, desglose);
+  }
+  return resultado;
+}
+
 function calcularTimeouts(
   vigentes: MatchEventLite[],
   context: LiveMatchContext,
