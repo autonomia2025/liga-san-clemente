@@ -5,9 +5,8 @@ import { LbscButton } from "@/components/design-system/lbsc-button";
 
 // Sección Historia / Nosotros de la Home. NO usa base de datos. El copy es
 // texto oficial de la liga (editable por props o en las constantes de abajo).
-// La foto principal ("Comunidad LBSC") ya es real (public/home/mas-que-una-liga.jpg).
-// Las 4 fotos de la galería de abajo siguen siendo placeholder visual (sin
-// stock) hasta tener imágenes reales — solo los captions ya son definitivos.
+// La foto principal ("Comunidad LBSC") y las 4 fotos de la galería de abajo
+// ya son reales (public/home/*.jpg).
 
 export type HistoryMilestone = {
   date: string;
@@ -19,6 +18,7 @@ export type HistoryPhoto = {
   src?: string;
   alt: string;
   label?: string;
+  position?: string;
 };
 
 export type HistorySectionProps = {
@@ -55,11 +55,20 @@ const HISTORY_MILESTONES: HistoryMilestone[] = [
   { date: "SPALDING", title: "Auspiciador oficial", description: "Spalding se suma como auspiciador oficial, entregando respaldo y prestigio a una liga que busca seguir elevando su nivel." },
 ];
 
+// El nombre de archivo original no siempre coincide con la acción real de la
+// foto (verificado visualmente) — el mapeo de abajo asigna cada badge a la
+// imagen cuyo contenido realmente le corresponde, no al nombre del archivo:
+// "historia-salto-inicial.jpg" es en realidad un jugador driblando con
+// control (→ Control del partido); "historia-control-partido.jpg" es un tiro
+// contestado muy cerca del aro (→ Definición en la pintura);
+// "historia-ataque-aro.jpg" es un lanzamiento de media distancia
+// (→ Cada posesión cuenta); "historia-cada-posesion.jpg" es un jugador
+// elevándose cerca del aro (→ El partido empieza).
 const HISTORY_PHOTOS: HistoryPhoto[] = [
-  { src: undefined, alt: "Placeholder para foto real de partido LBSC", label: "Intensidad en cancha" },
-  { src: undefined, alt: "Placeholder para foto real de equipo en huddle", label: "La familia del básquet" },
-  { src: undefined, alt: "Placeholder para foto real del gimnasio", label: "Nuestra casa deportiva" },
-  { src: undefined, alt: "Placeholder para foto real de entrenamiento", label: "Preparación y compromiso" },
+  { src: "/home/historia-salto-inicial.jpg", alt: "Jugador de la Liga de Básquetbol San Clemente controlando el balón en el Polideportivo", label: "Control del partido", position: "center 40%" },
+  { src: "/home/historia-control-partido.jpg", alt: "Jugador de la Liga de Básquetbol San Clemente definiendo en la pintura ante un defensor", label: "Definición en la pintura", position: "center 30%" },
+  { src: "/home/historia-ataque-aro.jpg", alt: "Jugador de la Liga de Básquetbol San Clemente lanzando al aro", label: "Cada posesión cuenta", position: "center 25%" },
+  { src: "/home/historia-cada-posesion.jpg", alt: "Jugador de la Liga de Básquetbol San Clemente elevándose cerca del aro", label: "El partido empieza", position: "center 30%" },
 ];
 
 const HISTORY_CLOSING =
@@ -80,6 +89,8 @@ function PhotoPlaceholder({
   // placeholder con gradiente no lo necesita, siempre se ve completo.
   objectPosition?: string;
 }) {
+  const finalPosition = photo.position || objectPosition;
+
   return (
     <div className={`lbsc-photo-treatment relative overflow-hidden rounded-2xl ring-1 ring-white/10 ${className}`}>
       {photo.src ? (
@@ -88,7 +99,7 @@ function PhotoPlaceholder({
             className="absolute inset-0"
             role="img"
             aria-label={photo.alt}
-            style={{ background: `${objectPosition} / cover no-repeat url(${photo.src})` }}
+            style={{ background: `${finalPosition} / cover no-repeat url(${photo.src})` }}
           />
           {/* Tinte sutil del color de acento — mismo lenguaje visual que el
               gradiente morado/naranja/dorado de los placeholders, pero acá
