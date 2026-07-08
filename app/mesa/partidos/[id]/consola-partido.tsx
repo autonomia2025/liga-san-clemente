@@ -830,15 +830,20 @@ function FinalizarPartido({
   }
 
   return (
-    <form action={finalizarPartido} className="flex justify-center">
-      <input type="hidden" name="partidoId" value={partidoId} />
-      <button
-        type="submit"
-        className="rounded-full bg-danger px-4 py-1.5 text-[11px] font-semibold text-white hover:opacity-90 active:scale-95"
-      >
-        Finalizar partido ({liveState.marcadorLocal}&nbsp;-&nbsp;{liveState.marcadorVisitante})
-      </button>
-    </form>
+    <div className="flex flex-col items-center gap-1.5">
+      <p className="text-center text-[11px] font-semibold text-success">
+        Partido listo para finalizar.
+      </p>
+      <form action={finalizarPartido} className="flex justify-center">
+        <input type="hidden" name="partidoId" value={partidoId} />
+        <button
+          type="submit"
+          className="rounded-full bg-danger px-4 py-1.5 text-[11px] font-semibold text-white hover:opacity-90 active:scale-95"
+        >
+          Finalizar partido ({liveState.marcadorLocal}&nbsp;-&nbsp;{liveState.marcadorVisitante})
+        </button>
+      </form>
+    </div>
   );
 }
 

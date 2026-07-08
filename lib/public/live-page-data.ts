@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import type { TipoEvento } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
 import { buildLiveMatchState, TOTAL_CUARTOS_REGULAR } from "@/lib/mesa/live-match-state";
 import { describirEvento, extraerClock } from "@/lib/mesa/describir-evento";
@@ -67,7 +69,7 @@ export type PlayByPlayEntry = {
 };
 
 export type LiveGameData = {
-  state: "live" | "upcoming" | "none";
+  state: "live" | "finished" | "upcoming" | "none";
   match?: {
     id: string;
     status: "live" | "upcoming" | "finished";
@@ -120,36 +122,63 @@ function sortValue(date: Date | null): number {
   return date ? date.getTime() : Number.POSITIVE_INFINITY;
 }
 
-async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
-  const partido = await prisma.partido.findFirst({
-    where: { estado: "EN_CURSO" },
-    orderBy: { updatedAt: "desc" },
+// Mismo select para el partido "en vivo" y el partido "recién finalizado" —
+// ambos necesitan exactamente los mismos datos (roster, eventos) para armar
+// la misma vista (marcador/boxscore/Play by Play), solo cambia el `where`
+// (estado) y qué tan "vivo" se muestra el resultado (ver buildMatchView).
+const SELECT_PARTIDO_VISTA = {
+  id: true,
+  cancha: true,
+  clubLocalId: true,
+  clubVisitanteId: true,
+  duracionCuartoMinutos: true,
+  clubLocal: { select: { nombre: true, escudoUrl: true } },
+  clubVisitante: { select: { nombre: true, escudoUrl: true } },
+  eventos: {
+    where: { anulado: false },
+    orderBy: { createdAt: "asc" as const },
     select: {
       id: true,
-      cancha: true,
-      clubLocalId: true,
-      clubVisitanteId: true,
-      duracionCuartoMinutos: true,
-      clubLocal: { select: { nombre: true, escudoUrl: true } },
-      clubVisitante: { select: { nombre: true, escudoUrl: true } },
-      eventos: {
-        where: { anulado: false },
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          tipo: true,
-          cuarto: true,
-          anulado: true,
-          jugadorId: true,
-          clubId: true,
-          detalle: true,
-          createdAt: true,
-        },
-      },
+      tipo: true,
+      cuarto: true,
+      anulado: true,
+      jugadorId: true,
+      clubId: true,
+      detalle: true,
+      createdAt: true,
     },
-  });
-  if (!partido) return null;
+  },
+} as const;
 
+type PartidoVista = {
+  id: string;
+  cancha: string | null;
+  clubLocalId: string;
+  clubVisitanteId: string;
+  duracionCuartoMinutos: number;
+  clubLocal: { nombre: string; escudoUrl: string | null };
+  clubVisitante: { nombre: string; escudoUrl: string | null };
+  eventos: {
+    id: string;
+    tipo: TipoEvento;
+    cuarto: number;
+    anulado: boolean;
+    jugadorId: string | null;
+    clubId: string | null;
+    detalle: Prisma.JsonValue | null;
+    createdAt: Date;
+  }[];
+};
+
+// Arma la vista pública completa (marcador, boxscore, líderes, Play by Play,
+// quién está en cancha) a partir de un partido ya consultado — comparte toda
+// esta lógica entre el partido EN_CURSO y el recién FINALIZADO (loadLiveMatch
+// / loadRecentlyFinishedMatch más abajo) para no duplicarla ni arriesgar que
+// diverjan con el tiempo.
+async function buildMatchView(
+  partido: PartidoVista,
+  status: "live" | "finished",
+): Promise<NonNullable<LiveGameData["match"]>> {
   const liveState = buildLiveMatchState(partido.eventos, {
     clubLocalId: partido.clubLocalId,
     clubVisitanteId: partido.clubVisitanteId,
@@ -159,9 +188,17 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
   // relojUltimoInicio) — misma fuente de verdad que usa Mesa. SQL crudo vía
   // leerReloj porque el cliente Prisma generado en desarrollo todavía no
   // conoce estos 3 campos (ver nota en lib/mesa/reloj.ts); no afecta a
-  // producción, donde Vercel sí corre `prisma generate`.
-  const relojDb = await leerReloj(partido.id);
-  const reloj = relojDb ? calcularRelojActual(relojDb, new Date()) : undefined;
+  // producción, donde Vercel sí corre `prisma generate`. Un partido
+  // FINALIZADO no tiene reloj corriendo (todos los cuartos ya cerraron con
+  // FIN_CUARTO) — no se muestra ninguno en vez de uno "congelado" que
+  // confundiría al público.
+  const reloj =
+    status === "live"
+      ? await (async () => {
+          const relojDb = await leerReloj(partido.id);
+          return relojDb ? calcularRelojActual(relojDb, new Date()) : undefined;
+        })()
+      : undefined;
 
   // Roster presente en el partido (fuente real de quién juega) para nombres,
   // dorsal y quién está en cancha ahora mismo; puntos/faltas vienen de los
@@ -206,12 +243,18 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
     name: r.jugador.nombre,
     initials: initials(r.jugador.nombre),
   });
-  const jugadoresEnCanchaLocal = roster
-    .filter((r) => r.clubId === partido.clubLocalId && r.enCancha)
-    .map(toPlayerName);
-  const jugadoresEnCanchaVisitante = roster
-    .filter((r) => r.clubId === partido.clubVisitanteId && r.enCancha)
-    .map(toPlayerName);
+  // "En cancha" no tiene sentido para un partido ya terminado — nadie sigue
+  // jugando, así que se muestra vacío (EnCanchaSection en /en-vivo oculta la
+  // sección entera cuando ambos arrays vienen vacíos) en vez del último
+  // lineup que quedó marcado al momento de finalizar.
+  const jugadoresEnCanchaLocal =
+    status === "finished"
+      ? []
+      : roster.filter((r) => r.clubId === partido.clubLocalId && r.enCancha).map(toPlayerName);
+  const jugadoresEnCanchaVisitante =
+    status === "finished"
+      ? []
+      : roster.filter((r) => r.clubId === partido.clubVisitanteId && r.enCancha).map(toPlayerName);
 
   // Líderes: jugadores con puntos reales anotados en el partido, sin importar
   // equipo, top 4. Si nadie anotó todavía, queda vacío (no se inventa).
@@ -273,8 +316,8 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
 
   return {
     id: partido.id,
-    status: "live",
-    periodLabel: periodLabelFromCuarto(liveState.cuartoActivo),
+    status,
+    periodLabel: status === "finished" ? "FINALIZADO" : periodLabelFromCuarto(liveState.cuartoActivo),
     scheduledAt: null,
     venue: partido.cancha,
     homeTeam: teamRef(partido.clubLocal),
@@ -289,6 +332,40 @@ async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
     jugadoresEnCanchaLocal,
     jugadoresEnCanchaVisitante,
   };
+}
+
+async function loadLiveMatch(): Promise<LiveGameData["match"] | null> {
+  const partido = await prisma.partido.findFirst({
+    where: { estado: "EN_CURSO" },
+    orderBy: { updatedAt: "desc" },
+    select: SELECT_PARTIDO_VISTA,
+  });
+  if (!partido) return null;
+  return buildMatchView(partido, "live");
+}
+
+// "Puente" de partido recién finalizado: antes de esta PR, /en-vivo dejaba
+// de mostrar el partido en el instante exacto en que Mesa lo finalizaba
+// (loadLiveMatch solo consulta EN_CURSO) — el resultado final nunca se veía
+// en el sitio público, caía directo a "próximo partido" o "sin partidos en
+// vivo". Ahora se sigue mostrando por una ventana acotada después de
+// finalizar, con el mismo layout (marcador/boxscore/Play by Play) pero sin
+// indicador de "en vivo" ni reloj corriendo. Pasada la ventana, deja de
+// aparecer acá — no se convierte en un archivo histórico de resultados (eso
+// es responsabilidad de /tabla, no de esta página).
+const FINALIZADO_RECIENTE_MINUTOS = 30;
+
+async function loadRecentlyFinishedMatch(): Promise<LiveGameData["match"] | null> {
+  const partido = await prisma.partido.findFirst({
+    where: {
+      estado: "FINALIZADO",
+      updatedAt: { gte: new Date(Date.now() - FINALIZADO_RECIENTE_MINUTOS * 60 * 1000) },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: SELECT_PARTIDO_VISTA,
+  });
+  if (!partido) return null;
+  return buildMatchView(partido, "finished");
 }
 
 async function loadUpcomingMatch(): Promise<LiveGameData["match"] | null> {
@@ -325,6 +402,9 @@ async function loadUpcomingMatch(): Promise<LiveGameData["match"] | null> {
 export async function getLivePageData(): Promise<LiveGameData> {
   const live = await loadLiveMatch();
   if (live) return { state: "live", match: live };
+
+  const finished = await loadRecentlyFinishedMatch();
+  if (finished) return { state: "finished", match: finished };
 
   const upcoming = await loadUpcomingMatch();
   if (upcoming) return { state: "upcoming", match: upcoming };

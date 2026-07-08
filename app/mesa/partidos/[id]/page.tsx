@@ -203,6 +203,9 @@ export default async function MesaPartidoPage({
       )}
       {partidoFinalizado && (
         <div className="flex animate-fade-in flex-col items-center gap-4 rounded-xl border border-border bg-surface p-6 sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+            Partido finalizado.
+          </p>
           <div className="flex items-center gap-2">
             <span
               className={`flex h-7 w-7 items-center justify-center rounded-full ${

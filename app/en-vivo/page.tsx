@@ -338,11 +338,18 @@ function PlayByPlay({ entries }: { entries: PlayByPlayEntry[] }) {
 
 function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> }) {
   const hasScore = match.homeScore != null && match.awayScore != null;
+  const finalizado = match.status === "finished";
   return (
     <div className="lbsc-container pb-16">
       <div className="rounded-2xl border border-white/10 bg-bg-elevated p-6 sm:p-10">
         <div className="mb-8 flex flex-wrap items-center justify-center gap-3 text-center">
-          <LiveBadge />
+          {finalizado ? (
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/[0.03] px-2.5 py-1 font-body text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+              Finalizado
+            </span>
+          ) : (
+            <LiveBadge />
+          )}
           <span className="font-body text-sm font-bold uppercase tracking-[0.2em] text-text-primary">
             {match.periodLabel ?? "EN CURSO"}
             {match.reloj && (
@@ -479,13 +486,22 @@ function LiveError() {
 /* ---- header dinámico ---------------------------------------------------------- */
 
 function PageHeader({ state }: { state: LiveGameData["state"] | "error" }) {
-  const title = state === "live" ? "Partido en vivo" : state === "upcoming" ? "Próximo partido" : "En vivo";
+  const title =
+    state === "live"
+      ? "Partido en vivo"
+      : state === "finished"
+        ? "Resultado final"
+        : state === "upcoming"
+          ? "Próximo partido"
+          : "En vivo";
   const subtitle =
     state === "live"
       ? "Marcador y estadísticas del partido en curso."
-      : state === "upcoming"
-        ? "El próximo partido aparecerá aquí cuando comience."
-        : "No hay partidos en vivo por el momento.";
+      : state === "finished"
+        ? "El partido finalizó — este es el resultado."
+        : state === "upcoming"
+          ? "El próximo partido aparecerá aquí cuando comience."
+          : "No hay partidos en vivo por el momento.";
 
   return (
     <header className="lbsc-container pb-8 pt-14 sm:pt-18 lg:pb-10 lg:pt-20">
@@ -543,7 +559,7 @@ export default async function EnVivoPage() {
 
         {failed || !data ? (
           <LiveError />
-        ) : data.state === "live" && data.match ? (
+        ) : (data.state === "live" || data.state === "finished") && data.match ? (
           <LiveMatchView match={data.match} />
         ) : data.state === "upcoming" && data.match ? (
           <UpcomingMatchView match={data.match} />
