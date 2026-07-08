@@ -42,8 +42,10 @@ export const metadata: Metadata = {
 // getHomePageData(), con estado de error por módulo si una query falla.
 // Spalding, Meneagro y MV Nutrition aportan más a la temporada y resaltan un
 // poco más (tarjeta propia en SponsorsSection). Depore, CCF, Jiko Barber y
-// Lever and Murphy Co. quedan con el tratamiento chico de siempre. Logos
-// reales en public/auspiciadores/.
+// Lever and Murphy Co. van en el grid de mini-cards. Logos reales en
+// public/auspiciadores/. Lever and Murphy Co. usa lightLogo: true porque su
+// emblema es metálico/plateado — se lava sobre la caja blanca que usan los
+// demás, así que lleva caja oscura en su lugar (ver SponsorLogoBox).
 const MOCK_SPONSORS: Sponsor[] = [
   { name: "Spalding", tier: "destacado", label: "Auspiciador Oficial", logoUrl: "/auspiciadores/spalding.png" },
   { name: "Meneagro", tier: "destacado", logoUrl: "/auspiciadores/meneagro.png" },
@@ -51,7 +53,7 @@ const MOCK_SPONSORS: Sponsor[] = [
   { name: "Depore", tier: "support", logoUrl: "/auspiciadores/depore.png" },
   { name: "CCF", tier: "support", logoUrl: "/auspiciadores/ccf.png" },
   { name: "Jiko Barber", tier: "support", logoUrl: "/auspiciadores/jiko-barber.png" },
-  { name: "Lever and Murphy Co.", tier: "support", logoUrl: "/auspiciadores/lever-murphy.png" },
+  { name: "Lever and Murphy Co.", tier: "support", logoUrl: "/auspiciadores/lever-murphy.png", lightLogo: true },
 ];
 
 const FOOTER_NAV_LINKS: FooterLink[] = [
