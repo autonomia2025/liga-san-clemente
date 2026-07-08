@@ -70,7 +70,7 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 h-[var(--navbar-height)] transition-all duration-300 ${
-        scrolled ? "border-b border-white/10 bg-bg-elevated/85 backdrop-blur-md" : "border-b border-transparent bg-transparent"
+        scrolled ? "border-b border-white/10 bg-bg-elevated/90 backdrop-blur-xl" : "border-b border-transparent bg-transparent"
       }`}
     >
       <div className="lbsc-container flex h-full items-center justify-between">
@@ -112,9 +112,17 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
         </button>
       </div>
 
-      {/* Mobile: menú fullscreen */}
+      {/* Mobile: menú fullscreen. Fondo casi opaco (95%) + blur fuerte + borde
+          — no solo bg-bg-base sólido: este panel es hijo del <header>, que en
+          estado scrolled aplica su propio backdrop-blur, y esa combinación
+          (backdrop-filter en un ancestro + fixed anidado) es un área conocida
+          de bugs de compositing en Safari/iOS donde el fondo del hijo puede
+          no pintarse de forma confiable. La opacidad alta + blur propio del
+          panel lo hacen robusto sin depender de cómo componga el padre.
+          z-[60], por encima del header (z-50), para no depender del orden en
+          el DOM si en el futuro algo más usa z-50 en la página. */}
       {open && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-bg-base lg:hidden">
+        <div className="fixed inset-0 z-[60] flex flex-col border-t border-white/10 bg-bg-base/95 backdrop-blur-xl lg:hidden">
           <div className="lbsc-container flex h-[var(--navbar-height)] items-center justify-between">
             <span className="flex items-center gap-2.5">
               <Logo />
@@ -139,7 +147,7 @@ export function Navbar({ isLiveNow = false }: NavbarProps) {
                 key={l.label}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="lbsc-fade-up flex items-center gap-3 font-head text-5xl uppercase leading-tight tracking-tight text-text-primary"
+                className="lbsc-fade-up flex items-center gap-3 font-head text-5xl uppercase leading-tight tracking-tight text-text-primary transition-colors active:text-accent-purple"
                 style={{ animationDelay: `${i * 40}ms` }}
               >
                 {l.label}
