@@ -5,8 +5,9 @@ import { LbscButton } from "@/components/design-system/lbsc-button";
 
 // Sección Historia / Nosotros de la Home. NO usa base de datos. El copy es
 // texto oficial de la liga (editable por props o en las constantes de abajo).
-// Las fotos siguen siendo placeholder visual (sin stock) hasta tener imágenes
-// reales — solo los captions ya son definitivos.
+// La foto principal ("Comunidad LBSC") ya es real (public/home/mas-que-una-liga.jpg).
+// Las 4 fotos de la galería de abajo siguen siendo placeholder visual (sin
+// stock) hasta tener imágenes reales — solo los captions ya son definitivos.
 
 export type HistoryMilestone = {
   date: string;
@@ -66,16 +67,39 @@ const HISTORY_CLOSING =
 
 /* ---- placeholder visual de foto (sin stock) ------------------------------ */
 
-function PhotoPlaceholder({ photo, accent, className = "" }: { photo: HistoryPhoto; accent: string; className?: string }) {
+function PhotoPlaceholder({
+  photo,
+  accent,
+  className = "",
+  objectPosition = "center",
+}: {
+  photo: HistoryPhoto;
+  accent: string;
+  className?: string;
+  // Foco del crop cuando hay foto real (background-position) — el
+  // placeholder con gradiente no lo necesita, siempre se ve completo.
+  objectPosition?: string;
+}) {
   return (
     <div className={`lbsc-photo-treatment relative overflow-hidden rounded-2xl ring-1 ring-white/10 ${className}`}>
       {photo.src ? (
-        <div
-          className="absolute inset-0"
-          role="img"
-          aria-label={photo.alt}
-          style={{ background: `center/cover no-repeat url(${photo.src})` }}
-        />
+        <>
+          <div
+            className="absolute inset-0"
+            role="img"
+            aria-label={photo.alt}
+            style={{ background: `${objectPosition} / cover no-repeat url(${photo.src})` }}
+          />
+          {/* Tinte sutil del color de acento — mismo lenguaje visual que el
+              gradiente morado/naranja/dorado de los placeholders, pero acá
+              como wash liviano sobre la foto real (mix-blend-mode: overlay,
+              no tapa la imagen) en vez de ser el fondo completo. */}
+          <div
+            className="absolute inset-0 mix-blend-overlay"
+            style={{ background: `linear-gradient(150deg, ${accent}66, transparent 62%)` }}
+            aria-hidden="true"
+          />
+        </>
       ) : (
         <div className="absolute inset-0" role="img" aria-label={photo.alt} style={{ background: `linear-gradient(150deg, ${accent}, #0a0e1a 82%)` }}>
           {/* Líneas de cancha muy tenues */}
@@ -202,11 +226,23 @@ export function HistorySection({
           </div>
         </div>
 
-        {/* Imagen principal (placeholder ligeramente dominante) */}
+        {/* Imagen principal — foto real de partido (antes: placeholder con
+            gradiente). Aspect ratio pasó de horizontal (4/3 · 5/4) a vertical
+            (3/4 · 4/5): la foto original es retrato (1066x1600) y un crop
+            horizontal la habría recortado demasiado (cabeza o pies afuera).
+            objectPosition prioriza el tercio superior/medio — ahí están
+            cabeza, brazos y balón, que es la acción — dejando que el recorte
+            se coma más bien las piernas/pies y la marca de agua "©MR.P13" del
+            borde inferior (aceptado explícitamente, no se edita la imagen). */}
         <PhotoPlaceholder
-          photo={{ src: undefined, alt: "Placeholder para foto real de la Liga de Básquetbol San Clemente", label: "Comunidad LBSC" }}
+          photo={{
+            src: "/home/mas-que-una-liga.jpg",
+            alt: "Jugador de la Liga de Básquetbol San Clemente lanzando un tiro libre en el Polideportivo, con la banca de suplentes de fondo",
+            label: "Comunidad LBSC",
+          }}
           accent="#7c3aed"
-          className="aspect-[4/3] w-full lg:aspect-[5/4]"
+          objectPosition="center 28%"
+          className="aspect-[3/4] w-full lg:aspect-[4/5]"
         />
       </div>
 
