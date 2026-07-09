@@ -33,7 +33,14 @@ export const metadata: Metadata = {
       "Resultados, calendario, tabla de posiciones y comunidad de la Liga de Básquetbol San Clemente 2026.",
     type: "website",
     locale: "es_CL",
-    // TODO: agregar og-image real cuando tengamos escudo/foto oficial en /public.
+    images: ["/og-image.jpg"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LBSC 2026 — Liga de Básquetbol San Clemente | Temporada 2026",
+    description:
+      "Resultados, calendario, tabla de posiciones y comunidad de la Liga de Básquetbol San Clemente 2026.",
+    images: ["/og-image.jpg"],
   },
 };
 

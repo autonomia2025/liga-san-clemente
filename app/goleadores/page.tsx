@@ -11,8 +11,8 @@ import { getScoringLeaders, type ScoringLeaderRow } from "@/lib/public/scoring-l
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Goleadores | Liga San Clemente",
-  description: "Ranking de goleadores de la Liga de Básquetbol San Clemente.",
+  title: "Tabla de goleadores",
+  description: "Revisa el ranking de goleadores de la Liga de Básquetbol San Clemente 2026.",
 };
 
 const FOOTER_NAV_LINKS: FooterLink[] = [

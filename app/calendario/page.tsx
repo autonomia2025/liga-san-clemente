@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LiveBadge } from "@/components/design-system/live-badge";
 import { ModuleError } from "@/components/site/module-error";
@@ -12,6 +13,11 @@ import {
 } from "@/lib/public/calendar-data";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Calendario",
+  description: "Revisa los próximos partidos, fechas y horarios de la Liga de Básquetbol San Clemente 2026.",
+};
 
 const TIME_ZONE = "America/Santiago";
 

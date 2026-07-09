@@ -10,8 +10,8 @@ import { getStandingsPageData, type StandingsPageRow } from "@/lib/public/standi
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Tabla de posiciones | LBSC 2026",
-  description: "Tabla de posiciones completa de la Liga de Básquetbol San Clemente, temporada 2026.",
+  title: "Tabla de posiciones",
+  description: "Consulta la tabla de posiciones actualizada de la Liga de Básquetbol San Clemente 2026.",
 };
 
 const FOOTER_NAV_LINKS: FooterLink[] = [

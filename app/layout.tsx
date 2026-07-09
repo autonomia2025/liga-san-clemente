@@ -40,9 +40,36 @@ const inter = Inter({
   display: "swap",
 });
 
+// Metadata global (SEO básico): título con template para que cada página
+// pública solo defina su propio título corto y este quede armado como
+// "Página | Liga de Básquetbol San Clemente". openGraph/twitter acá son los
+// valores por defecto — las páginas que definen su propio openGraph los
+// sobreescriben (Next.js hace merge por campo, no reemplaza todo el objeto).
+// Sin metadataBase: no hay dominio de producción confirmado todavía (ver
+// auditoría SEO), así que las imágenes de acá usan URL relativa a propósito.
 export const metadata: Metadata = {
-  title: "Liga SC",
-  description: "Plataforma de gestión y seguimiento de la Liga SC",
+  title: {
+    default: "Liga de Básquetbol San Clemente",
+    template: "%s | Liga de Básquetbol San Clemente",
+  },
+  description:
+    "Sitio oficial de la Liga de Básquetbol San Clemente: calendario, tabla de posiciones, goleadores, equipos y partidos en vivo de la temporada 2026.",
+  openGraph: {
+    title: "Liga de Básquetbol San Clemente",
+    description:
+      "Calendario, tabla de posiciones, goleadores, equipos y partidos en vivo de la Liga de Básquetbol San Clemente.",
+    siteName: "Liga de Básquetbol San Clemente",
+    locale: "es_CL",
+    type: "website",
+    images: ["/og-image.jpg"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Liga de Básquetbol San Clemente",
+    description:
+      "Calendario, tabla de posiciones, goleadores, equipos y partidos en vivo de la Liga de Básquetbol San Clemente.",
+    images: ["/og-image.jpg"],
+  },
 };
 
 export default function RootLayout({

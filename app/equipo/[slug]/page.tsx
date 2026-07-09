@@ -74,10 +74,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   } catch {
     /* metadata genérica si falla */
   }
-  if (!data) return { title: "Equipo | LBSC 2026" };
+  if (!data) return { title: "Equipo" };
   return {
-    title: `${data.team.name} | LBSC 2026`,
-    description: `Perfil oficial de ${data.team.name} en la Liga de Básquetbol San Clemente, temporada 2026.`,
+    title: data.team.name,
+    description: `Revisa el roster, información y partidos de ${data.team.name} en la Liga de Básquetbol San Clemente.`,
   };
 }
 

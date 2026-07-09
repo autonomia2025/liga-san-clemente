@@ -22,8 +22,8 @@ import { LiveClock } from "@/components/site/live-clock";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "En vivo | LBSC 2026",
-  description: "Marcador y estadísticas en vivo de la Liga de Básquetbol San Clemente.",
+  title: "Partidos en vivo",
+  description: "Sigue los partidos en vivo de la Liga de Básquetbol San Clemente con marcador y estado del encuentro.",
 };
 
 const TIME_ZONE = "America/Santiago";
