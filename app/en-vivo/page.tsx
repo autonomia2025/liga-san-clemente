@@ -36,10 +36,10 @@ const FOOTER_NAV_LINKS: FooterLink[] = [
   { label: "Equipos", href: "/#equipos" },
 ];
 
+// TikTok y Facebook quedan fuera por ahora: sin link oficial confirmado todavía.
 const FOOTER_SOCIAL_LINKS: SocialLink[] = [
-  { label: "Instagram", href: "#" },
-  { label: "TikTok", href: "#" },
-  { label: "Facebook", href: "#" },
+  { label: "Instagram", href: "https://www.instagram.com/lbsc2026/" },
+  { label: "YouTube", href: "https://www.youtube.com/@LigadeBasquetbolSanClemente" },
 ];
 
 const dateTimeFormatter = new Intl.DateTimeFormat("es-CL", {
