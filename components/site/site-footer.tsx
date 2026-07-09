@@ -170,6 +170,20 @@ export function SiteFooter({
           <span className="font-body text-xs text-text-secondary">© {anio} LBSC. Hecho con pasión en San Clemente.</span>
           <span className="font-body text-xs text-text-secondary">Liga de Básquetbol San Clemente · Temporada 2026</span>
         </div>
+
+        {/* Crédito de desarrollo — discreto, propia fila debajo de la línea
+            inferior existente para no competir visualmente con el copyright
+            de la liga. Centrado en mobile, alineado a la derecha en desktop. */}
+        <div className="mt-4 flex justify-center sm:justify-end">
+          <a
+            href="https://www.instagram.com/autonomia.cl"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-body text-xs text-text-secondary transition-colors hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+          >
+            Desarrollado por <span className="font-semibold text-text-primary">AutonomIA</span>
+          </a>
+        </div>
       </div>
     </footer>
   );
