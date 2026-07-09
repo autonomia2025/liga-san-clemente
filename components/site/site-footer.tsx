@@ -7,7 +7,7 @@ export type FooterLink = {
 };
 
 export type SocialLink = {
-  label: "Instagram" | "TikTok" | "Facebook";
+  label: "Instagram" | "YouTube" | "TikTok" | "Facebook";
   href: string;
 };
 
@@ -29,10 +29,12 @@ const DEFAULT_NAV: FooterLink[] = [
   { label: "Equipos", href: "/#equipos" },
 ];
 
+// TikTok y Facebook quedan fuera por ahora: sin link oficial confirmado
+// todavía (no hay que inventar uno). El componente SocialIcon los sigue
+// soportando por si se agregan más adelante vía props.
 const DEFAULT_SOCIAL: SocialLink[] = [
-  { label: "Instagram", href: "#" },
-  { label: "TikTok", href: "#" },
-  { label: "Facebook", href: "#" },
+  { label: "Instagram", href: "https://www.instagram.com/lbsc2026/" },
+  { label: "YouTube", href: "https://www.youtube.com/@LigadeBasquetbolSanClemente" },
 ];
 
 // Contacto oficial de la liga. El email es real y clickeable (mailto). No hay
@@ -62,6 +64,14 @@ function SocialIcon({ label }: { label: SocialLink["label"] }) {
           strokeLinejoin="round"
         />
         <path d="M13.5 3.8c.5 2.2 2 3.7 4.3 3.9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (label === "YouTube") {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2.5" y="5.5" width="19" height="13" rx="4" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M10.3 9.3v5.4l4.7-2.7-4.7-2.7Z" fill="currentColor" />
       </svg>
     );
   }
@@ -155,6 +165,8 @@ export function SiteFooter({
                 <a
                   key={s.label}
                   href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={s.label}
                   className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-text-secondary transition-colors hover:border-accent-purple/50 hover:text-accent-purple focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
                 >
