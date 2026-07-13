@@ -128,46 +128,51 @@ function MatchRow({ match, teamName }: { match: TeamMatchSummary; teamName: stri
   const hasScore = match.homeScore != null && match.awayScore != null;
 
   return (
-    <li className="flex flex-col gap-2 border-t border-white/[0.07] py-3.5 first:border-t-0 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-3">
-        <div className="flex flex-col">
-          <span className="font-body text-[11px] font-bold uppercase tracking-[0.18em] text-text-secondary">
-            {dateLabel(match.date)}
-            {timeLabel(match.date) ? ` · ${timeLabel(match.date)}` : ""}
-          </span>
-          <span className="font-body text-sm text-text-primary">
-            vs <span className="font-semibold">{rival.name}</span>{" "}
-            <span className="text-text-secondary">({localVisita})</span>
-          </span>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        {match.status === "live" && <LiveBadge />}
-        {match.status === "finished" && hasScore && (
-          <>
-            <span className="font-head text-xl leading-none tabular-nums text-text-primary">
-              {match.homeScore} - {match.awayScore}
+    <li>
+      <Link
+        href={`/partido/${match.id}`}
+        className="flex flex-col gap-2 border-t border-white/[0.07] py-3.5 transition-colors first:border-t-0 hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col">
+            <span className="font-body text-[11px] font-bold uppercase tracking-[0.18em] text-text-secondary">
+              {dateLabel(match.date)}
+              {timeLabel(match.date) ? ` · ${timeLabel(match.date)}` : ""}
             </span>
-            {match.result === "win" && (
-              <span className="rounded-md bg-success/15 px-2 py-1 font-body text-[10px] font-bold uppercase tracking-wider text-success">
-                Victoria
+            <span className="font-body text-sm text-text-primary">
+              vs <span className="font-semibold">{rival.name}</span>{" "}
+              <span className="text-text-secondary">({localVisita})</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {match.status === "live" && <LiveBadge />}
+          {match.status === "finished" && hasScore && (
+            <>
+              <span className="font-head text-xl leading-none tabular-nums text-text-primary">
+                {match.homeScore} - {match.awayScore}
               </span>
-            )}
-            {match.result === "loss" && (
-              <span className="rounded-md bg-live-pulse/15 px-2 py-1 font-body text-[10px] font-bold uppercase tracking-wider text-live-pulse">
-                Derrota
-              </span>
-            )}
-          </>
-        )}
-        {match.status === "scheduled" && (
-          <span className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-text-secondary">
-            Programado
-          </span>
-        )}
-      </div>
-      <span className="sr-only">{teamName}</span>
+              {match.result === "win" && (
+                <span className="rounded-md bg-success/15 px-2 py-1 font-body text-[10px] font-bold uppercase tracking-wider text-success">
+                  Victoria
+                </span>
+              )}
+              {match.result === "loss" && (
+                <span className="rounded-md bg-live-pulse/15 px-2 py-1 font-body text-[10px] font-bold uppercase tracking-wider text-live-pulse">
+                  Derrota
+                </span>
+              )}
+            </>
+          )}
+          {match.status === "scheduled" && (
+            <span className="font-body text-[11px] font-bold uppercase tracking-[0.22em] text-text-secondary">
+              Programado
+            </span>
+          )}
+        </div>
+        <span className="sr-only">{teamName}</span>
+      </Link>
     </li>
   );
 }

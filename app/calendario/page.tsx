@@ -156,7 +156,10 @@ function MatchRow({ match }: { match: CalendarMatch }) {
 
   return (
     <li>
-      <article className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[116px_1fr_158px] lg:items-center">
+      <Link
+        href={`/partido/${match.id}`}
+        className="grid gap-4 px-4 py-4 transition-colors hover:bg-white/[0.03] sm:px-5 lg:grid-cols-[116px_1fr_158px] lg:items-center"
+      >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 lg:flex-col lg:items-start">
           <time
             dateTime={asDate(match.fecha)?.toISOString()}
@@ -191,7 +194,7 @@ function MatchRow({ match }: { match: CalendarMatch }) {
             {match.venue}
           </p>
         )}
-      </article>
+      </Link>
     </li>
   );
 }

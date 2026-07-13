@@ -382,6 +382,17 @@ function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> })
             {match.venue}
           </p>
         )}
+
+        {finalizado && (
+          <div className="mt-6 flex justify-center">
+            <Link
+              href={`/partido/${match.id}`}
+              className="inline-flex rounded-lg border border-white/15 bg-white/[0.02] px-5 py-2.5 font-body text-sm font-semibold uppercase tracking-wide text-text-primary transition-colors hover:border-accent-purple/60 hover:bg-accent-purple/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+            >
+              Ver detalle del partido
+            </Link>
+          </div>
+        )}
       </div>
 
       <EnCanchaSection
