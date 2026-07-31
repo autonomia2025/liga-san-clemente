@@ -14,8 +14,11 @@ import { prisma } from "../lib/db";
 const CONFIRM = process.argv.includes("--confirm");
 
 // Fecha 6: hoy domingo 2-ago-2026, se corre 7 días -> domingo 9-ago-2026,
-// mismos horarios y mismo orden de partidos. Jornada.fecha sigue el mismo
-// patrón "sábado antes" que ya tienen las demás jornadas (1-ago -> 8-ago).
+// mismos horarios y mismo orden de partidos. Jornada.fecha es "solo fecha"
+// (medianoche UTC del mismo domingo del partido, ver lib/fecha.ts) — el
+// literal de abajo son las 20:00 del sábado 8 en hora de Chile, que en UTC
+// caen justo en la medianoche del domingo 9 (2026-08-09T00:00:00.000Z), el
+// mismo patrón que ya tienen Fecha 2/3/5/7.
 const JORNADA_6_ID = "cmr2s5h1o0004f5v44a6o3l73";
 const NUEVA_FECHA_JORNADA_6 = new Date("2026-08-08T20:00:00-04:00");
 
@@ -28,6 +31,8 @@ const PARTIDOS_FECHA_6: { id: string; nuevaFechaHora: Date }[] = [
 
 // Fecha 7: hoy domingo 9-ago-2026 (choca con la nueva Fecha 6), se corre 7
 // días -> domingo 16-ago-2026, mismos horarios y mismo orden de partidos.
+// Mismo criterio de Jornada.fecha que Fecha 6 arriba (20:00 sábado Chile ->
+// medianoche UTC del domingo siguiente).
 const JORNADA_7_ID = "cmr2s5hve0005f5v4j4qe3i83";
 const NUEVA_FECHA_JORNADA_7 = new Date("2026-08-15T20:00:00-04:00");
 
