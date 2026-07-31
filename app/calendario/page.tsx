@@ -35,8 +35,13 @@ const FOOTER_SOCIAL_LINKS: SocialLink[] = [
   { label: "YouTube", href: "https://www.youtube.com/@LigadeBasquetbolSanClemente" },
 ];
 
+// Para el encabezado de ronda (Jornada.fecha): campo "solo fecha", guardado
+// como medianoche UTC del día que representa (mismo criterio que
+// lib/fecha.ts::formatFechaCortaCL) — formatear en UTC evita correrlo un día
+// para atrás. Distinto de shortDateFormatter/timeFormatter abajo, que sí usan
+// America/Santiago porque Partido.fechaHora es un instante real.
 const dateFormatter = new Intl.DateTimeFormat("es-CL", {
-  timeZone: TIME_ZONE,
+  timeZone: "UTC",
   weekday: "long",
   day: "numeric",
   month: "short",
