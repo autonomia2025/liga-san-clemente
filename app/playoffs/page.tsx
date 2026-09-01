@@ -184,17 +184,26 @@ function LlaveCard({ matchup, destacada = false }: { matchup: PlayoffMatchup; de
     </div>
   );
 
+  // Altura fija (h-24) pase lo que pase: los conectores del bracket desktop
+  // se alinean con el centro de cada tarjeta, así que la fecha va posicionada
+  // por fuera del flujo (top-full) para no empujar el alto y descalzar las
+  // líneas cuando los partidos tengan horario asignado.
   return (
-    <div className="flex flex-col gap-1">
+    <div className="relative h-24">
       {matchup.partidoId ? (
-        <Link href={`/partido/${matchup.partidoId}`} className="block h-24 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple">
+        <Link
+          href={`/partido/${matchup.partidoId}`}
+          className="block h-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-purple"
+        >
           {contenido}
         </Link>
       ) : (
-        <div className="h-24">{contenido}</div>
+        contenido
       )}
       {fecha && matchup.status !== "finished" && (
-        <span className="px-1 font-body text-[10px] font-semibold uppercase tracking-wider text-text-secondary">{fecha}</span>
+        <span className="absolute left-1 top-full mt-1 whitespace-nowrap font-body text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+          {fecha}
+        </span>
       )}
     </div>
   );
@@ -269,34 +278,39 @@ function BracketDesktop({ data }: { data: PlayoffsData }) {
   const [qf1, qf2, qf3, qf4] = data.quarterfinals;
   const [sf1, sf2] = data.semifinals;
 
+  // Anchos ajustados para que el bracket completo (1152px) entre en una
+  // pantalla de 1280px con el padding del contenedor — que es justo donde se
+  // activa el breakpoint xl. overflow-x-auto queda igual como red de
+  // seguridad: si alguna vez crece, scrollea dentro de su caja en vez de
+  // romper el ancho de la página.
   return (
-    <div className="hidden justify-center xl:flex">
-      <div className="flex items-center">
+    <div className="hidden overflow-x-auto pb-2 xl:block">
+      <div className="flex min-w-max items-center justify-center">
         {/* llave izquierda */}
-        <div className="flex w-52 flex-col gap-12">
+        <div className="flex w-48 flex-col gap-12">
           <LlaveCard matchup={qf1} />
           <LlaveCard matchup={qf2} />
         </div>
         <Conector lado="izquierda" />
-        <div className="w-52">
+        <div className="w-48">
           <LlaveCard matchup={sf1} />
         </div>
-        <LineaHorizontal />
+        <LineaHorizontal ancho="w-8" />
 
         {/* centro: final + trofeo */}
-        <div className="flex w-60 flex-col items-center gap-5 px-2">
+        <div className="flex w-56 flex-col items-center gap-5 px-2">
           <CampeonBloque champion={data.champion} />
           <div className="w-full">
             <LlaveCard matchup={data.final} destacada />
           </div>
         </div>
 
-        <LineaHorizontal />
-        <div className="w-52">
+        <LineaHorizontal ancho="w-8" />
+        <div className="w-48">
           <LlaveCard matchup={sf2} />
         </div>
         <Conector lado="derecha" />
-        <div className="flex w-52 flex-col gap-12">
+        <div className="flex w-48 flex-col gap-12">
           <LlaveCard matchup={qf3} />
           <LlaveCard matchup={qf4} />
         </div>
@@ -311,7 +325,10 @@ function RondaMobile({ titulo, matchups }: { titulo: string; matchups: PlayoffMa
   return (
     <section className="flex flex-col gap-3">
       <TituloRonda className="text-center">{titulo}</TituloRonda>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {/* gap-y amplio: la fecha de cada llave se posiciona fuera del flujo
+          (ver LlaveCard), así que necesita aire debajo para no encimarse con
+          la tarjeta siguiente. */}
+      <div className="grid grid-cols-1 gap-x-3 gap-y-7 sm:grid-cols-2">
         {matchups.map((m) => (
           <LlaveCard key={m.key} matchup={m} destacada={m.round === "final"} />
         ))}
