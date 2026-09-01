@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Tabla de posiciones",
   description: "Consulta la tabla de posiciones actualizada de la Liga de Básquetbol San Clemente 2026.",
+  alternates: { canonical: "/tabla" },
 };
 
 const FOOTER_NAV_LINKS: FooterLink[] = [

@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Calendario",
   description: "Revisa los próximos partidos, fechas y horarios de la Liga de Básquetbol San Clemente 2026.",
+  alternates: { canonical: "/calendario" },
 };
 
 const TIME_ZONE = "America/Santiago";

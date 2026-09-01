@@ -14,6 +14,7 @@ import {
   type MatchEventView,
 } from "@/lib/public/match-detail-page-data";
 import { clubLogoPad } from "@/lib/public/display";
+import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/public/site";
 
 export const dynamic = "force-dynamic";
 
@@ -64,10 +65,31 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
   if (!data) return { title: "Partido" };
 
-  const { homeTeam, awayTeam } = data.match;
-  const title = `${homeTeam.name} vs ${awayTeam.name} | Liga de Básquetbol San Clemente`;
-  const description = `Resultado, estadísticas y jugadas del partido entre ${homeTeam.name} y ${awayTeam.name} por la Liga de Básquetbol San Clemente.`;
-  return { title, description };
+  const { homeTeam, awayTeam, status, homeScore, awayScore, jornadaLabel } = data.match;
+  const finalizado = status === "finished" && homeScore != null && awayScore != null;
+
+  // El layout ya agrega "| Liga de Básquetbol San Clemente" vía title.template,
+  // así que acá NO se repite (antes se incluía a mano y el título salía con el
+  // nombre de la liga duplicado).
+  //
+  // Para un partido terminado el marcador va en el título: es literalmente lo
+  // que la gente escribe al buscar ("jmm las américas resultado"), y hace que
+  // el resultado se lea directo desde Google sin entrar.
+  const title = finalizado
+    ? `${homeTeam.name} ${homeScore}-${awayScore} ${awayTeam.name}`
+    : `${homeTeam.name} vs ${awayTeam.name}`;
+
+  const description = finalizado
+    ? `${homeTeam.name} ${homeScore} - ${awayScore} ${awayTeam.name} por la ${jornadaLabel} de la Liga de Básquetbol San Clemente. Estadísticas por jugador, goleadores y todas las jugadas del partido.`
+    : `${homeTeam.name} vs ${awayTeam.name} por la ${jornadaLabel} de la Liga de Básquetbol San Clemente. Resultado, estadísticas y jugadas del partido.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/partido/${id}` },
+    openGraph: { title, description, type: "article" },
+    twitter: { title, description },
+  };
 }
 
 /* ---- piezas ------------------------------------------------------------------ */
@@ -437,6 +459,57 @@ function MatchError() {
   );
 }
 
+/* ---- datos estructurados ------------------------------------------------------- */
+
+// SportsEvent de schema.org: le describe el partido a Google de forma explícita
+// (equipos, fecha, sede, estado y marcador) en vez de dejar que lo deduzca del
+// HTML. Es lo que habilita que un resultado deportivo se muestre enriquecido en
+// la búsqueda. Solo se emiten campos que existen de verdad — nada inventado.
+function jsonLdPartido(data: MatchDetailPageData): Record<string, unknown> {
+  const { match } = data;
+  const finalizado = match.status === "finished" && match.homeScore != null && match.awayScore != null;
+
+  const equipo = (t: MatchDetailTeamRef) => ({
+    "@type": "SportsTeam",
+    name: t.name,
+    url: absoluteUrl(`/equipo/${teamSlug(t.name)}`),
+    ...(t.logoUrl ? { logo: absoluteUrl(t.logoUrl) } : {}),
+  });
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "SportsEvent",
+    // schema.org no define una propiedad de marcador para SportsEvent, así que
+    // el resultado va en el nombre del evento (práctica habitual) en vez de
+    // inventar un campo que los buscadores ignorarían.
+    name: finalizado
+      ? `${match.homeTeam.name} ${match.homeScore}-${match.awayScore} ${match.awayTeam.name}`
+      : `${match.homeTeam.name} vs ${match.awayTeam.name}`,
+    url: absoluteUrl(`/partido/${match.id}`),
+    sport: "Basketball",
+    eventStatus: "https://schema.org/EventScheduled",
+    ...(match.scheduledAt ? { startDate: new Date(match.scheduledAt).toISOString() } : {}),
+    location: {
+      "@type": "Place",
+      name: match.venue ?? "Polideportivo de San Clemente",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: "San Clemente",
+        addressRegion: "Maule",
+        addressCountry: "CL",
+      },
+    },
+    homeTeam: equipo(match.homeTeam),
+    awayTeam: equipo(match.awayTeam),
+    competitor: [equipo(match.homeTeam), equipo(match.awayTeam)],
+    superEvent: {
+      "@type": "SportsEvent",
+      name: `${SITE_NAME} · ${match.jornadaLabel}`,
+      url: SITE_URL,
+    },
+  };
+}
+
 /* ---- página -------------------------------------------------------------------- */
 
 export default async function PartidoDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -457,6 +530,12 @@ export default async function PartidoDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="min-h-screen bg-bg-base font-body text-text-primary">
+      {data && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdPartido(data)) }}
+        />
+      )}
       <Navbar isLiveNow={data?.match.status === "live"} />
 
       <main className="pt-[var(--navbar-height)]">

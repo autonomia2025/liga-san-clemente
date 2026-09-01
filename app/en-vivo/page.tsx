@@ -24,6 +24,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Partidos en vivo",
   description: "Sigue los partidos en vivo de la Liga de Básquetbol San Clemente con marcador y estado del encuentro.",
+  alternates: { canonical: "/en-vivo" },
 };
 
 const TIME_ZONE = "America/Santiago";

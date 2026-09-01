@@ -75,9 +75,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     /* metadata genérica si falla */
   }
   if (!data) return { title: "Equipo" };
+  const description = `Roster, resultados, próximos partidos y goleadores de ${data.team.name} en la Liga de Básquetbol San Clemente 2026.`;
   return {
     title: data.team.name,
-    description: `Revisa el roster, información y partidos de ${data.team.name} en la Liga de Básquetbol San Clemente.`,
+    description,
+    alternates: { canonical: `/equipo/${slug}` },
+    openGraph: { title: data.team.name, description },
   };
 }
 

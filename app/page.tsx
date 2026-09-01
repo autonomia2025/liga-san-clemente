@@ -42,6 +42,7 @@ export const metadata: Metadata = {
       "Resultados, calendario, tabla de posiciones y comunidad de la Liga de Básquetbol San Clemente 2026.",
     images: ["/og-image.jpg"],
   },
+  alternates: { canonical: "/" },
 };
 
 // Historia, auspiciadores y footer siguen con constantes/placeholders por ahora

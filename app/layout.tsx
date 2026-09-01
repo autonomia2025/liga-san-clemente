@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Anton, Oswald, Inter } from "next/font/google";
+import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/public/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -45,9 +46,18 @@ const inter = Inter({
 // "Página | Liga de Básquetbol San Clemente". openGraph/twitter acá son los
 // valores por defecto — las páginas que definen su propio openGraph los
 // sobreescriben (Next.js hace merge por campo, no reemplaza todo el objeto).
-// Sin metadataBase: no hay dominio de producción confirmado todavía (ver
-// auditoría SEO), así que las imágenes de acá usan URL relativa a propósito.
+//
+// metadataBase ahora sí está definido: el dominio de producción es
+// www.lbscjmm.cl (lbscjmm.cl redirige ahí con 308). Sin esto, las URLs de
+// og:image quedaban a merced de la inferencia de Next y podían resolver a un
+// host equivocado, rompiendo la previsualización al compartir el link en
+// WhatsApp/Facebook/X.
+//
+// OJO: no se define `alternates.canonical` acá a propósito. La metadata se
+// hereda por campo hacia abajo, así que un canonical global haría que TODAS
+// las páginas se declaren como copia de la home. Cada página define el suyo.
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Liga de Básquetbol San Clemente",
     template: "%s | Liga de Básquetbol San Clemente",
@@ -72,6 +82,32 @@ export const metadata: Metadata = {
   },
 };
 
+// Datos estructurados (schema.org) de la liga. Le dicen explícitamente a
+// Google qué es este sitio — una organización deportiva real, con su nombre,
+// deporte, ubicación y redes — en vez de dejar que lo infiera del HTML. Es lo
+// que habilita resultados enriquecidos y el panel de conocimiento.
+const JSON_LD_ORGANIZACION = {
+  "@context": "https://schema.org",
+  "@type": "SportsOrganization",
+  name: SITE_NAME,
+  alternateName: "LBSC",
+  url: SITE_URL,
+  logo: absoluteUrl("/logo-liga.png"),
+  image: absoluteUrl("/og-image.jpg"),
+  sport: "Basketball",
+  email: "ligabasketballsanclemente@gmail.com",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "San Clemente",
+    addressRegion: "Maule",
+    addressCountry: "CL",
+  },
+  sameAs: [
+    "https://www.instagram.com/lbsc2026/",
+    "https://www.youtube.com/@LigadeBasquetbolSanClemente",
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -83,6 +119,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${anton.variable} ${oswald.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
+        <script
+          type="application/ld+json"
+          // Contenido estático definido acá arriba (no viene de usuarios ni de
+          // la base), así que no hay superficie de inyección.
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD_ORGANIZACION) }}
+        />
         {children}
       </body>
     </html>

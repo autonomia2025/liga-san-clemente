@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Tabla de goleadores",
   description: "Revisa el ranking de goleadores de la Liga de Básquetbol San Clemente 2026.",
+  alternates: { canonical: "/goleadores" },
 };
 
 const FOOTER_NAV_LINKS: FooterLink[] = [

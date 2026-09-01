@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   title: "Playoffs",
   description:
     "Bracket de los playoffs de la Liga de Básquetbol San Clemente: cuartos de final, semifinales y la final por el título 2026.",
+  alternates: { canonical: "/playoffs" },
 };
 
 const TIME_ZONE = "America/Santiago";
