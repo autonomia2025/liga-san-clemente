@@ -20,6 +20,7 @@ type NavbarProps = {
 const LINKS = [
   { href: "/", label: "Inicio" },
   { href: "/en-vivo", label: "En Vivo" },
+  { href: "/playoffs", label: "Playoffs" },
   { href: "/tabla", label: "Tabla" },
   { href: "/goleadores", label: "Goleadores" },
   { href: "/calendario", label: "Calendario" },
