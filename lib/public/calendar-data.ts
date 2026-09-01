@@ -128,5 +128,19 @@ export async function getCalendarPageData(): Promise<CalendarPageData> {
     rounds.set(key, round);
   });
 
-  return { rounds: Array.from(rounds.values()) };
+  // Orden cronológico real (por Jornada.fecha), no por número de fecha — una
+  // jornada reprogramada (ej. Fecha 4 pospuesta) puede terminar jugándose
+  // después de fechas con número mayor, y el calendario público tiene que
+  // reflejar cuándo se juega cada ronda en la práctica, no el orden original
+  // del fixture. El número de la ronda (su label "Fecha N") no cambia, solo
+  // su posición en la lista. Si a alguna ronda le falta fecha (ej. Fecha 1,
+  // import histórico sin fecha registrada) no se la manda al final por
+  // default — se usa su número de fecha como respaldo para esa comparación,
+  // así conserva una posición razonable en vez de "sin fecha = último".
+  const roundsOrdenadas = Array.from(rounds.entries()).sort(([numeroA, a], [numeroB, b]) => {
+    if (a.date && b.date) return sortValue(a.date as Date) - sortValue(b.date as Date);
+    return numeroA - numeroB;
+  });
+
+  return { rounds: roundsOrdenadas.map(([, round]) => round) };
 }
