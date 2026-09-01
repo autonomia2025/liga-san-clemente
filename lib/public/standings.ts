@@ -8,6 +8,16 @@ import { prisma } from "@/lib/db";
 const PUNTOS_VICTORIA = 2;
 const PUNTOS_DERROTA = 1;
 
+// Partidos ganados por W.O. (el equipo perdedor no se presentó) — el
+// schema todavía no tiene un campo Acta.esWalkover, así que se marcan acá a
+// mano mientras sea un caso puntual. El que pierde por W.O. no recibe el
+// punto de "derrota jugada" (PUNTOS_DERROTA); el que gana sigue sumando
+// PUNTOS_VICTORIA normal. Si esto empieza a repetirse seguido, conviene
+// pasar esto a un campo real en Acta en vez de mantener esta lista a mano.
+const PARTIDOS_WALKOVER = new Set<string>([
+  "cmr2s5ned000jf5v4m2z0m3wo", // Fecha 4, JMM U19 0-20 Pumas — JMM U19 no se presentó
+]);
+
 export type StandingRow = {
   clubId: string;
   clubNombre: string;
@@ -29,6 +39,7 @@ export async function getStandings(): Promise<StandingRow[]> {
     prisma.partido.findMany({
       where: { estado: "FINALIZADO", acta: { isNot: null } },
       select: {
+        id: true,
         clubLocalId: true,
         clubVisitanteId: true,
         acta: { select: { resultadoLocal: true, resultadoVisitante: true } },
@@ -58,20 +69,26 @@ export async function getStandings(): Promise<StandingRow[]> {
     visitante.pf += resultadoVisitante;
     visitante.pc += resultadoLocal;
 
+    const esWalkover = PARTIDOS_WALKOVER.has(partido.id);
+    const puntosDerrota = esWalkover ? 0 : PUNTOS_DERROTA;
+
     if (resultadoLocal > resultadoVisitante) {
       local.pg += 1;
+      local.pts += PUNTOS_VICTORIA;
       visitante.pp += 1;
+      visitante.pts += puntosDerrota;
     } else if (resultadoVisitante > resultadoLocal) {
       visitante.pg += 1;
+      visitante.pts += PUNTOS_VICTORIA;
       local.pp += 1;
+      local.pts += puntosDerrota;
     }
     // Empate: no debería pasar en básquetbol, pero si pasara no se suma PG/PP
-    // de ningún lado — no se inventa un desempate.
+    // ni puntos de ningún lado — no se inventa un desempate.
   }
 
   for (const fila of filas.values()) {
     fila.dif = fila.pf - fila.pc;
-    fila.pts = fila.pg * PUNTOS_VICTORIA + fila.pp * PUNTOS_DERROTA;
   }
 
   return [...filas.values()].sort((a, b) => b.pts - a.pts || b.dif - a.dif || b.pf - a.pf);
