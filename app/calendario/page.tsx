@@ -225,6 +225,24 @@ function CalendarRoundBlock({ round }: { round: CalendarRound }) {
   );
 }
 
+// Banda que separa visualmente el bloque de fase regular del de playoffs.
+// Es el "antes y después" de la temporada dentro del mismo calendario.
+function SeparadorPlayoffs() {
+  return (
+    <div className="relative border-t border-accent-gold/25 bg-accent-gold/[0.04] px-4 py-4 sm:px-5">
+      <div className="flex items-center gap-3">
+        <span className="font-body text-[11px] font-bold uppercase tracking-[0.28em] text-accent-gold">
+          Playoffs
+        </span>
+        <span className="h-px flex-1 bg-accent-gold/20" aria-hidden="true" />
+        <span className="font-body text-[11px] uppercase tracking-wide text-text-secondary">
+          Eliminación directa
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function EmptyCalendar() {
   return (
     <section className="lbsc-container lbsc-section-tight">
@@ -298,8 +316,13 @@ export default async function CalendarioPage() {
         ) : (
           <div className="lbsc-container pb-16">
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-bg-base">
-              {rounds.map((round) => (
-                <CalendarRoundBlock key={round.key} round={round} />
+              {rounds.map((round, i) => (
+                <div key={round.key}>
+                  {/* El separador aparece una sola vez: en la primera ronda de
+                      playoffs. Las rondas ya vienen ordenadas por fase. */}
+                  {round.fase === "PLAYOFFS" && rounds[i - 1]?.fase !== "PLAYOFFS" && <SeparadorPlayoffs />}
+                  <CalendarRoundBlock round={round} />
+                </div>
               ))}
             </div>
           </div>

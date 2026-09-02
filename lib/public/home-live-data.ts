@@ -3,11 +3,14 @@ import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public
 import { getStandings } from "@/lib/public/standings";
 import { getTopScorers } from "@/lib/public/rankings";
 import { getEquipos, getHeroData } from "@/lib/public/home-data";
+import { getPlayoffsData, type PlayoffMatchup } from "@/lib/public/playoffs-data";
+import { getSeasonPhaseState, type SeasonPhaseState } from "@/lib/public/season-phase";
 import type { MatchFeatureProps } from "@/components/site/match-feature";
 import type { StandingPreviewTeam } from "@/components/site/standings-preview";
 import type { FeaturedMvp, SeasonLeader } from "@/components/site/mvp-leaders-section";
 import type { TeamGridItem } from "@/components/site/teams-grid";
 import type { FixtureMatch } from "@/components/site/fixture-preview";
+import type { PlayoffStripMatch, PlayoffStripTeam } from "@/components/site/playoffs-strip";
 
 // Capa de datos ÚNICA para la Home pública. Reutiliza los helpers públicos
 // existentes (getHeroData, getStandings, getTopScorers, getEquipos, display.*)
@@ -26,6 +29,17 @@ export type MvpData = {
   seasonLeaders: SeasonLeader[];
 };
 
+// Estado de playoffs listo para la franja de la Home. Se normaliza acá (en
+// vez de pasarle PlayoffsData crudo al componente) para que playoffs-strip.tsx
+// pueda ser client sin arrastrar prisma al bundle, y para que las fechas
+// viajen como string serializable.
+export type HomePlayoffs = {
+  rondaLabel: string;
+  matches: PlayoffStripMatch[];
+  proximoAt: string | null;
+  championName: string | null;
+};
+
 export type HomePageData = {
   isLiveNow: boolean;
   matchFeature: Loaded<MatchFeatureProps>;
@@ -33,6 +47,10 @@ export type HomePageData = {
   mvp: Loaded<MvpData>;
   teams: Loaded<TeamGridItem[]>;
   fixture: Loaded<FixtureMatch[]>;
+  // Estado de la temporada: decide si el hero va en modo regular o playoffs.
+  phase: Loaded<SeasonPhaseState>;
+  // null cuando todavía no hay partidos de playoffs cargados.
+  playoffs: Loaded<HomePlayoffs | null>;
 };
 
 /* ---- utilidades ---------------------------------------------------------- */
@@ -105,7 +123,7 @@ type FixturePartido = {
   fechaHora: Date | null;
   estado: "PROGRAMADO" | "CONFIRMADO" | "EN_CURSO" | "FINALIZADO";
   cancha: string | null;
-  jornada: { numero: number; fecha: Date | null };
+  jornada: { numero: number; nombre: string | null; fecha: Date | null };
   clubLocal: { nombre: string; escudoUrl: string | null };
   clubVisitante: { nombre: string; escudoUrl: string | null };
   acta: { resultadoLocal: number; resultadoVisitante: number } | null;
@@ -117,7 +135,9 @@ function toFixtureMatch(partido: FixturePartido): FixtureMatch | null {
 
   return {
     id: partido.id,
-    jornada: `Fecha ${partido.jornada.numero}`,
+    // El nombre propio manda: sin esto un cuarto de final se etiquetaría
+    // "Fecha 8" en el preview de la Home.
+    jornada: partido.jornada.nombre?.trim() || `Fecha ${partido.jornada.numero}`,
     date,
     timeLabel: timeLabel(partido.fechaHora),
     venue: partido.cancha ?? undefined,
@@ -299,7 +319,7 @@ async function loadFixturePreview(): Promise<FixtureMatch[]> {
       fechaHora: true,
       estado: true,
       cancha: true,
-      jornada: { select: { numero: true, fecha: true } },
+      jornada: { select: { numero: true, nombre: true, fecha: true } },
       clubLocal: { select: { nombre: true, escudoUrl: true } },
       clubVisitante: { select: { nombre: true, escudoUrl: true } },
       acta: { select: { resultadoLocal: true, resultadoVisitante: true } },
@@ -318,7 +338,7 @@ async function loadFixturePreview(): Promise<FixtureMatch[]> {
       fechaHora: true,
       estado: true,
       cancha: true,
-      jornada: { select: { numero: true, fecha: true } },
+      jornada: { select: { numero: true, nombre: true, fecha: true } },
       clubLocal: { select: { nombre: true, escudoUrl: true } },
       clubVisitante: { select: { nombre: true, escudoUrl: true } },
       acta: { select: { resultadoLocal: true, resultadoVisitante: true } },
@@ -330,16 +350,72 @@ async function loadFixturePreview(): Promise<FixtureMatch[]> {
 
 /* ---- entrada única ------------------------------------------------------- */
 
+function toStripTeam(t: PlayoffMatchup["home"]): PlayoffStripTeam | null {
+  return t ? { name: t.name, abbr: t.abbr, logoUrl: t.logoUrl, color: t.color, seed: t.seed } : null;
+}
+
+// Elige qué ronda mostrar en la franja: la más avanzada que ya tenga partidos
+// cargados. Así, apenas se creen las semis, la Home pasa a mostrar semis sin
+// que haya que tocar código.
+function rondaVigente(data: Awaited<ReturnType<typeof getPlayoffsData>>): {
+  label: string;
+  matchups: PlayoffMatchup[];
+} | null {
+  const candidatas: { label: string; matchups: PlayoffMatchup[] }[] = [
+    { label: "Final", matchups: [data.final] },
+    { label: "Semifinales", matchups: data.semifinals },
+    { label: "Cuartos de Final", matchups: data.quarterfinals },
+  ];
+  for (const c of candidatas) {
+    if (c.matchups.some((m) => m.partidoId !== null)) return c;
+  }
+  return null;
+}
+
+async function loadPlayoffs(): Promise<HomePlayoffs | null> {
+  const data = await getPlayoffsData();
+  const ronda = rondaVigente(data);
+  if (!ronda) return null;
+
+  const matches: PlayoffStripMatch[] = ronda.matchups.map((m) => ({
+    key: m.key,
+    partidoId: m.partidoId,
+    home: toStripTeam(m.home),
+    away: toStripTeam(m.away),
+    homeScore: m.homeScore,
+    awayScore: m.awayScore,
+    status: m.status,
+    scheduledAt: m.scheduledAt ? new Date(m.scheduledAt).toISOString() : null,
+    ganadorAbbr: m.winner?.abbr ?? null,
+  }));
+
+  // El countdown apunta al próximo partido que todavía no terminó. Si ya
+  // terminaron todos, no se muestra contador (en vez de quedar clavado en
+  // 00:00:00:00).
+  const proximo = matches
+    .filter((m) => m.status !== "finished" && m.scheduledAt !== null)
+    .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
+
+  return {
+    rondaLabel: ronda.label,
+    matches,
+    proximoAt: proximo?.scheduledAt ?? null,
+    championName: data.champion?.name ?? null,
+  };
+}
+
 export async function getHomePageData(): Promise<HomePageData> {
-  const [matchFeature, standings, mvp, teams, fixture] = await Promise.all([
+  const [matchFeature, standings, mvp, teams, fixture, phase, playoffs] = await Promise.all([
     safe(loadMatchFeature),
     safe(loadStandings),
     safe(loadMvp),
     safe(loadTeams),
     safe(loadFixturePreview),
+    safe(getSeasonPhaseState),
+    safe(loadPlayoffs),
   ]);
 
   const isLiveNow = matchFeature.ok && matchFeature.data.matchState === "live";
 
-  return { isLiveNow, matchFeature, standings, mvp, teams, fixture };
+  return { isLiveNow, matchFeature, standings, mvp, teams, fixture, phase, playoffs };
 }

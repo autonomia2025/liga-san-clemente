@@ -8,6 +8,8 @@ import { MvpLeadersSection } from "@/components/site/mvp-leaders-section";
 import { TeamsGrid } from "@/components/site/teams-grid";
 import { HistorySection } from "@/components/site/history-section";
 import { FixturePreview } from "@/components/site/fixture-preview";
+import { PlayoffsStrip } from "@/components/site/playoffs-strip";
+import { SeasonTimeline } from "@/components/site/season-timeline";
 import { SponsorsSection, type Sponsor } from "@/components/site/sponsors-section";
 import { SiteFooter, type FooterLink, type SocialLink } from "@/components/site/site-footer";
 import {
@@ -84,6 +86,11 @@ const FOOTER_SOCIAL_LINKS: SocialLink[] = [
 export default async function Home() {
   const data = await getHomePageData();
 
+  // Ambos caen al modo regular si su loader falló: un error en el estado de
+  // temporada no puede dejar la home sin hero.
+  const modoHero = data.phase.ok ? data.phase.data.modoHome : "regular";
+  const playoffs = data.playoffs.ok ? data.playoffs.data : null;
+
   return (
     <div className="min-h-screen bg-bg-base font-body text-text-primary">
       {/* Navbar fuera de PageTransition: es fixed y el transform del wrapper le
@@ -92,7 +99,24 @@ export default async function Home() {
 
       <main className="pt-[var(--navbar-height)]">
         <PageTransition>
-          <HeroSection />
+          {/* El modo del hero sale del estado real de la temporada: si hay
+              partidos de playoffs cargados cambia solo, sin flags ni fechas
+              hardcodeadas. Si el loader de fase falla, cae al modo regular. */}
+          <HeroSection mode={modoHero} />
+
+          {/* La franja de playoffs va arriba del módulo de partido: es lo
+              primero que tiene que ver alguien que entra a la home. */}
+          {playoffs && (
+            <PlayoffsStrip
+              rondaLabel={playoffs.rondaLabel}
+              matches={playoffs.matches}
+              proximoAt={playoffs.proximoAt}
+            />
+          )}
+
+          {data.phase.ok && (
+            <SeasonTimeline stages={data.phase.data.stages} championName={playoffs?.championName ?? null} />
+          )}
 
           {data.matchFeature.ok ? (
             <MatchFeature {...data.matchFeature.data} />

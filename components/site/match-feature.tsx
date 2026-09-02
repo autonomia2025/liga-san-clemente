@@ -5,6 +5,7 @@ import { LbscButton } from "@/components/design-system/lbsc-button";
 import { LiveBadge } from "@/components/design-system/live-badge";
 import { ScoreNumber } from "@/components/design-system/score-number";
 import { clubLogoPad } from "@/lib/public/display";
+import { useCountdown } from "@/hooks/use-countdown";
 
 // Módulo "Próximo Partido / En Vivo". Preparado para recibir datos por props;
 // por ahora se alimenta con mocks desde app/page.tsx (NO conectado a DB).
@@ -183,27 +184,14 @@ function UpcomingState({
   scheduledAt,
   venue,
 }: Required<Pick<MatchFeatureProps, "homeTeam" | "awayTeam">> & Pick<MatchFeatureProps, "scheduledAt" | "venue">) {
-  const [cd, setCd] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
+  // El countdown vive en hooks/use-countdown.ts — lo comparte con la franja de
+  // playoffs de la Home.
+  const cd = useCountdown(scheduledAt);
   const [fechaTexto, setFechaTexto] = useState("");
 
   useEffect(() => {
     if (!scheduledAt) return;
     setFechaTexto(formatFechaLocal(scheduledAt, venue));
-    const target = new Date(scheduledAt).getTime();
-    const tick = () => {
-      const diff = Math.max(target - Date.now(), 0);
-      let s = Math.floor(diff / 1000);
-      const d = Math.floor(s / 86400);
-      s -= d * 86400;
-      const h = Math.floor(s / 3600);
-      s -= h * 3600;
-      const m = Math.floor(s / 60);
-      s -= m * 60;
-      setCd({ d, h, m, s });
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
   }, [scheduledAt, venue]);
 
   const celdas: { valor: string; label: string }[] = [

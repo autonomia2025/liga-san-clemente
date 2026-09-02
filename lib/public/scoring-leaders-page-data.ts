@@ -1,4 +1,5 @@
 import { getTopScorers } from "@/lib/public/rankings";
+import { type FaseFiltro } from "@/lib/public/fase";
 
 // Adapter para la página pública /goleadores. Reutiliza getTopScorers()
 // (fuente híbrida real: JugadorPartidoStat + MatchEvent sin duplicar, ver
@@ -31,8 +32,12 @@ export type ScoringLeaderRow = {
   promedio: number;
 };
 
-export async function getScoringLeaders(limit = 100): Promise<ScoringLeaderRow[]> {
-  const rows = await getTopScorers(limit);
+// Adapter fino: no define política propia de fase, solo propaga la que le
+// pidan y hereda el default TOTAL de getTopScorers. La pestaña activa por
+// defecto en /goleadores tiene que ser la misma (Total) o la página se
+// contradice con lo que muestra la home.
+export async function getScoringLeaders(limit = 100, fase: FaseFiltro = "TOTAL"): Promise<ScoringLeaderRow[]> {
+  const rows = await getTopScorers(limit, fase);
 
   return rows.map((r, i) => ({
     position: i + 1,

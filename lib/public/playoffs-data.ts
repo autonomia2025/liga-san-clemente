@@ -1,16 +1,17 @@
 import { prisma } from "@/lib/db";
 import { getStandings } from "@/lib/public/standings";
 import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
+import { type Fase } from "@/lib/public/fase";
 
 // Datos para la página pública /playoffs — bracket de eliminación directa a
 // partido único, con cruces 1v8, 2v7, 3v6, 4v5 sembrados desde la tabla final
 // de la fase regular (getStandings, no se recalcula nada acá).
 //
-// No hay modelo nuevo en el schema: los partidos de playoffs son `Partido`
-// normales, agrupados en `Jornada` con nombre propio ("Cuartos de Final",
-// "Semifinales", "Tercer Lugar", "Final"). Eso permite que la Mesa los opere
-// exactamente igual que cualquier partido de fase regular, y que el detalle
-// público (/partido/[id]), boxscore y play-by-play funcionen sin tocar nada.
+// Los partidos de playoffs son `Partido` normales, agrupados en `Jornada` con
+// `fase = PLAYOFFS` y nombre propio ("Cuartos de Final", "Semifinales",
+// "Tercer Lugar", "Final"). Eso permite que la Mesa los opere exactamente
+// igual que cualquier partido de fase regular, y que el detalle público
+// (/partido/[id]), boxscore y play-by-play funcionen sin tocar nada.
 //
 // Cada llave del bracket se resuelve buscando un Partido de playoffs cuyos dos
 // clubes coincidan con los que deberían enfrentarse en ese cruce. Mientras ese
@@ -75,9 +76,12 @@ const NOMBRE_RONDA: Record<PlayoffRound, string> = {
   final: "Final",
 };
 
-// Detecta a qué ronda de playoffs pertenece una Jornada por su nombre. Las
-// jornadas de fase regular (nombre null → "Fecha N") nunca matchean.
-function rondaDeJornada(nombre: string | null): PlayoffRound | null {
+// Detecta a qué ronda de playoffs pertenece una Jornada. La FASE la define la
+// columna Jornada.fase (dato explícito); el nombre solo se usa para saber
+// CUÁL de las cuatro rondas es. Antes el nombre decidía las dos cosas, lo que
+// permitía que una jornada de fase regular mal nombrada se colara al bracket.
+function rondaDeJornada(fase: Fase, nombre: string | null): PlayoffRound | null {
+  if (fase !== "PLAYOFFS") return null;
   if (!nombre) return null;
   const n = nombre
     .normalize("NFD")
@@ -184,10 +188,14 @@ function buildMatchup(
 
 export async function getPlayoffsData(): Promise<PlayoffsData> {
   const [standings, jornadas, regularPendientes] = await Promise.all([
-    getStandings(),
+    // REGULAR explícito aunque ya sea el default: este es EL punto donde la
+    // contaminación con resultados de playoffs desarma el bracket, así que
+    // conviene que se lea en el call site y no dependa del default.
+    getStandings("REGULAR"),
     prisma.jornada.findMany({
       select: {
         nombre: true,
+        fase: true,
         fecha: true,
         partidos: {
           select: {
@@ -201,14 +209,18 @@ export async function getPlayoffsData(): Promise<PlayoffsData> {
         },
       },
     }),
+    // "Fase regular pendiente" por el campo fase, no por `nombre: null`: la
+    // Jornada 1 tiene nombre "Jornada 1" (viene del seed), así que con el
+    // criterio viejo un partido pendiente de esa fecha no se contaba y la
+    // siembra se declaraba definitiva de más.
     prisma.partido.count({
-      where: { estado: { not: "FINALIZADO" }, jornada: { nombre: null } },
+      where: { estado: { not: "FINALIZADO" }, jornada: { fase: "REGULAR" } },
     }),
   ]);
 
   const partidosPlayoff: PartidoPlayoff[] = [];
   for (const j of jornadas) {
-    const ronda = rondaDeJornada(j.nombre);
+    const ronda = rondaDeJornada(j.fase, j.nombre);
     if (!ronda) continue;
     for (const p of j.partidos) {
       partidosPlayoff.push({

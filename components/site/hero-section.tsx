@@ -6,8 +6,57 @@ import { LbscButton } from "@/components/design-system/lbsc-button";
 // Hero de la Home. Entrada on-load con stagger (CSS .lbsc-fade-up). Imagen
 // oficial con tratamiento del design system.
 // Parallax leve SOLO en desktop y solo si no hay reduced-motion.
+//
+// El contenido viene por props porque el hero cambia de identidad cuando
+// arrancan los playoffs: el acento pasa a dorado y el copy anuncia la
+// definición del título. Quién decide el modo es la Home a partir del estado
+// real de la temporada (lib/public/season-phase.ts) — acá no hay ninguna
+// condición hardcodeada de fecha.
 
-export function HeroSection() {
+export type HeroMode = "regular" | "playoffs";
+
+export type HeroCta = { label: string; href: string };
+
+export type HeroSectionProps = {
+  mode?: HeroMode;
+  kicker?: string;
+  // El título se parte en dos líneas y la última palabra lleva el acento.
+  titleLineOne?: string;
+  titleLineTwo?: string;
+  titleAccentWord?: string;
+  subtitle?: string;
+  primaryCta?: HeroCta;
+  secondaryCta?: HeroCta;
+};
+
+type HeroContenido = Required<Omit<HeroSectionProps, "mode">>;
+
+const HERO_REGULAR: HeroContenido = {
+  kicker: "Temporada 2026",
+  titleLineOne: "Somos Liga.",
+  titleLineTwo: "Somos",
+  titleAccentWord: "Liga",
+  subtitle:
+    "8 equipos. Una sola pasión. La liga de básquetbol amateur que está transformando San Clemente.",
+  primaryCta: { label: "Ver Calendario", href: "/calendario" },
+  secondaryCta: { label: "Conoce la Liga", href: "/#historia" },
+};
+
+const HERO_PLAYOFFS: HeroContenido = {
+  kicker: "Estamos en Playoffs · Temporada 2026",
+  titleLineOne: "Se define",
+  titleLineTwo: "el",
+  titleAccentWord: "título",
+  subtitle:
+    "Terminó la fase regular. Ocho equipos, eliminación directa y un solo campeón. Acá se decide todo.",
+  primaryCta: { label: "Ver Bracket", href: "/playoffs" },
+  secondaryCta: { label: "Ver Calendario", href: "/calendario" },
+};
+
+export function HeroSection({ mode = "regular", ...overrides }: HeroSectionProps = {}) {
+  const base = mode === "playoffs" ? HERO_PLAYOFFS : HERO_REGULAR;
+  const contenido: HeroContenido = { ...base, ...overrides };
+  const esPlayoffs = mode === "playoffs";
   const parallaxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,43 +108,49 @@ export function HeroSection() {
       {/* Texto / identidad */}
       <div className="lbsc-container relative z-10 flex flex-col items-start gap-6 pb-28 pt-20 lg:col-start-1 lg:row-start-1 lg:max-w-2xl lg:pb-0 lg:pt-0">
         <span
-          className="lbsc-fade-up font-body text-xs font-bold uppercase tracking-[0.28em] text-accent-orange"
+          className={`lbsc-fade-up font-body text-xs font-bold uppercase tracking-[0.28em] ${esPlayoffs ? "text-accent-gold" : "text-accent-orange"}`}
           style={{ animationDelay: "0ms" }}
         >
-          Temporada 2026
+          {contenido.kicker}
         </span>
 
         <h1
           className="lbsc-fade-up font-head text-6xl uppercase leading-[0.9] tracking-tight text-text-primary sm:text-7xl lg:text-8xl"
           style={{ animationDelay: "100ms" }}
         >
-          Somos Liga.
+          {contenido.titleLineOne}
           <br />
-          Somos <span className="text-accent-purple">Liga</span>
+          {contenido.titleLineTwo}{" "}
+          <span className={esPlayoffs ? "text-accent-gold" : "text-accent-purple"}>
+            {contenido.titleAccentWord}
+          </span>
         </h1>
 
         <p
           className="lbsc-fade-up max-w-md font-body text-base leading-relaxed text-text-secondary sm:text-lg"
           style={{ animationDelay: "200ms" }}
         >
-          8 equipos. Una sola pasión. La liga de básquetbol amateur que está transformando San
-          Clemente.
+          {contenido.subtitle}
         </p>
 
         <div
           className="lbsc-fade-up flex w-full flex-col gap-3 sm:w-auto sm:flex-row"
           style={{ animationDelay: "300ms" }}
         >
-          <LbscButton size="lg" className="w-full sm:w-auto" onClick={() => (window.location.href = "/calendario")}>
-            Ver Calendario
+          <LbscButton
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={() => (window.location.href = contenido.primaryCta.href)}
+          >
+            {contenido.primaryCta.label}
           </LbscButton>
           <LbscButton
             variant="secondary"
             size="lg"
             className="w-full sm:w-auto"
-            onClick={() => (window.location.href = "/#historia")}
+            onClick={() => (window.location.href = contenido.secondaryCta.href)}
           >
-            Conoce la Liga
+            {contenido.secondaryCta.label}
           </LbscButton>
         </div>
       </div>

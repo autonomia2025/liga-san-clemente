@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { mergeScoringSources, type TopScorerRow } from "@/lib/public/scoring-merge";
+import { wherePartidoJornadaFase, type FaseFiltro } from "@/lib/public/fase";
 
 export type { TopScorerRow };
 
@@ -9,8 +10,21 @@ export type { TopScorerRow };
 // sí es pura y vive en lib/public/scoring-merge.ts (sin import de prisma, así
 // se puede probar con datos sintéticos) — acá solo se arman las queries
 // reales y se le pasan los resultados.
-export async function getTopScorers(limit = 10): Promise<TopScorerRow[]> {
+// `fase` va DESPUÉS de `limit` para no romper los llamadores existentes, que
+// pasan limit posicional. El default es TOTAL (y no REGULAR como en la tabla)
+// porque los puntos sí son aditivos entre fases: si la home dijera un número
+// y /goleadores otro para el mismo jugador, sería peor que no tener el corte.
+//
+// INVARIANTE: las DOS queries se filtran con la misma fase. `partidosConStat`
+// sale de los stats ya filtrados y el `notIn` se aplica sobre eventos también
+// filtrados, así ningún partido se cuenta dos veces. Es exactamente la
+// garantía que mergeScoringSources() documenta y asume; filtrar solo una de
+// las dos la rompe en silencio.
+export async function getTopScorers(limit = 10, fase: FaseFiltro = "TOTAL"): Promise<TopScorerRow[]> {
+  const filtroFase = wherePartidoJornadaFase(fase);
+
   const stats = await prisma.jugadorPartidoStat.findMany({
+    where: filtroFase,
     select: { partidoId: true, jugadorId: true, puntos: true },
   });
 
@@ -25,6 +39,7 @@ export async function getTopScorers(limit = 10): Promise<TopScorerRow[]> {
       anulado: false,
       jugadorId: { not: null },
       partidoId: { notIn: [...partidosConStat] },
+      ...filtroFase,
     },
     select: { partidoId: true, jugadorId: true, detalle: true },
   });

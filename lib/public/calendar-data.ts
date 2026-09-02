@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
+import { type Fase } from "@/lib/public/fase";
 
 export type CalendarTeam = {
   name: string;
@@ -26,6 +27,7 @@ export type CalendarRound = {
   key: string;
   label: string;
   date?: Date | string | null;
+  fase: Fase;
   matches: CalendarMatch[];
 };
 
@@ -39,7 +41,7 @@ type DbMatch = {
   estado: "PROGRAMADO" | "CONFIRMADO" | "EN_CURSO" | "FINALIZADO";
   cancha: string | null;
   updatedAt: Date;
-  jornada: { numero: number; nombre: string | null; fecha: Date | null };
+  jornada: { numero: number; nombre: string | null; fecha: Date | null; fase: Fase };
   clubLocal: { nombre: string; escudoUrl: string | null };
   clubVisitante: { nombre: string; escudoUrl: string | null };
   acta: { resultadoLocal: number; resultadoVisitante: number } | null;
@@ -94,7 +96,7 @@ export async function getCalendarPageData(): Promise<CalendarPageData> {
       estado: true,
       cancha: true,
       updatedAt: true,
-      jornada: { select: { numero: true, nombre: true, fecha: true } },
+      jornada: { select: { numero: true, nombre: true, fecha: true, fase: true } },
       clubLocal: { select: { nombre: true, escudoUrl: true } },
       clubVisitante: { select: { nombre: true, escudoUrl: true } },
       acta: { select: { resultadoLocal: true, resultadoVisitante: true } },
@@ -115,14 +117,16 @@ export async function getCalendarPageData(): Promise<CalendarPageData> {
     const key = match.jornada.numero;
     const existing = rounds.get(key);
     const date = match.jornada.fecha ?? match.fechaHora ?? null;
-    const round =
-      existing ??
-      ({
-        key: `fecha-${match.jornada.numero}`,
-        label: roundLabel(match.jornada),
-        date,
-        matches: [],
-      } satisfies CalendarRound);
+    // Anotación explícita en vez de `satisfies`: con `satisfies`, TypeScript
+    // infiere `matches: never[]` para el literal y el tipo de `round` queda
+    // como una unión cuyo push solo acepta `never`.
+    const round: CalendarRound = existing ?? {
+      key: `fecha-${match.jornada.numero}`,
+      label: roundLabel(match.jornada),
+      date,
+      fase: match.jornada.fase,
+      matches: [],
+    };
 
     round.matches.push(toCalendarMatch(match));
     rounds.set(key, round);
@@ -137,7 +141,14 @@ export async function getCalendarPageData(): Promise<CalendarPageData> {
   // import histórico sin fecha registrada) no se la manda al final por
   // default — se usa su número de fecha como respaldo para esa comparación,
   // así conserva una posición razonable en vez de "sin fecha = último".
+  // La fase manda por encima de la fecha: los playoffs siempre van al final,
+  // aunque una fecha de fase regular se haya reprogramado a un día posterior
+  // (le pasó a la Fecha 4, corrida al 30-ago). Dentro de cada fase, orden
+  // cronológico real; si a alguna ronda le falta fecha, cae a su número.
+  const PESO_FASE: Record<Fase, number> = { REGULAR: 0, PLAYOFFS: 1 };
   const roundsOrdenadas = Array.from(rounds.entries()).sort(([numeroA, a], [numeroB, b]) => {
+    const porFase = PESO_FASE[a.fase] - PESO_FASE[b.fase];
+    if (porFase !== 0) return porFase;
     if (a.date && b.date) return sortValue(a.date as Date) - sortValue(b.date as Date);
     return numeroA - numeroB;
   });

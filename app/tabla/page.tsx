@@ -200,13 +200,18 @@ export default async function TablaPage() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <span className="font-body text-xs font-bold uppercase tracking-[0.24em] text-accent-purple">
-                Temporada 2026
+                Fase Regular · Temporada 2026
               </span>
               <h1 className="mt-3 font-head text-6xl uppercase leading-none tracking-tight text-text-primary sm:text-7xl lg:text-8xl">
                 Tabla de posiciones
               </h1>
               <p className="mt-4 max-w-xl font-body text-sm leading-relaxed text-text-secondary sm:text-base">
-                Rendimiento actualizado de los equipos de la Liga de Básquetbol San Clemente.
+                Así terminó la fase regular de la Liga de Básquetbol San Clemente. Los partidos de
+                playoffs no modifican esta tabla:{" "}
+                <Link href="/playoffs" className="text-accent-gold underline-offset-2 hover:underline">
+                  seguí el bracket acá
+                </Link>
+                .
               </p>
             </div>
             <Link

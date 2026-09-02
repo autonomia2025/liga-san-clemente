@@ -7,6 +7,7 @@ import { Navbar } from "@/components/site/navbar";
 import { SiteFooter, type FooterLink, type SocialLink } from "@/components/site/site-footer";
 import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
 import { getScoringLeaders, type ScoringLeaderRow } from "@/lib/public/scoring-leaders-page-data";
+import { FASES_UI, FASE_LABEL, FASE_SLUG, parseFaseParam, type FaseFiltro } from "@/lib/public/fase";
 
 export const dynamic = "force-dynamic";
 
@@ -249,12 +250,63 @@ function LeadersError() {
 
 /* ---- página ------------------------------------------------------------------ */
 
-export default async function GoleadoresPage() {
+// Tabs de fase. Se resuelven con <Link> + searchParams en vez de un client
+// component con estado: la página ya es force-dynamic, así que el server
+// puede responder cada pestaña directamente y queda navegable sin JS.
+function FaseTabs({ activa }: { activa: FaseFiltro }) {
+  return (
+    <nav aria-label="Filtrar por fase" className="lbsc-container pb-6">
+      <div className="inline-flex flex-wrap gap-1 rounded-xl border border-white/10 bg-bg-elevated p-1">
+        {FASES_UI.map((f) => {
+          const esActiva = f === activa;
+          return (
+            <Link
+              key={f}
+              href={f === "TOTAL" ? "/goleadores" : `/goleadores?fase=${FASE_SLUG[f]}`}
+              aria-current={esActiva ? "page" : undefined}
+              className={`rounded-lg px-4 py-2 font-body text-xs font-bold uppercase tracking-wider transition-colors ${
+                esActiva
+                  ? "bg-accent-gold/15 text-accent-gold"
+                  : "text-text-secondary hover:bg-white/[0.04] hover:text-text-primary"
+              }`}
+            >
+              {FASE_LABEL[f]}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function SinDatosDeFase({ fase }: { fase: FaseFiltro }) {
+  return (
+    <section className="lbsc-container pb-10">
+      <div className="rounded-2xl border border-white/10 bg-bg-elevated px-5 py-12 text-center sm:px-8">
+        <p className="mx-auto max-w-md font-body text-sm leading-relaxed text-text-secondary">
+          {fase === "PLAYOFFS"
+            ? "Todavía no se registraron puntos en playoffs. El ranking aparecerá cuando se juegue el primer partido."
+            : "Todavía no hay estadísticas para esta fase."}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+export default async function GoleadoresPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ fase?: string | string[] }>;
+}) {
+  // Default TOTAL para no contradecir a la Home, que muestra el acumulado.
+  const { fase: faseParam } = await searchParams;
+  const fase = parseFaseParam(faseParam, "TOTAL");
+
   let rows: ScoringLeaderRow[] | null = null;
   let failed = false;
 
   try {
-    rows = await getScoringLeaders();
+    rows = await getScoringLeaders(100, fase);
   } catch {
     failed = true;
   }
@@ -278,7 +330,11 @@ export default async function GoleadoresPage() {
                 Goleadores
               </h1>
               <p className="mt-4 max-w-xl font-body text-sm leading-relaxed text-text-secondary sm:text-base">
-                Ranking de anotación acumulado de la Liga de Básquetbol San Clemente.
+                {fase === "PLAYOFFS"
+                  ? "Ranking de anotación de los playoffs de la Liga de Básquetbol San Clemente."
+                  : fase === "REGULAR"
+                    ? "Ranking de anotación de la fase regular de la Liga de Básquetbol San Clemente."
+                    : "Ranking de anotación acumulado de la Liga de Básquetbol San Clemente."}
               </p>
             </div>
             <Link
@@ -290,10 +346,15 @@ export default async function GoleadoresPage() {
           </div>
         </header>
 
+        {/* Las tabs van FUERA del branch de estado vacío: la pestaña Playoffs
+            está vacía hasta que se juegue el primer cruce, y si se ocultaran
+            el usuario quedaría sin forma de volver a las otras. */}
+        {!failed && <FaseTabs activa={fase} />}
+
         {failed ? (
           <LeadersError />
         ) : !hayDatos ? (
-          <EmptyLeaders />
+          fase === "TOTAL" ? <EmptyLeaders /> : <SinDatosDeFase fase={fase} />
         ) : (
           <>
             <Top3 rows={top3} />
