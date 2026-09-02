@@ -377,17 +377,27 @@ async function loadPlayoffs(): Promise<HomePlayoffs | null> {
   const ronda = rondaVigente(data);
   if (!ronda) return null;
 
-  const matches: PlayoffStripMatch[] = ronda.matchups.map((m) => ({
-    key: m.key,
-    partidoId: m.partidoId,
-    home: toStripTeam(m.home),
-    away: toStripTeam(m.away),
-    homeScore: m.homeScore,
-    awayScore: m.awayScore,
-    status: m.status,
-    scheduledAt: m.scheduledAt ? new Date(m.scheduledAt).toISOString() : null,
-    ganadorAbbr: m.winner?.abbr ?? null,
-  }));
+  // Orden cronológico, no el del bracket: la franja se lee como "qué se juega
+  // esta fecha", así que el primer partido del día va primero. El bracket de
+  // /playoffs sí conserva el orden de llaves, que ahí es lo que corresponde.
+  const matches: PlayoffStripMatch[] = ronda.matchups
+    .slice()
+    .sort((a, b) => {
+      const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Number.POSITIVE_INFINITY;
+      const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Number.POSITIVE_INFINITY;
+      return ta - tb;
+    })
+    .map((m) => ({
+      key: m.key,
+      partidoId: m.partidoId,
+      home: toStripTeam(m.home),
+      away: toStripTeam(m.away),
+      homeScore: m.homeScore,
+      awayScore: m.awayScore,
+      status: m.status,
+      scheduledAt: m.scheduledAt ? new Date(m.scheduledAt).toISOString() : null,
+      ganadorAbbr: m.winner?.abbr ?? null,
+    }));
 
   // El countdown apunta al próximo partido que todavía no terminó. Si ya
   // terminaron todos, no se muestra contador (en vez de quedar clavado en
