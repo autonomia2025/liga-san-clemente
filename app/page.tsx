@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Navbar } from "@/components/site/navbar";
 import { PageTransition } from "@/components/site/page-transition";
-import { HeroSection } from "@/components/site/hero-section";
+import { HeroSection, type HeroSectionProps } from "@/components/site/hero-section";
 import { MatchFeature } from "@/components/site/match-feature";
 import { StandingsPreview } from "@/components/site/standings-preview";
 import { MvpLeadersSection } from "@/components/site/mvp-leaders-section";
@@ -19,7 +19,7 @@ import {
   TeamsGridError,
   FixturePreviewError,
 } from "@/components/site/loading-states";
-import { getHomePageData } from "@/lib/public/home-live-data";
+import { getHomePageData, type HomePlayoffs } from "@/lib/public/home-live-data";
 
 // Depende de datos en vivo (partido en curso, próxima jornada, standings) →
 // no puede quedar prerenderizada estática; se resuelve en cada request.
@@ -83,6 +83,60 @@ const FOOTER_SOCIAL_LINKS: SocialLink[] = [
   { label: "YouTube", href: "https://www.youtube.com/@LigadeBasquetbolSanClemente" },
 ];
 
+// Copy del hero según la etapa real del cuadro. En cuartos se usa el copy
+// base del modo playoffs (hero-section.tsx); desde semis el hero pasa a ser la
+// portada de la ronda: quiénes quedan, contra quién y cuánto falta.
+function heroDePlayoffs(p: HomePlayoffs | null): HeroSectionProps {
+  if (!p) return {};
+  const cruce = (m: HomePlayoffs["matches"][number]) =>
+    `${m.home?.name ?? "Por definir"} vs ${m.away?.name ?? "Por definir"}`;
+  const siguiente = p.matches.find((m) => m.status !== "finished" && m.partidoId);
+  const ctaPartido = siguiente
+    ? siguiente.status === "live"
+      ? { label: "Seguir en vivo", href: "/en-vivo" }
+      : { label: "Ver la previa", href: `/partido/${siguiente.partidoId}` }
+    : { label: "Ver Bracket", href: "/playoffs" };
+  const contador = { teams: p.vivos, countdownTarget: p.proximoAt, countdownLabel: p.proximoLabel };
+
+  switch (p.etapa) {
+    case "semis":
+      return {
+        kicker: p.diaLabel ? `Semifinales · ${p.diaLabel}` : "Semifinales · Temporada 2026",
+        titleLineOne: "Quedan",
+        titleLineTwo: "",
+        titleAccentWord: "cuatro",
+        subtitle: `${p.matches.map(cruce).join(" y ")}. Dos partidos, dos pasajes a la final.`,
+        primaryCta: ctaPartido,
+        secondaryCta: { label: "Ver Bracket", href: "/playoffs" },
+        ...contador,
+      };
+    case "final":
+      return {
+        kicker: p.diaLabel ? `La Final · ${p.diaLabel}` : "La Final · Temporada 2026",
+        titleLineOne: "La gran",
+        titleLineTwo: "",
+        titleAccentWord: "final",
+        subtitle: `${p.matches.map(cruce).join("")}. Un partido por el título 2026.`,
+        primaryCta: ctaPartido,
+        secondaryCta: { label: "Ver Bracket", href: "/playoffs" },
+        ...contador,
+      };
+    case "campeon":
+      return {
+        kicker: "Campeón · Temporada 2026",
+        titleLineOne: "Campeón",
+        titleLineTwo: "",
+        titleAccentWord: p.championName ?? "2026",
+        subtitle: "La temporada 2026 ya tiene dueño. Revive el camino al título en el bracket.",
+        primaryCta: { label: "Ver Bracket", href: "/playoffs" },
+        secondaryCta: { label: "Ver Calendario", href: "/calendario" },
+        teams: p.vivos,
+      };
+    default:
+      return {};
+  }
+}
+
 export default async function Home() {
   const data = await getHomePageData();
 
@@ -102,7 +156,7 @@ export default async function Home() {
           {/* El modo del hero sale del estado real de la temporada: si hay
               partidos de playoffs cargados cambia solo, sin flags ni fechas
               hardcodeadas. Si el loader de fase falla, cae al modo regular. */}
-          <HeroSection mode={modoHero} />
+          <HeroSection mode={modoHero} {...(modoHero === "playoffs" ? heroDePlayoffs(playoffs) : {})} />
 
           {/* La franja de playoffs va arriba del módulo de partido: es lo
               primero que tiene que ver alguien que entra a la home. */}
@@ -110,7 +164,10 @@ export default async function Home() {
             <PlayoffsStrip
               rondaLabel={playoffs.rondaLabel}
               matches={playoffs.matches}
-              proximoAt={playoffs.proximoAt}
+              // Desde semis el contador grande vive en el hero; repetirlo en
+              // la franja justo debajo sería ruido.
+              proximoAt={playoffs.etapa === "cuartos" ? playoffs.proximoAt : null}
+              copaPlata={playoffs.copaPlata}
             />
           )}
 

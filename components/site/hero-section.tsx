@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { LbscButton } from "@/components/design-system/lbsc-button";
+import { Countdown } from "@/components/site/countdown";
 
 // Hero de la Home. Entrada on-load con stagger (CSS .lbsc-fade-up). Imagen
 // oficial con tratamiento del design system.
@@ -17,6 +18,9 @@ export type HeroMode = "regular" | "playoffs";
 
 export type HeroCta = { label: string; href: string };
 
+// Escudo de un equipo que sigue en carrera ("Quedan cuatro").
+export type HeroTeam = { name: string; abbr: string; logoUrl?: string; color?: string };
+
 export type HeroSectionProps = {
   mode?: HeroMode;
   kicker?: string;
@@ -27,9 +31,16 @@ export type HeroSectionProps = {
   subtitle?: string;
   primaryCta?: HeroCta;
   secondaryCta?: HeroCta;
+  // Opcionales de playoffs: los escudos de los que siguen vivos y un contador
+  // grande al próximo partido. Sin ellos el hero queda como siempre.
+  teams?: HeroTeam[];
+  countdownTarget?: string | null;
+  countdownLabel?: string | null;
 };
 
-type HeroContenido = Required<Omit<HeroSectionProps, "mode">>;
+type HeroContenido = Required<
+  Omit<HeroSectionProps, "mode" | "teams" | "countdownTarget" | "countdownLabel">
+>;
 
 const HERO_REGULAR: HeroContenido = {
   kicker: "Temporada 2026",
@@ -53,9 +64,17 @@ const HERO_PLAYOFFS: HeroContenido = {
   secondaryCta: { label: "Ver Calendario", href: "/calendario" },
 };
 
-export function HeroSection({ mode = "regular", ...overrides }: HeroSectionProps = {}) {
+export function HeroSection({
+  mode = "regular",
+  teams = [],
+  countdownTarget = null,
+  countdownLabel = null,
+  ...overrides
+}: HeroSectionProps = {}) {
   const base = mode === "playoffs" ? HERO_PLAYOFFS : HERO_REGULAR;
-  const contenido: HeroContenido = { ...base, ...overrides };
+  // Un override undefined no pisa el copy base (un spread directo sí lo haría).
+  const definidos = Object.fromEntries(Object.entries(overrides).filter(([, v]) => v !== undefined));
+  const contenido: HeroContenido = { ...base, ...definidos };
   const esPlayoffs = mode === "playoffs";
   const parallaxRef = useRef<HTMLDivElement>(null);
 
@@ -132,6 +151,43 @@ export function HeroSection({ mode = "regular", ...overrides }: HeroSectionProps
         >
           {contenido.subtitle}
         </p>
+
+        {(teams.length > 0 || countdownTarget) && (
+          <div className="lbsc-fade-up flex flex-col gap-6" style={{ animationDelay: "250ms" }}>
+            {teams.length > 0 && (
+              <ul className="flex flex-wrap items-start gap-3 sm:gap-4" aria-label="Equipos que siguen en carrera">
+                {teams.map((t) => (
+                  <li key={t.abbr} className="flex w-16 flex-col items-center gap-1.5 sm:w-[4.5rem]">
+                    <span
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl font-head text-xs uppercase text-white ring-1 ring-accent-gold/30 sm:h-16 sm:w-16"
+                      style={
+                        t.logoUrl
+                          ? { background: `rgba(255,255,255,0.05) center/76% no-repeat url(${t.logoUrl})` }
+                          : { background: `linear-gradient(155deg, ${t.color ?? "#7c3aed"}, #0a0e1a 82%)` }
+                      }
+                      title={t.name}
+                    >
+                      {t.logoUrl ? "" : t.abbr}
+                    </span>
+                    <span className="w-full truncate text-center font-body text-[10px] font-bold uppercase tracking-widest text-text-secondary">
+                      {t.name}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {countdownTarget && (
+              <div className="flex flex-col gap-2">
+                {countdownLabel && (
+                  <span className="font-body text-[11px] font-bold uppercase tracking-[0.24em] text-text-secondary">
+                    {countdownLabel}
+                  </span>
+                )}
+                <Countdown target={countdownTarget} size="lg" tone={esPlayoffs ? "gold" : "white"} />
+              </div>
+            )}
+          </div>
+        )}
 
         <div
           className="lbsc-fade-up flex w-full flex-col gap-3 sm:w-auto sm:flex-row"

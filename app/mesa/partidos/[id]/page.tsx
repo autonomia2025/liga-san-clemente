@@ -169,7 +169,8 @@ export default async function MesaPartidoPage({
     <div className="flex flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Badge tone={partidoFinalizado ? "neutral" : "accent-orange"} live={!partidoFinalizado}>
-          Jornada {partido!.jornada.numero} — {partidoFinalizado ? "Finalizado" : "En curso"}
+          {partido!.jornada.nombre?.trim() || `Jornada ${partido!.jornada.numero}`} —{" "}
+          {partidoFinalizado ? "Finalizado" : "En curso"}
         </Badge>
         <span className="text-xs text-muted">
           Operador: {partido!.mesaOperador?.email ?? "—"}

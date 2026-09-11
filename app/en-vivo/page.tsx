@@ -7,6 +7,8 @@ import { Navbar } from "@/components/site/navbar";
 import { SiteFooter, type FooterLink, type SocialLink } from "@/components/site/site-footer";
 import {
   getLivePageData,
+  type DaySlate,
+  type DaySlateMatch,
   type LiveBoxscoreRow,
   type LiveGameData,
   type LivePlayerName,
@@ -18,6 +20,7 @@ import { clubLogoPad } from "@/lib/public/display";
 import { labelPeriodo } from "@/lib/mesa/live-match-state";
 import { LiveRefresher } from "@/components/site/live-refresher";
 import { LiveClock } from "@/components/site/live-clock";
+import { Countdown } from "@/components/site/countdown";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +51,13 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-CL", {
   weekday: "long",
   day: "numeric",
   month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+const horaFormatter = new Intl.DateTimeFormat("es-CL", {
+  timeZone: TIME_ZONE,
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
@@ -335,6 +345,96 @@ function PlayByPlay({ entries }: { entries: PlayByPlayEntry[] }) {
   );
 }
 
+/* ---- la jornada del día --------------------------------------------------------- */
+
+function FilaSlate({ team, score, perdio }: { team: LiveTeam; score: number | null; perdio: boolean }) {
+  return (
+    <div className={`flex items-center gap-2 ${perdio ? "opacity-45" : ""}`}>
+      <span
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md font-head text-[9px] uppercase leading-none text-white ring-1 ring-white/10"
+        style={{
+          background: team.logoUrl
+            ? `rgba(255,255,255,0.05) center/contain no-repeat url(${team.logoUrl})`
+            : `linear-gradient(155deg, ${team.color ?? "#7c3aed"}, #0a0e1a 82%)`,
+        }}
+        aria-hidden="true"
+      >
+        {team.logoUrl ? "" : team.abbr}
+      </span>
+      <span className="min-w-0 flex-1 truncate font-head text-sm uppercase leading-none tracking-tight text-text-primary">
+        {team.name}
+      </span>
+      {score != null && (
+        <span className="shrink-0 font-head text-base leading-none tabular-nums text-text-primary">{score}</span>
+      )}
+    </div>
+  );
+}
+
+function SlateCard({ m, foco }: { m: DaySlateMatch; foco: boolean }) {
+  const decidido = m.status === "finished" && m.homeScore != null && m.awayScore != null && m.homeScore !== m.awayScore;
+  const ganaHome = decidido && m.homeScore! > m.awayScore!;
+  const borde = foco
+    ? m.status === "live"
+      ? "border-live-pulse/50 bg-live-pulse/[0.05]"
+      : "border-accent-gold/40 bg-accent-gold/[0.04]"
+    : "border-white/10 bg-bg-elevated";
+
+  return (
+    <Link
+      href={m.status === "live" ? "/en-vivo" : `/partido/${m.id}`}
+      aria-current={foco ? "true" : undefined}
+      className={`flex h-full flex-col gap-2 rounded-xl border px-3.5 py-3 transition-colors hover:border-white/25 ${borde}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className={`truncate font-body text-[10px] font-bold uppercase tracking-[0.16em] ${m.esCopaPlata ? "text-accent-silver/80" : "text-accent-gold"}`}
+        >
+          {m.label}
+        </span>
+        {m.status === "live" ? (
+          <LiveBadge />
+        ) : (
+          <span className="shrink-0 font-mono text-xs tabular-nums text-text-secondary">
+            {m.status === "finished" ? "Final" : m.scheduledAt ? horaFormatter.format(new Date(m.scheduledAt)) : "—"}
+          </span>
+        )}
+      </div>
+      <FilaSlate team={m.homeTeam} score={m.homeScore} perdio={decidido && !ganaHome} />
+      <FilaSlate team={m.awayTeam} score={m.awayScore} perdio={decidido && ganaHome} />
+    </Link>
+  );
+}
+
+// Tira con todos los partidos del día (ej. el domingo de semis: dos de Copa
+// de Plata y dos semifinales seguidos). El partido que la página muestra
+// abajo va resaltado.
+function JornadaDelDia({ slate, focoId }: { slate: DaySlate; focoId: string | undefined }) {
+  const jugados = slate.matches.filter((m) => m.status === "finished").length;
+  return (
+    <section aria-labelledby="jornada-del-dia" className="lbsc-container pb-8">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2
+          id="jornada-del-dia"
+          className="font-body text-[11px] font-bold uppercase tracking-[0.24em] text-text-secondary"
+        >
+          La jornada · {slate.dayLabel}
+        </h2>
+        <span className="font-body text-[11px] uppercase tracking-wide text-text-secondary/70">
+          {jugados} de {slate.matches.length} jugados
+        </span>
+      </div>
+      <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {slate.matches.map((m) => (
+          <li key={m.id}>
+            <SlateCard m={m} foco={m.id === focoId} />
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 /* ---- estados de la página ---------------------------------------------------- */
 
 function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> }) {
@@ -350,6 +450,11 @@ function LiveMatchView({ match }: { match: NonNullable<LiveGameData["match"]> })
             </span>
           ) : (
             <LiveBadge />
+          )}
+          {match.jornadaLabel && (
+            <span className="font-body text-sm font-bold uppercase tracking-[0.2em] text-accent-gold">
+              {match.jornadaLabel}
+            </span>
           )}
           <span className="font-body text-sm font-bold uppercase tracking-[0.2em] text-text-primary">
             {match.periodLabel ?? "EN CURSO"}
@@ -435,6 +540,11 @@ function UpcomingMatchView({ match }: { match: NonNullable<LiveGameData["match"]
   return (
     <div className="lbsc-container pb-16">
       <div className="rounded-2xl border border-white/10 bg-bg-elevated p-6 sm:p-10">
+        {match.jornadaLabel && (
+          <p className="mb-6 text-center font-body text-sm font-bold uppercase tracking-[0.2em] text-accent-gold">
+            {match.jornadaLabel}
+          </p>
+        )}
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
           <TeamBlock team={match.homeTeam} align="left" />
           <span className="shrink-0 font-head text-2xl uppercase leading-none text-text-secondary">vs</span>
@@ -448,6 +558,11 @@ function UpcomingMatchView({ match }: { match: NonNullable<LiveGameData["match"]
             <span className="font-body text-xs uppercase tracking-widest text-text-secondary">{match.venue}</span>
           )}
         </div>
+        {match.scheduledAt && (
+          <div className="mt-8 flex justify-center">
+            <Countdown target={new Date(match.scheduledAt).toISOString()} size="lg" zeroLabel="Por comenzar" />
+          </div>
+        )}
       </div>
       <div className="mt-8 flex justify-center">
         <Link
@@ -568,6 +683,8 @@ export default async function EnVivoPage() {
 
       <main className="pt-[var(--navbar-height)]">
         <PageHeader state={headerState} />
+
+        {!failed && data?.jornada && <JornadaDelDia slate={data.jornada} focoId={data.match?.id} />}
 
         {failed || !data ? (
           <LiveError />

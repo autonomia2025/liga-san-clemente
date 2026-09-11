@@ -69,3 +69,47 @@ export function parseFaseParam(valor: string | string[] | undefined, fallback: F
   const encontrada = FASES_UI.find((f) => FASE_SLUG[f] === normalizado);
   return encontrada ?? fallback;
 }
+
+/* ---- rondas de playoffs ------------------------------------------------------ */
+
+// Ronda del cuadro por el título (o de la Copa de Plata) a partir de la
+// jornada. Pura y sin prisma para que la usen tanto playoffs-data.ts como
+// season-phase.ts sin crear un ciclo de imports.
+export type RondaPlayoff = "cuartos" | "semis" | "tercer" | "final";
+
+function normalizarNombre(nombre: string): string {
+  return nombre
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+export function esJornadaCopaPlata(nombre: string | null): boolean {
+  return nombre != null && normalizarNombre(nombre).includes("plata");
+}
+
+// Detecta a qué ronda de playoffs pertenece una Jornada. La FASE la define la
+// columna Jornada.fase (dato explícito); el nombre solo se usa para saber
+// CUÁL de las cuatro rondas es. Antes el nombre decidía las dos cosas, lo que
+// permitía que una jornada de fase regular mal nombrada se colara al bracket.
+//
+// Las jornadas de la Copa de Plata también son fase PLAYOFFS, así que se
+// excluyen explícitamente: sin esto, una "Final Copa de Plata" matchearía
+// "final" y se bindearía como la final por el título.
+export function rondaDeJornada(fase: Fase, nombre: string | null): RondaPlayoff | null {
+  if (fase !== "PLAYOFFS") return null;
+  if (!nombre || esJornadaCopaPlata(nombre)) return null;
+  const n = normalizarNombre(nombre);
+  if (n.includes("cuartos")) return "cuartos";
+  if (n.includes("semi")) return "semis";
+  if (n.includes("tercer")) return "tercer";
+  if (n.includes("final")) return "final";
+  return null;
+}
+
+// Ronda dentro de la Copa de Plata: la jornada que menciona "final" es la
+// final; cualquier otra jornada de la copa ("Copa de Plata") son las semis.
+export function rondaPlataDeJornada(fase: Fase, nombre: string | null): RondaPlayoff | null {
+  if (fase !== "PLAYOFFS" || !esJornadaCopaPlata(nombre)) return null;
+  return normalizarNombre(nombre!).includes("final") ? "final" : "semis";
+}

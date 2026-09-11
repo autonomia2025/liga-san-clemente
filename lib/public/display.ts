@@ -67,6 +67,16 @@ export function clubLogoUrl(nombreOficial: string): string | undefined {
   return CLUB_LOGO[nombreOficial];
 }
 
+// Versión chica (240px) del mismo logo para las imágenes generadas al
+// compartir (opengraph-image): los PNG originales pesan >2 MB y el
+// renderizador de la imagen tendría que decodificarlos enteros en cada
+// request. En public/equipos/og/: cada PNG recortado a su contenido visible
+// (sin el margen transparente, que varía mucho entre clubes) y llevado a 240px,
+// así todos los escudos ocupan el mismo espacio en la imagen.
+export function clubLogoOgPath(nombreOficial: string): string | undefined {
+  return CLUB_LOGO[nombreOficial]?.replace("/equipos/logos/", "/equipos/og/");
+}
+
 // El PNG de Alameda Linares ya se ve bien de tamaño con el padding por
 // defecto (menos aire interno que el resto de los logos reales). El resto se
 // agranda achicando el padding del contenedor a la mitad — a pedido tras

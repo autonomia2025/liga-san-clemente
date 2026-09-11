@@ -51,7 +51,7 @@ export default async function MesaHome({
                 className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-5 transition-transform duration-150 hover:-translate-y-0.5 hover:border-accent-orange/40"
               >
                 <Badge tone={enCurso ? "success" : "accent-orange"} live={enCurso}>
-                  Jornada {partido.jornada.numero}
+                  {partido.jornada.nombre?.trim() || `Jornada ${partido.jornada.numero}`}
                   {enCurso ? " — En curso" : ""}
                 </Badge>
 

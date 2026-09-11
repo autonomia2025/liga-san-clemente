@@ -15,6 +15,8 @@ import {
 } from "@/lib/public/match-detail-page-data";
 import { clubLogoPad } from "@/lib/public/display";
 import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/public/site";
+import { getMatchPreview, type MatchPreview } from "@/lib/public/match-preview-data";
+import { Countdown } from "@/components/site/countdown";
 
 export const dynamic = "force-dynamic";
 
@@ -426,27 +428,328 @@ function LiveRedirectView({ match }: { match: MatchDetailPageData["match"] }) {
   );
 }
 
-function ScheduledView({ match }: { match: MatchDetailPageData["match"] }) {
+/* ---- previa ------------------------------------------------------------------ */
+
+type Lado = "home" | "away" | null;
+
+// Quién tiene la mejor marca en una fila de la comparación; null si empatan o
+// si a alguno le falta el dato.
+function mejorLado(a: number | null, b: number | null, mayorEsMejor: boolean): Lado {
+  if (a == null || b == null || a === b) return null;
+  return a > b === mayorEsMejor ? "home" : "away";
+}
+
+function decimal(n: number | null): string {
+  return n == null ? "—" : n.toLocaleString("es-CL", { maximumFractionDigits: 1 });
+}
+
+function TituloPrevia({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="mb-4 font-head text-2xl uppercase leading-none tracking-tight text-text-primary">{children}</h2>
+  );
+}
+
+function ComoLlegan({
+  match,
+  preview,
+  acento,
+}: {
+  match: MatchDetailPageData["match"];
+  preview: MatchPreview;
+  acento: string;
+}) {
+  const { home, away } = preview;
+  const filas = [
+    {
+      label: "Fase regular",
+      home: home.posicion ? `${home.posicion}º` : "—",
+      away: away.posicion ? `${away.posicion}º` : "—",
+      gana: mejorLado(home.posicion, away.posicion, false),
+    },
+    {
+      label: "Récord",
+      home: home.pg != null ? `${home.pg}-${home.pp}` : "—",
+      away: away.pg != null ? `${away.pg}-${away.pp}` : "—",
+      gana: mejorLado(home.pg, away.pg, true),
+    },
+    {
+      label: "Puntos por partido",
+      home: decimal(home.puntosPorPartido),
+      away: decimal(away.puntosPorPartido),
+      gana: mejorLado(home.puntosPorPartido, away.puntosPorPartido, true),
+    },
+    {
+      label: "Puntos recibidos",
+      home: decimal(home.recibidosPorPartido),
+      away: decimal(away.recibidosPorPartido),
+      gana: mejorLado(home.recibidosPorPartido, away.recibidosPorPartido, false),
+    },
+  ];
+
+  return (
+    <div className="mt-10">
+      <TituloPrevia>Cómo llegan</TituloPrevia>
+      <div className="rounded-2xl border border-white/10 bg-bg-elevated px-4 py-2 sm:px-8">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-white/10 py-3">
+          <span className="truncate text-right font-head text-sm uppercase tracking-tight text-text-secondary">
+            {match.homeTeam.name}
+          </span>
+          <span className="w-28 sm:w-44" aria-hidden="true" />
+          <span className="truncate text-left font-head text-sm uppercase tracking-tight text-text-secondary">
+            {match.awayTeam.name}
+          </span>
+        </div>
+        {filas.map((f) => (
+          <div
+            key={f.label}
+            className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-white/[0.06] py-3.5 last:border-b-0"
+          >
+            <span
+              className={`text-right font-head text-2xl leading-none tabular-nums sm:text-3xl ${f.gana === "home" ? acento : "text-text-primary"}`}
+            >
+              {f.home}
+            </span>
+            <span className="w-28 text-center font-body text-[10px] font-bold uppercase tracking-[0.16em] text-text-secondary sm:w-44">
+              {f.label}
+            </span>
+            <span
+              className={`text-left font-head text-2xl leading-none tabular-nums sm:text-3xl ${f.gana === "away" ? acento : "text-text-primary"}`}
+            >
+              {f.away}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 font-body text-[11px] uppercase tracking-wide text-text-secondary/70">
+        Números de la fase regular.
+      </p>
+    </div>
+  );
+}
+
+function CaminoPlayoffs({
+  match,
+  preview,
+  acento,
+}: {
+  match: MatchDetailPageData["match"];
+  preview: MatchPreview;
+  acento: string;
+}) {
+  if (preview.home.camino.length === 0 && preview.away.camino.length === 0) return null;
+
+  const columna = (team: MatchDetailTeamRef, camino: MatchPreview["home"]["camino"]) => (
+    <div className="flex-1">
+      <p className="mb-3 font-head text-base uppercase leading-none tracking-tight text-text-primary">{team.name}</p>
+      {camino.length === 0 ? (
+        <p className="font-body text-xs text-text-secondary">Sin partidos de playoffs todavía.</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {camino.map((c) => (
+            <li key={c.partidoId}>
+              <Link href={`/partido/${c.partidoId}`} className="group block">
+                <span className="font-body text-[10px] font-bold uppercase tracking-[0.18em] text-text-secondary">
+                  {c.rondaLabel}
+                </span>
+                <p className="mt-0.5 font-body text-sm text-text-primary group-hover:underline">
+                  <span className={`font-semibold ${c.gano ? acento : "text-text-secondary"}`}>
+                    {c.gano ? "Ganó" : "Perdió"} {c.puntosPropios}-{c.puntosRival}
+                  </span>{" "}
+                  vs {c.rivalName}
+                </p>
+                {c.figura && (
+                  <p className="font-body text-xs text-text-secondary">
+                    Figura: {c.figura.nombre} · {c.figura.puntos} pts
+                  </p>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="mt-10">
+      <TituloPrevia>Camino en playoffs</TituloPrevia>
+      <div className="flex flex-col gap-8 rounded-2xl border border-white/10 bg-bg-elevated p-5 sm:flex-row sm:gap-10 sm:p-6">
+        {columna(match.homeTeam, preview.home.camino)}
+        <div className="hidden w-px bg-white/10 sm:block" aria-hidden="true" />
+        {columna(match.awayTeam, preview.away.camino)}
+      </div>
+    </div>
+  );
+}
+
+function Historial({
+  match,
+  preview,
+  acento,
+}: {
+  match: MatchDetailPageData["match"];
+  preview: MatchPreview;
+  acento: string;
+}) {
+  const { cruces } = preview;
+  const ganadosHome = cruces.filter((c) => c.ganador === "home").length;
+  const ganadosAway = cruces.filter((c) => c.ganador === "away").length;
+  const resumen =
+    cruces.length === 0
+      ? "Primer cruce de la temporada entre ambos."
+      : ganadosHome === ganadosAway
+        ? `Serie empatada ${ganadosHome}-${ganadosAway} esta temporada.`
+        : cruces.length === 1
+          ? `${ganadosHome > ganadosAway ? match.homeTeam.name : match.awayTeam.name} ganó el único cruce de la temporada.`
+          : `${ganadosHome > ganadosAway ? match.homeTeam.name : match.awayTeam.name} lidera la serie ${Math.max(ganadosHome, ganadosAway)}-${Math.min(ganadosHome, ganadosAway)}.`;
+
+  return (
+    <div className="mt-10">
+      <TituloPrevia>Cara a cara</TituloPrevia>
+      <div className="rounded-2xl border border-white/10 bg-bg-elevated p-5 sm:p-6">
+        <p className="font-body text-sm text-text-secondary">{resumen}</p>
+        {cruces.length > 0 && (
+          <ul className="mt-4 flex flex-col divide-y divide-white/[0.06]">
+            {cruces.map((c) => (
+              <li key={c.partidoId}>
+                <Link
+                  href={`/partido/${c.partidoId}`}
+                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3 transition-colors hover:bg-white/[0.02]"
+                >
+                  <span className="font-body text-[11px] font-bold uppercase tracking-[0.16em] text-text-secondary">
+                    {c.jornadaLabel} · en cancha de {c.localEra === "home" ? match.homeTeam.name : match.awayTeam.name}
+                  </span>
+                  <span className="flex items-center gap-3 font-head text-lg uppercase leading-none tracking-tight">
+                    <span className={c.ganador === "home" ? acento : "text-text-primary"}>
+                      {match.homeTeam.name} {c.puntosHome}
+                    </span>
+                    <span className="text-text-secondary">-</span>
+                    <span className={c.ganador === "away" ? acento : "text-text-primary"}>
+                      {c.puntosAway} {match.awayTeam.name}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AQuienMirar({
+  match,
+  preview,
+  acento,
+}: {
+  match: MatchDetailPageData["match"];
+  preview: MatchPreview;
+  acento: string;
+}) {
+  if (preview.home.lideres.length === 0 && preview.away.lideres.length === 0) return null;
+
+  const columna = (team: MatchDetailTeamRef, lideres: MatchPreview["home"]["lideres"]) => (
+    <div className="flex-1">
+      <p className="mb-3 font-head text-base uppercase leading-none tracking-tight text-text-primary">{team.name}</p>
+      <ul className="flex flex-col gap-3">
+        {lideres.map((l) => (
+          <li key={l.jugadorId} className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate font-body text-sm font-semibold text-text-primary">{l.nombre}</span>
+            <span className="shrink-0 text-right">
+              <span className={`font-head text-xl leading-none tabular-nums ${acento}`}>{decimal(l.promedio)}</span>
+              <span className="ml-1 font-body text-[10px] font-semibold uppercase tracking-widest text-text-secondary">
+                ppp
+              </span>
+              <span className="block font-body text-[11px] text-text-secondary">
+                {l.puntos} pts en {l.partidos} {l.partidos === 1 ? "partido" : "partidos"}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  return (
+    <div className="mt-10">
+      <TituloPrevia>A quién mirar</TituloPrevia>
+      <div className="flex flex-col gap-8 rounded-2xl border border-white/10 bg-bg-elevated p-5 sm:flex-row sm:gap-10 sm:p-6">
+        {columna(match.homeTeam, preview.home.lideres)}
+        <div className="hidden w-px bg-white/10 sm:block" aria-hidden="true" />
+        {columna(match.awayTeam, preview.away.lideres)}
+      </div>
+      <p className="mt-2 font-body text-[11px] uppercase tracking-wide text-text-secondary/70">
+        Máximos anotadores de cada equipo en la temporada · ppp: puntos por partido.
+      </p>
+    </div>
+  );
+}
+
+function ScheduledView({ match, preview }: { match: MatchDetailPageData["match"]; preview: MatchPreview | null }) {
   const fecha = scheduledLabel(match.scheduledAt);
+  const plata = preview?.esCopaPlata ?? false;
+  // Oro para el cuadro por el título, plata para la Copa de Plata. En fase
+  // regular también oro: es el color de "dato destacado" en todo el sitio.
+  const acento = plata ? "text-accent-silver" : "text-accent-gold";
+
   return (
     <div className="lbsc-container pb-16">
-      <div className="rounded-2xl border border-white/10 bg-bg-elevated p-6 sm:p-10">
-        <div className="mb-6 flex justify-center">
+      <div
+        className={`relative overflow-hidden rounded-2xl border bg-bg-elevated p-6 sm:p-10 ${
+          preview?.enJuego ? (plata ? "border-accent-silver/20" : "border-accent-gold/25") : "border-white/10"
+        }`}
+      >
+        {preview?.enJuego && (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: plata
+                ? "radial-gradient(ellipse 60% 70% at 50% 0%, rgba(203,213,225,0.08), transparent 70%)"
+                : "radial-gradient(ellipse 60% 70% at 50% 0%, rgba(251,191,36,0.12), transparent 70%)",
+            }}
+            aria-hidden="true"
+          />
+        )}
+        <div className="relative mb-6 flex flex-col items-center gap-3 text-center">
           <StatusBadge status={match.status} />
+          {preview?.enJuego && (
+            <p className={`font-body text-xs font-bold uppercase tracking-[0.22em] ${acento}`}>{preview.enJuego}</p>
+          )}
         </div>
-        <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
+        <div className="relative flex flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
           <TeamBlock team={match.homeTeam} align="left" />
           <span className="shrink-0 font-head text-2xl uppercase leading-none text-text-secondary">vs</span>
           <TeamBlock team={match.awayTeam} align="right" />
         </div>
-        <div className="mt-6 flex flex-col items-center gap-1 text-center">
+        <div className="relative mt-6 flex flex-col items-center gap-1 text-center">
           {fecha && <span className="font-body text-sm font-semibold uppercase tracking-wide text-text-primary">{fecha}</span>}
           {match.venue && <span className="font-body text-xs uppercase tracking-widest text-text-secondary">{match.venue}</span>}
         </div>
-        <p className="mt-6 text-center font-body text-sm text-text-secondary">
+        {match.scheduledAt && (
+          <div className="relative mt-8 flex justify-center">
+            <Countdown
+              target={new Date(match.scheduledAt).toISOString()}
+              size="lg"
+              tone={plata ? "silver" : "gold"}
+              zeroLabel="Por comenzar"
+            />
+          </div>
+        )}
+      </div>
+
+      {preview ? (
+        <>
+          <ComoLlegan match={match} preview={preview} acento={acento} />
+          <CaminoPlayoffs match={match} preview={preview} acento={acento} />
+          <Historial match={match} preview={preview} acento={acento} />
+          <AQuienMirar match={match} preview={preview} acento={acento} />
+        </>
+      ) : (
+        <p className="mt-8 text-center font-body text-sm text-text-secondary">
           Partido programado. Aún no hay estadísticas disponibles.
         </p>
-      </div>
+      )}
     </div>
   );
 }
@@ -528,6 +831,17 @@ export default async function PartidoDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
+  // La previa es un extra: si su carga falla, la página muestra el partido
+  // programado igual, sin las secciones de previa.
+  let preview: MatchPreview | null = null;
+  if (data?.match.status === "scheduled") {
+    try {
+      preview = await getMatchPreview(id);
+    } catch {
+      preview = null;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-bg-base font-body text-text-primary">
       {data && (
@@ -558,7 +872,7 @@ export default async function PartidoDetailPage({ params }: { params: Promise<{ 
                 {data.match.jornadaLabel}
               </span>
               <h1 className="mt-3 font-head text-5xl uppercase leading-none tracking-tight text-text-primary sm:text-6xl">
-                {data.match.status === "finished" ? "Resultado final" : data.match.status === "live" ? "Partido en vivo" : "Partido programado"}
+                {data.match.status === "finished" ? "Resultado final" : data.match.status === "live" ? "Partido en vivo" : "La previa"}
               </h1>
             </header>
 
@@ -567,7 +881,7 @@ export default async function PartidoDetailPage({ params }: { params: Promise<{ 
             ) : data.match.status === "live" ? (
               <LiveRedirectView match={data.match} />
             ) : (
-              <ScheduledView match={data.match} />
+              <ScheduledView match={data.match} preview={preview} />
             )}
           </>
         )}

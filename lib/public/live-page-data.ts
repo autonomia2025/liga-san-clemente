@@ -68,11 +68,33 @@ export type PlayByPlayEntry = {
   side: "local" | "visitante" | "neutral";
 };
 
+// Un partido de la jornada del día (días con varios partidos seguidos, como
+// los domingos de playoffs): alimenta la tira "La jornada" de /en-vivo.
+export type DaySlateMatch = {
+  id: string;
+  label: string;
+  esCopaPlata: boolean;
+  scheduledAt: string | null;
+  status: "scheduled" | "live" | "finished";
+  homeTeam: LiveTeam;
+  awayTeam: LiveTeam;
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+export type DaySlate = {
+  dayLabel: string;
+  matches: DaySlateMatch[];
+};
+
 export type LiveGameData = {
   state: "live" | "finished" | "upcoming" | "none";
+  // null/undefined si el día del partido en foco tiene un solo partido.
+  jornada?: DaySlate | null;
   match?: {
     id: string;
     status: "live" | "upcoming" | "finished";
+    jornadaLabel?: string;
     periodLabel?: string;
     gameClock?: string;
     scheduledAt?: string | Date | null;
@@ -118,6 +140,10 @@ function periodLabelFromCuarto(cuartoActivo: number | null): string {
   return ordinal[cuartoActivo]?.toUpperCase() ?? "EN CURSO";
 }
 
+function jornadaLabel(j: { numero: number; nombre: string | null }): string {
+  return j.nombre?.trim() || `Fecha ${j.numero}`;
+}
+
 function sortValue(date: Date | null): number {
   return date ? date.getTime() : Number.POSITIVE_INFINITY;
 }
@@ -129,6 +155,8 @@ function sortValue(date: Date | null): number {
 const SELECT_PARTIDO_VISTA = {
   id: true,
   cancha: true,
+  fechaHora: true,
+  jornada: { select: { numero: true, nombre: true } },
   clubLocalId: true,
   clubVisitanteId: true,
   duracionCuartoMinutos: true,
@@ -153,6 +181,8 @@ const SELECT_PARTIDO_VISTA = {
 type PartidoVista = {
   id: string;
   cancha: string | null;
+  fechaHora: Date | null;
+  jornada: { numero: number; nombre: string | null };
   clubLocalId: string;
   clubVisitanteId: string;
   duracionCuartoMinutos: number;
@@ -317,8 +347,11 @@ async function buildMatchView(
   return {
     id: partido.id,
     status,
+    jornadaLabel: jornadaLabel(partido.jornada),
     periodLabel: status === "finished" ? "FINALIZADO" : periodLabelFromCuarto(liveState.cuartoActivo),
-    scheduledAt: null,
+    // Hora programada real (no la de inicio efectivo): solo se usa para
+    // ubicar el partido dentro de la jornada del día.
+    scheduledAt: partido.fechaHora,
     venue: partido.cancha,
     homeTeam: teamRef(partido.clubLocal),
     awayTeam: teamRef(partido.clubVisitante),
@@ -375,7 +408,7 @@ async function loadUpcomingMatch(): Promise<LiveGameData["match"] | null> {
       id: true,
       fechaHora: true,
       cancha: true,
-      jornada: { select: { fecha: true } },
+      jornada: { select: { fecha: true, numero: true, nombre: true } },
       clubLocal: { select: { nombre: true, escudoUrl: true } },
       clubVisitante: { select: { nombre: true, escudoUrl: true } },
     },
@@ -392,6 +425,7 @@ async function loadUpcomingMatch(): Promise<LiveGameData["match"] | null> {
   return {
     id: proximo.p.id,
     status: "upcoming",
+    jornadaLabel: jornadaLabel(proximo.p.jornada),
     scheduledAt: proximo.fecha,
     venue: proximo.p.cancha,
     homeTeam: teamRef(proximo.p.clubLocal),
@@ -399,7 +433,100 @@ async function loadUpcomingMatch(): Promise<LiveGameData["match"] | null> {
   };
 }
 
+const TIME_ZONE = "America/Santiago";
+
+// Clave YYYY-MM-DD del día en Chile: agrupa por día real de juego, no por día
+// UTC (un partido a las 21:00 de Chile ya es "mañana" en UTC).
+const diaKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const diaLabelFormatter = new Intl.DateTimeFormat("es-CL", {
+  timeZone: TIME_ZONE,
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
+// Todos los partidos del mismo día (en Chile) que el partido en foco. Solo
+// devuelve algo si ese día hay más de un partido — con uno solo, la tira no
+// agrega nada a lo que ya muestra la página.
+async function loadDaySlate(match: NonNullable<LiveGameData["match"]>): Promise<DaySlate | null> {
+  if (!match.scheduledAt) return null;
+  const foco = new Date(match.scheduledAt);
+  if (Number.isNaN(foco.getTime())) return null;
+
+  const dia = diaKeyFormatter.format(foco);
+  const margen = 24 * 60 * 60 * 1000;
+  const partidos = await prisma.partido.findMany({
+    where: { fechaHora: { gte: new Date(foco.getTime() - margen), lte: new Date(foco.getTime() + margen) } },
+    orderBy: { fechaHora: "asc" },
+    select: {
+      id: true,
+      fechaHora: true,
+      estado: true,
+      jornada: { select: { numero: true, nombre: true } },
+      clubLocal: { select: { nombre: true, escudoUrl: true } },
+      clubVisitante: { select: { nombre: true, escudoUrl: true } },
+      acta: { select: { resultadoLocal: true, resultadoVisitante: true } },
+    },
+  });
+
+  const delDia = partidos.filter((p) => p.fechaHora && diaKeyFormatter.format(p.fechaHora) === dia);
+  if (delDia.length < 2) return null;
+
+  const texto = diaLabelFormatter.format(foco).replace(",", "");
+
+  return {
+    dayLabel: texto.charAt(0).toUpperCase() + texto.slice(1),
+    matches: delDia.map((p) => {
+      const status: DaySlateMatch["status"] =
+        p.estado === "EN_CURSO" ? "live" : p.estado === "FINALIZADO" ? "finished" : "scheduled";
+      const esFoco = p.id === match.id;
+      // Terminado: el acta manda. En vivo: solo se conoce el marcador del
+      // partido en foco (ya calculado desde los eventos); para otro partido en
+      // curso no se inventa uno.
+      const homeScore =
+        status === "finished"
+          ? (p.acta?.resultadoLocal ?? (esFoco ? (match.homeScore ?? null) : null))
+          : status === "live" && esFoco
+            ? (match.homeScore ?? null)
+            : null;
+      const awayScore =
+        status === "finished"
+          ? (p.acta?.resultadoVisitante ?? (esFoco ? (match.awayScore ?? null) : null))
+          : status === "live" && esFoco
+            ? (match.awayScore ?? null)
+            : null;
+      const label = jornadaLabel(p.jornada);
+      return {
+        id: p.id,
+        label,
+        esCopaPlata: /plata/i.test(label),
+        scheduledAt: p.fechaHora ? p.fechaHora.toISOString() : null,
+        status,
+        homeTeam: teamRef(p.clubLocal),
+        awayTeam: teamRef(p.clubVisitante),
+        homeScore,
+        awayScore,
+      };
+    }),
+  };
+}
+
 export async function getLivePageData(): Promise<LiveGameData> {
+  const base = await resolverPartidoEnFoco();
+  if (!base.match) return base;
+  // La jornada del día es un extra: si su query falla, la página sigue
+  // mostrando el partido en foco sin la tira.
+  const jornada = await loadDaySlate(base.match).catch(() => null);
+  return { ...base, jornada };
+}
+
+async function resolverPartidoEnFoco(): Promise<LiveGameData> {
   const live = await loadLiveMatch();
   if (live) return { state: "live", match: live };
 

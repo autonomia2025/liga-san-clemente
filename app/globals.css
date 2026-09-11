@@ -28,6 +28,7 @@
   --accent-purple: #7c3aed;
   --accent-purple-glow: #8b5cf6;
   --accent-gold: #fbbf24;
+  --accent-silver: #cbd5e1;
   --text-primary: #ffffff;
   --text-secondary: #9ca3af;
   --live-pulse: #ef4444;
@@ -76,6 +77,7 @@
   --color-accent-purple: var(--accent-purple);
   --color-accent-purple-glow: var(--accent-purple-glow);
   --color-accent-gold: var(--accent-gold);
+  --color-accent-silver: var(--accent-silver);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-live-pulse: var(--live-pulse);

@@ -3,14 +3,18 @@ import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public
 import { getStandings } from "@/lib/public/standings";
 import { getTopScorers } from "@/lib/public/rankings";
 import { getEquipos, getHeroData } from "@/lib/public/home-data";
-import { getPlayoffsData, type PlayoffMatchup } from "@/lib/public/playoffs-data";
+import { getPlayoffsData, type PlayoffEtapa, type PlayoffMatchup } from "@/lib/public/playoffs-data";
 import { getSeasonPhaseState, type SeasonPhaseState } from "@/lib/public/season-phase";
 import type { MatchFeatureProps } from "@/components/site/match-feature";
 import type { StandingPreviewTeam } from "@/components/site/standings-preview";
 import type { FeaturedMvp, SeasonLeader } from "@/components/site/mvp-leaders-section";
 import type { TeamGridItem } from "@/components/site/teams-grid";
 import type { FixtureMatch } from "@/components/site/fixture-preview";
-import type { PlayoffStripMatch, PlayoffStripTeam } from "@/components/site/playoffs-strip";
+import type {
+  PlayoffStripCopaPlata,
+  PlayoffStripMatch,
+  PlayoffStripTeam,
+} from "@/components/site/playoffs-strip";
 
 // Capa de datos ÚNICA para la Home pública. Reutiliza los helpers públicos
 // existentes (getHeroData, getStandings, getTopScorers, getEquipos, display.*)
@@ -35,9 +39,18 @@ export type MvpData = {
 // viajen como string serializable.
 export type HomePlayoffs = {
   rondaLabel: string;
+  etapa: PlayoffEtapa;
   matches: PlayoffStripMatch[];
   proximoAt: string | null;
+  // "Falta para la primera semifinal", etc. — acompaña al contador del hero.
+  proximoLabel: string | null;
   championName: string | null;
+  // Equipos que siguen en carrera por el título (semis: 4, final: 2). Vacío
+  // en cuartos, donde siguen los ocho y no hace falta destacarlos.
+  vivos: PlayoffStripTeam[];
+  // "Domingo 13 de septiembre": el día del próximo partido de la ronda.
+  diaLabel: string | null;
+  copaPlata: PlayoffStripCopaPlata | null;
 };
 
 export type HomePageData = {
@@ -331,7 +344,7 @@ async function loadFixturePreview(): Promise<FixtureMatch[]> {
 
   const finished = await prisma.partido.findMany({
     where: { estado: "FINALIZADO", acta: { isNot: null } },
-    orderBy: [{ fechaHora: "desc" }, { updatedAt: "desc" }],
+    orderBy: [{ fechaHora: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
     take: 12,
     select: {
       id: true,
@@ -354,6 +367,29 @@ function toStripTeam(t: PlayoffMatchup["home"]): PlayoffStripTeam | null {
   return t ? { name: t.name, abbr: t.abbr, logoUrl: t.logoUrl, color: t.color, seed: t.seed } : null;
 }
 
+function toStripMatch(m: PlayoffMatchup): PlayoffStripMatch {
+  return {
+    key: m.key,
+    partidoId: m.partidoId,
+    home: toStripTeam(m.home),
+    away: toStripTeam(m.away),
+    homeScore: m.homeScore,
+    awayScore: m.awayScore,
+    status: m.status,
+    scheduledAt: m.scheduledAt ? new Date(m.scheduledAt).toISOString() : null,
+    ganadorAbbr: m.winner?.abbr ?? null,
+  };
+}
+
+// Orden cronológico, no el del bracket: la franja se lee como "qué se juega
+// esta fecha", así que el primer partido del día va primero. El bracket de
+// /playoffs sí conserva el orden de llaves, que ahí es lo que corresponde.
+function porHorario(a: PlayoffMatchup, b: PlayoffMatchup): number {
+  const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Number.POSITIVE_INFINITY;
+  const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Number.POSITIVE_INFINITY;
+  return ta - tb;
+}
+
 // Elige qué ronda mostrar en la franja: la más avanzada que ya tenga partidos
 // cargados. Así, apenas se creen las semis, la Home pasa a mostrar semis sin
 // que haya que tocar código.
@@ -372,45 +408,82 @@ function rondaVigente(data: Awaited<ReturnType<typeof getPlayoffsData>>): {
   return null;
 }
 
+const diaFormatter = new Intl.DateTimeFormat("es-CL", {
+  timeZone: "America/Santiago",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
+// "domingo, 13 de septiembre" → "Domingo 13 de septiembre".
+function diaLabelDe(iso: string): string {
+  const texto = diaFormatter.format(new Date(iso)).replace(",", "");
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+const ORDINAL_SEMI = ["primera", "segunda"];
+
 async function loadPlayoffs(): Promise<HomePlayoffs | null> {
   const data = await getPlayoffsData();
   const ronda = rondaVigente(data);
   if (!ronda) return null;
 
-  // Orden cronológico, no el del bracket: la franja se lee como "qué se juega
-  // esta fecha", así que el primer partido del día va primero. El bracket de
-  // /playoffs sí conserva el orden de llaves, que ahí es lo que corresponde.
-  const matches: PlayoffStripMatch[] = ronda.matchups
-    .slice()
-    .sort((a, b) => {
-      const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Number.POSITIVE_INFINITY;
-      const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Number.POSITIVE_INFINITY;
-      return ta - tb;
-    })
-    .map((m) => ({
-      key: m.key,
-      partidoId: m.partidoId,
-      home: toStripTeam(m.home),
-      away: toStripTeam(m.away),
-      homeScore: m.homeScore,
-      awayScore: m.awayScore,
-      status: m.status,
-      scheduledAt: m.scheduledAt ? new Date(m.scheduledAt).toISOString() : null,
-      ganadorAbbr: m.winner?.abbr ?? null,
-    }));
+  const matches = ronda.matchups.slice().sort(porHorario).map(toStripMatch);
 
-  // El countdown apunta al próximo partido que todavía no terminó. Si ya
-  // terminaron todos, no se muestra contador (en vez de quedar clavado en
-  // 00:00:00:00).
-  const proximo = matches
-    .filter((m) => m.status !== "finished" && m.scheduledAt !== null)
-    .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
+  // El countdown apunta al próximo partido que todavía no empezó (ni en vivo
+  // ni terminado). Si ya arrancaron todos, no se muestra contador (en vez de
+  // quedar clavado en 00:00:00).
+  const idxProximo = matches.findIndex((m) => m.status === "scheduled" && m.scheduledAt !== null);
+  const proximo = idxProximo >= 0 ? matches[idxProximo] : null;
+  const etapa: PlayoffEtapa = data.etapa ?? "cuartos";
+
+  const proximoLabel = !proximo
+    ? null
+    : etapa === "semis"
+      ? `Falta para la ${ORDINAL_SEMI[idxProximo] ?? "próxima"} semifinal`
+      : etapa === "final"
+        ? "Falta para la final"
+        : "Falta para el próximo cruce";
+
+  const noNulos = (t: PlayoffMatchup["home"]): t is NonNullable<PlayoffMatchup["home"]> => t !== null;
+  const enCarrera =
+    etapa === "campeon"
+      ? [data.champion].filter(noNulos)
+      : etapa === "final"
+        ? [data.final.home, data.final.away].filter(noNulos)
+        : etapa === "semis"
+          ? data.semifinals.flatMap((m) => [m.home, m.away]).filter(noNulos)
+          : [];
+  const vivos = enCarrera
+    .slice()
+    .sort((a, b) => a.seed - b.seed)
+    .map((t) => toStripTeam(t)!);
+
+  const plata = data.copaPlata;
+  const plataRonda = plata.final.partidoId
+    ? { rondaLabel: "Final Copa de Plata", matchups: [plata.final] }
+    : plata.semifinals.some((m) => m.partidoId !== null)
+      ? { rondaLabel: "Copa de Plata", matchups: plata.semifinals }
+      : null;
+
+  const referencia = proximo?.scheduledAt ?? matches[0]?.scheduledAt ?? null;
 
   return {
     rondaLabel: ronda.label,
+    etapa,
     matches,
     proximoAt: proximo?.scheduledAt ?? null,
+    proximoLabel,
     championName: data.champion?.name ?? null,
+    vivos,
+    diaLabel: referencia ? diaLabelDe(referencia) : null,
+    copaPlata: plataRonda
+      ? {
+          rondaLabel: plataRonda.rondaLabel,
+          matches: plataRonda.matchups.slice().sort(porHorario).map(toStripMatch),
+          championName: plata.champion?.name ?? null,
+        }
+      : null,
   };
 }
 

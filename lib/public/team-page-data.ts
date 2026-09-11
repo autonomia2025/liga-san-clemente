@@ -153,7 +153,7 @@ async function loadRecentMatches(clubId: string, limit = 3): Promise<TeamMatchSu
       acta: { isNot: null },
       OR: [{ clubLocalId: clubId }, { clubVisitanteId: clubId }],
     },
-    orderBy: [{ fechaHora: "desc" }, { updatedAt: "desc" }],
+    orderBy: [{ fechaHora: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
     take: limit,
     select: {
       id: true,
