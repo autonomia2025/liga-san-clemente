@@ -107,9 +107,12 @@ export function rondaDeJornada(fase: Fase, nombre: string | null): RondaPlayoff 
   return null;
 }
 
-// Ronda dentro de la Copa de Plata: la jornada que menciona "final" es la
-// final; cualquier otra jornada de la copa ("Copa de Plata") son las semis.
+// Ronda dentro de la Copa de Plata: la jornada que menciona "tercer" es el
+// tercer lugar, la que menciona "final" es la final; cualquier otra jornada
+// de la copa ("Copa de Plata") son las semis.
 export function rondaPlataDeJornada(fase: Fase, nombre: string | null): RondaPlayoff | null {
   if (fase !== "PLAYOFFS" || !esJornadaCopaPlata(nombre)) return null;
-  return normalizarNombre(nombre!).includes("final") ? "final" : "semis";
+  const n = normalizarNombre(nombre!);
+  if (n.includes("tercer")) return "tercer";
+  return n.includes("final") ? "final" : "semis";
 }

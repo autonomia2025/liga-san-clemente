@@ -30,6 +30,10 @@ export type PlayoffStripMatch = {
   status: "pending" | "scheduled" | "live" | "finished";
   scheduledAt: string | null;
   ganadorAbbr: string | null;
+  // Etiqueta propia del duelo ("Tercer lugar", "La Final"). Hace falta el día
+  // de la final, cuando la franja mezcla dos rondas; sin ella se usa la de la
+  // ronda.
+  etiqueta?: string | null;
 };
 
 // Copa de Plata: secundaria a propósito — una banda plateada al pie de la
@@ -374,7 +378,7 @@ export function PlayoffsStrip({ rondaLabel, matches, proximoAt, copaPlata = null
           className={`relative mt-6 grid grid-cols-1 gap-3 ${grilla}`}
         >
           {matches.map((m) =>
-            modoDuelo ? <DueloCard key={m.key} match={m} etiqueta={etiquetaDuelo} /> : <CruceCard key={m.key} match={m} />,
+            modoDuelo ? <DueloCard key={m.key} match={m} etiqueta={m.etiqueta ?? etiquetaDuelo} /> : <CruceCard key={m.key} match={m} />,
           )}
         </div>
 

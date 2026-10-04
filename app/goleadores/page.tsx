@@ -8,6 +8,7 @@ import { SiteFooter, type FooterLink, type SocialLink } from "@/components/site/
 import { clubAbrev, clubColor, clubLogoUrl, clubNombreCorto } from "@/lib/public/display";
 import { getScoringLeaders, type ScoringLeaderRow } from "@/lib/public/scoring-leaders-page-data";
 import { FASES_UI, FASE_LABEL, FASE_SLUG, parseFaseParam, type FaseFiltro } from "@/lib/public/fase";
+import { FinalBanner } from "@/components/site/final-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -320,6 +321,7 @@ export default async function GoleadoresPage({
       <Navbar isLiveNow={false} />
 
       <main className="pt-[var(--navbar-height)]">
+        <FinalBanner />
         <header className="lbsc-container pb-8 pt-14 sm:pt-18 lg:pb-10 lg:pt-20">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">

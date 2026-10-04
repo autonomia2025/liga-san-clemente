@@ -52,6 +52,7 @@ export type PlayoffMatchup = {
 // muestra debajo del bracket, en plateado, sin competirle al título.
 export type CopaPlataData = {
   semifinals: PlayoffMatchup[];
+  thirdPlace: PlayoffMatchup;
   final: PlayoffMatchup;
   champion: PlayoffTeam | null;
 };
@@ -283,6 +284,8 @@ export async function getPlayoffsData(): Promise<PlayoffsData> {
   const ps2 = buildMatchup("plata-sf2", "semis", ps2Home, ps2Away, partidosPlata, "Copa de Plata · Semifinal");
   const [pfHome, pfAway] = porSiembra(ps1.winner, ps2.winner);
   const plataFinal = buildMatchup("plata-final", "final", pfHome, pfAway, partidosPlata, "Final Copa de Plata");
+  const [ptHome, ptAway] = porSiembra(ps1.loser, ps2.loser);
+  const plataTercer = buildMatchup("plata-tercer", "tercer", ptHome, ptAway, partidosPlata, "Copa de Plata · Tercer Lugar");
 
   const creado = (m: PlayoffMatchup) => m.partidoId !== null;
   const etapa: PlayoffEtapa | null = final.winner
@@ -302,7 +305,7 @@ export async function getPlayoffsData(): Promise<PlayoffsData> {
     thirdPlace,
     final,
     champion: final.winner,
-    copaPlata: { semifinals: [ps1, ps2], final: plataFinal, champion: plataFinal.winner },
+    copaPlata: { semifinals: [ps1, ps2], thirdPlace: plataTercer, final: plataFinal, champion: plataFinal.winner },
     etapa,
     seedingDefinitiva: regularPendientes === 0 && seeds.length === 8,
   };

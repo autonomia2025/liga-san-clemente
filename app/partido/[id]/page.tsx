@@ -17,6 +17,7 @@ import { clubLogoPad } from "@/lib/public/display";
 import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/public/site";
 import { getMatchPreview, type MatchPreview } from "@/lib/public/match-preview-data";
 import { Countdown } from "@/components/site/countdown";
+import { FinalBanner } from "@/components/site/final-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -638,18 +639,26 @@ function Historial({
   );
 }
 
-function AQuienMirar({
+type Lider = MatchPreview["home"]["lideres"][number];
+
+function BloqueLideres({
+  titulo,
+  nota,
   match,
-  preview,
+  home,
+  away,
   acento,
 }: {
+  titulo: string;
+  nota: string;
   match: MatchDetailPageData["match"];
-  preview: MatchPreview;
+  home: Lider[];
+  away: Lider[];
   acento: string;
 }) {
-  if (preview.home.lideres.length === 0 && preview.away.lideres.length === 0) return null;
+  if (home.length === 0 && away.length === 0) return null;
 
-  const columna = (team: MatchDetailTeamRef, lideres: MatchPreview["home"]["lideres"]) => (
+  const columna = (team: MatchDetailTeamRef, lideres: Lider[]) => (
     <div className="flex-1">
       <p className="mb-3 font-head text-base uppercase leading-none tracking-tight text-text-primary">{team.name}</p>
       <ul className="flex flex-col gap-3">
@@ -673,16 +682,59 @@ function AQuienMirar({
 
   return (
     <div className="mt-10">
-      <TituloPrevia>A quién mirar</TituloPrevia>
+      <TituloPrevia>{titulo}</TituloPrevia>
       <div className="flex flex-col gap-8 rounded-2xl border border-white/10 bg-bg-elevated p-5 sm:flex-row sm:gap-10 sm:p-6">
-        {columna(match.homeTeam, preview.home.lideres)}
+        {columna(match.homeTeam, home)}
         <div className="hidden w-px bg-white/10 sm:block" aria-hidden="true" />
-        {columna(match.awayTeam, preview.away.lideres)}
+        {columna(match.awayTeam, away)}
       </div>
-      <p className="mt-2 font-body text-[11px] uppercase tracking-wide text-text-secondary/70">
-        Máximos anotadores de cada equipo en la temporada · ppp: puntos por partido.
-      </p>
+      <p className="mt-2 font-body text-[11px] uppercase tracking-wide text-text-secondary/70">{nota}</p>
     </div>
+  );
+}
+
+function AQuienMirar({
+  match,
+  preview,
+  acento,
+}: {
+  match: MatchDetailPageData["match"];
+  preview: MatchPreview;
+  acento: string;
+}) {
+  return (
+    <BloqueLideres
+      titulo="A quién mirar"
+      nota="Máximos anotadores de cada equipo en la temporada · ppp: puntos por partido."
+      match={match}
+      home={preview.home.lideres}
+      away={preview.away.lideres}
+      acento={acento}
+    />
+  );
+}
+
+// Solo en partidos de playoffs: quién viene cargando al equipo en esta fase,
+// que no siempre es el goleador de la temporada.
+function FigurasPlayoffs({
+  match,
+  preview,
+  acento,
+}: {
+  match: MatchDetailPageData["match"];
+  preview: MatchPreview;
+  acento: string;
+}) {
+  if (!preview.enJuego) return null;
+  return (
+    <BloqueLideres
+      titulo="Figuras de los playoffs"
+      nota="Máximos anotadores de cada equipo solo en partidos de playoffs · ppp: puntos por partido."
+      match={match}
+      home={preview.home.lideresPlayoffs}
+      away={preview.away.lideresPlayoffs}
+      acento={acento}
+    />
   );
 }
 
@@ -744,6 +796,7 @@ function ScheduledView({ match, preview }: { match: MatchDetailPageData["match"]
           <CaminoPlayoffs match={match} preview={preview} acento={acento} />
           <Historial match={match} preview={preview} acento={acento} />
           <AQuienMirar match={match} preview={preview} acento={acento} />
+          <FigurasPlayoffs match={match} preview={preview} acento={acento} />
         </>
       ) : (
         <p className="mt-8 text-center font-body text-sm text-text-secondary">
@@ -853,6 +906,7 @@ export default async function PartidoDetailPage({ params }: { params: Promise<{ 
       <Navbar isLiveNow={data?.match.status === "live"} />
 
       <main className="pt-[var(--navbar-height)]">
+        <FinalBanner excluirPartidoId={id} />
         {failed || !data ? (
           <>
             <header className="lbsc-container pb-8 pt-14 sm:pt-18 lg:pt-20">

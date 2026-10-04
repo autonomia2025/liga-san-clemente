@@ -12,6 +12,7 @@ import {
   type PlayoffTeam,
 } from "@/lib/public/playoffs-data";
 import { clubLogoPad } from "@/lib/public/display";
+import { FinalBanner } from "@/components/site/final-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -530,6 +531,7 @@ function ProgramacionDia({ data }: { data: PlayoffsData }) {
     data.thirdPlace,
     data.final,
     ...data.copaPlata.semifinals,
+    data.copaPlata.thirdPlace,
     data.copaPlata.final,
   ].filter((m) => m.partidoId && m.scheduledAt);
 
@@ -597,7 +599,13 @@ function ProgramacionDia({ data }: { data: PlayoffsData }) {
                   <span
                     className={`font-body text-[10px] font-bold uppercase tracking-[0.18em] ${plata ? "text-accent-silver/80" : "text-accent-gold"}`}
                   >
-                    {plata ? "Copa de Plata" : m.label}
+                    {plata
+                      ? m.round === "final"
+                        ? "Final Plata"
+                        : m.round === "tercer"
+                          ? "Plata · 3er lugar"
+                          : "Copa de Plata"
+                      : m.label}
                   </span>
                 </div>
                 {fila(m.home, m.homeScore)}
@@ -677,6 +685,7 @@ export default async function PlayoffsPage() {
       data.thirdPlace,
       data.final,
       ...data.copaPlata.semifinals,
+      data.copaPlata.thirdPlace,
       data.copaPlata.final,
     ].some((m) => m.status === "live");
 
@@ -688,6 +697,7 @@ export default async function PlayoffsPage() {
       <Navbar isLiveNow={hayLlaveEnVivo} />
 
       <main className="pt-[var(--navbar-height)]">
+        <FinalBanner />
         {/* hero */}
         <section className="relative overflow-hidden border-b border-white/10">
           <div

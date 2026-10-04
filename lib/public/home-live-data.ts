@@ -50,6 +50,9 @@ export type HomePlayoffs = {
   vivos: PlayoffStripTeam[];
   // "Domingo 13 de septiembre": el día del próximo partido de la ronda.
   diaLabel: string | null;
+  // "JMM dejó afuera a Pumas (71–65) y Park a Las Américas (59–49)": cómo se
+  // llegó a la final. null hasta que las dos semis tengan resultado.
+  caminoFinal: string | null;
   copaPlata: PlayoffStripCopaPlata | null;
 };
 
@@ -428,14 +431,25 @@ async function loadPlayoffs(): Promise<HomePlayoffs | null> {
   const ronda = rondaVigente(data);
   if (!ronda) return null;
 
-  const matches = ronda.matchups.slice().sort(porHorario).map(toStripMatch);
+  const etapa: PlayoffEtapa = data.etapa ?? "cuartos";
+
+  // El día de la final la franja suma el tercer lugar (si ya está cargado):
+  // son los dos partidos del cuadro por el título que quedan. Como mezcla dos
+  // rondas, cada duelo lleva su propia etiqueta.
+  const conTercer = (etapa === "final" || etapa === "campeon") && data.thirdPlace.partidoId !== null;
+  const matchups = conTercer ? [data.thirdPlace, ...ronda.matchups] : ronda.matchups;
+  const matches = matchups
+    .slice()
+    .sort(porHorario)
+    .map((m) => ({ ...toStripMatch(m), etiqueta: conTercer ? (m.round === "tercer" ? "Tercer lugar" : "La Final") : null }));
 
   // El countdown apunta al próximo partido que todavía no empezó (ni en vivo
   // ni terminado). Si ya arrancaron todos, no se muestra contador (en vez de
-  // quedar clavado en 00:00:00).
-  const idxProximo = matches.findIndex((m) => m.status === "scheduled" && m.scheduledAt !== null);
-  const proximo = idxProximo >= 0 ? matches[idxProximo] : null;
-  const etapa: PlayoffEtapa = data.etapa ?? "cuartos";
+  // quedar clavado en 00:00:00). En la etapa final apunta a la final aunque el
+  // tercer lugar se juegue antes.
+  const candidatos = etapa === "final" ? matches.filter((m) => m.key === data.final.key) : matches;
+  const idxProximo = candidatos.findIndex((m) => m.status === "scheduled" && m.scheduledAt !== null);
+  const proximo = idxProximo >= 0 ? candidatos[idxProximo] : null;
 
   const proximoLabel = !proximo
     ? null
@@ -468,8 +482,22 @@ async function loadPlayoffs(): Promise<HomePlayoffs | null> {
 
   const referencia = proximo?.scheduledAt ?? matches[0]?.scheduledAt ?? null;
 
+  const semisJugadas = data.semifinals
+    .filter((m) => m.winner && m.loser && m.homeScore != null && m.awayScore != null)
+    .sort(porHorario)
+    .map((m) => ({
+      ganador: m.winner!.name,
+      perdedor: m.loser!.name,
+      marcador: `${Math.max(m.homeScore!, m.awayScore!)}–${Math.min(m.homeScore!, m.awayScore!)}`,
+    }));
+  const [s1, s2] = semisJugadas;
+  const caminoFinal =
+    s1 && s2
+      ? `${s1.ganador} dejó afuera a ${s1.perdedor} (${s1.marcador}) y ${s2.ganador} a ${s2.perdedor} (${s2.marcador})`
+      : null;
+
   return {
-    rondaLabel: ronda.label,
+    rondaLabel: conTercer ? "Final y tercer lugar" : ronda.label,
     etapa,
     matches,
     proximoAt: proximo?.scheduledAt ?? null,
@@ -477,6 +505,7 @@ async function loadPlayoffs(): Promise<HomePlayoffs | null> {
     championName: data.champion?.name ?? null,
     vivos,
     diaLabel: referencia ? diaLabelDe(referencia) : null,
+    caminoFinal,
     copaPlata: plataRonda
       ? {
           rondaLabel: plataRonda.rondaLabel,

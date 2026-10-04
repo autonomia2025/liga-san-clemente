@@ -13,6 +13,7 @@ import {
   type TeamTopScorer,
 } from "@/lib/public/team-page-data";
 import { clubLogoPad } from "@/lib/public/display";
+import { FinalBanner } from "@/components/site/final-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -262,6 +263,7 @@ export default async function EquipoPage({ params }: { params: Promise<{ slug: s
       <Navbar isLiveNow={false} />
 
       <main className="pt-[var(--navbar-height)]">
+        <FinalBanner />
         {failed || !data ? (
           <>
             <header className="lbsc-container pb-8 pt-14 sm:pt-18 lg:pt-20">

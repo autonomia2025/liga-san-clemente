@@ -6,6 +6,7 @@ import { Navbar } from "@/components/site/navbar";
 import { SiteFooter, type FooterLink, type SocialLink } from "@/components/site/site-footer";
 import { clubAbrev, clubColor, clubNombreCorto } from "@/lib/public/display";
 import { getStandingsPageData, type StandingsPageRow } from "@/lib/public/standings-page-data";
+import { FinalBanner } from "@/components/site/final-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -196,6 +197,7 @@ export default async function TablaPage() {
       <Navbar isLiveNow={false} />
 
       <main className="pt-[var(--navbar-height)]">
+        <FinalBanner />
         <header className="lbsc-container pb-8 pt-14 sm:pt-18 lg:pb-10 lg:pt-20">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">

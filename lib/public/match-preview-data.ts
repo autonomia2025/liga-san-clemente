@@ -40,6 +40,8 @@ export type PreviewTeam = {
   recibidosPorPartido: number | null;
   camino: PreviewPlayoffResult[];
   lideres: PreviewLeader[];
+  // Máximos anotadores del equipo solo en partidos de playoffs ya jugados.
+  lideresPlayoffs: PreviewLeader[];
 };
 
 export type PreviewHeadToHead = {
@@ -77,6 +79,7 @@ function enJuegoDe(fase: string, nombre: string | null): { texto: string | null;
   if (fase !== "PLAYOFFS" || !nombre) return { texto: null, plata: false };
   const n = normalizar(nombre);
   if (n.includes("plata")) {
+    if (n.includes("tercer")) return { texto: "Se define el tercer lugar de la Copa de Plata", plata: true };
     return n.includes("final")
       ? { texto: "Se define el campeón de la Copa de Plata", plata: true }
       : { texto: "El ganador juega la final de la Copa de Plata", plata: true };
@@ -153,7 +156,7 @@ export async function getMatchPreview(partidoId: string): Promise<MatchPreview |
         acta: { select: { resultadoLocal: true, resultadoVisitante: true } },
         jugadorStats: {
           orderBy: { puntos: "desc" },
-          select: { clubId: true, puntos: true, jugador: { select: { nombre: true } } },
+          select: { clubId: true, jugadorId: true, puntos: true, jugador: { select: { nombre: true } } },
         },
       },
     }),
@@ -198,6 +201,28 @@ export async function getMatchPreview(partidoId: string): Promise<MatchPreview |
         promedio: redondear1(g.promedio),
       }));
 
+    const enPlayoffs = new Map<string, PreviewLeader>();
+    for (const p of playoffsJugados) {
+      for (const st of p.jugadorStats) {
+        if (st.clubId !== clubId) continue;
+        const acc = enPlayoffs.get(st.jugadorId) ?? {
+          jugadorId: st.jugadorId,
+          nombre: st.jugador.nombre,
+          puntos: 0,
+          partidos: 0,
+          promedio: 0,
+        };
+        acc.puntos += st.puntos;
+        acc.partidos += 1;
+        enPlayoffs.set(st.jugadorId, acc);
+      }
+    }
+    const lideresPlayoffs = [...enPlayoffs.values()]
+      .filter((l) => l.puntos > 0)
+      .map((l) => ({ ...l, promedio: redondear1(l.puntos / l.partidos) }))
+      .sort((a, b) => b.puntos - a.puntos || b.promedio - a.promedio)
+      .slice(0, 2);
+
     return {
       clubId,
       posicion: fila && pj > 0 ? idx + 1 : null,
@@ -207,6 +232,7 @@ export async function getMatchPreview(partidoId: string): Promise<MatchPreview |
       recibidosPorPartido: fila && pj > 0 ? redondear1(fila.pc / pj) : null,
       camino,
       lideres,
+      lideresPlayoffs,
     };
   };
 

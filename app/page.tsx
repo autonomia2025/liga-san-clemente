@@ -90,7 +90,10 @@ function heroDePlayoffs(p: HomePlayoffs | null): HeroSectionProps {
   if (!p) return {};
   const cruce = (m: HomePlayoffs["matches"][number]) =>
     `${m.home?.name ?? "Por definir"} vs ${m.away?.name ?? "Por definir"}`;
-  const siguiente = p.matches.find((m) => m.status !== "finished" && m.partidoId);
+  // En la etapa final la franja trae también el tercer lugar, pero el hero
+  // habla solo de la final.
+  const foco = p.etapa === "final" ? p.matches.filter((m) => m.key === "final") : p.matches;
+  const siguiente = foco.find((m) => m.status !== "finished" && m.partidoId);
   const ctaPartido = siguiente
     ? siguiente.status === "live"
       ? { label: "Seguir en vivo", href: "/en-vivo" }
@@ -116,7 +119,9 @@ function heroDePlayoffs(p: HomePlayoffs | null): HeroSectionProps {
         titleLineOne: "La gran",
         titleLineTwo: "",
         titleAccentWord: "final",
-        subtitle: `${p.matches.map(cruce).join("")}. Un partido por el título 2026.`,
+        subtitle: p.caminoFinal
+          ? `${foco.map(cruce).join("")}, un partido por el título 2026. ${p.caminoFinal}.`
+          : `${foco.map(cruce).join("")}. Un partido por el título 2026.`,
         primaryCta: ctaPartido,
         secondaryCta: { label: "Ver Bracket", href: "/playoffs" },
         ...contador,

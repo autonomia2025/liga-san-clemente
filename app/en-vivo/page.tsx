@@ -21,6 +21,7 @@ import { labelPeriodo } from "@/lib/mesa/live-match-state";
 import { LiveRefresher } from "@/components/site/live-refresher";
 import { LiveClock } from "@/components/site/live-clock";
 import { Countdown } from "@/components/site/countdown";
+import { FinalBanner } from "@/components/site/final-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -682,6 +683,7 @@ export default async function EnVivoPage() {
       <Navbar isLiveNow={isLiveNow} />
 
       <main className="pt-[var(--navbar-height)]">
+        <FinalBanner />
         <PageHeader state={headerState} />
 
         {!failed && data?.jornada && <JornadaDelDia slate={data.jornada} focoId={data.match?.id} />}

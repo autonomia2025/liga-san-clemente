@@ -11,6 +11,7 @@ import {
   type CalendarRound,
   type CalendarTeam,
 } from "@/lib/public/calendar-data";
+import { FinalBanner } from "@/components/site/final-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -287,6 +288,7 @@ export default async function CalendarioPage() {
       <Navbar isLiveNow={isLiveNow} />
 
       <main className="pt-[var(--navbar-height)]">
+        <FinalBanner />
         <header className="lbsc-container pb-8 pt-14 sm:pt-18 lg:pb-10 lg:pt-20">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
